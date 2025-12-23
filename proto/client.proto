@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package manager;
+
+option go_package = "github.com/Part001-R/YaPr-GP-2/proto";  
+
+
+// Обработчики
+service PasswordManager {
+    rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+}
