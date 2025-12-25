@@ -1,8 +1,13 @@
 package ui
 
 import (
+	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -33,7 +38,11 @@ func deleteViews(g *gocui.Gui) error {
 		viewAutentification:      {},
 		viewSettings:             {},
 		viewRequestSecretKey:     {},
-		viewUserData:             {},
+		viewSelectType:           {},
+		viewLoginPasswordData:    {},
+		viewTextdData:            {},
+		viewBinaryData:           {},
+		viewBankCardData:         {},
 		"Login":                  {},
 		"Password-1":             {},
 		"Password-2":             {},
@@ -49,6 +58,23 @@ func deleteViews(g *gocui.Gui) error {
 		"DoAuthentication":       {},
 		"DoRegistration":         {},
 		"scrtKey":                {},
+		"selectLoginPassword":    {},
+		"selectText":             {},
+		"SelectBinary":           {},
+		"SelectBankCard":         {},
+		"Back":                   {},
+		"fieldShowFor":           {},
+		"fieldShowLogin":         {},
+		"fieldShowPassword":      {},
+		"fieldAddFor":            {},
+		"fieldAddLogin":          {},
+		"fieldAddPassword":       {},
+		"indicatorAddSuccess":    {},
+		"Save":                   {},
+		"indicatorReadStatus":    {},
+		"NextElement":            {},
+		"PrevElement":            {},
+		"DeleteElement":          {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -266,4 +292,212 @@ func checkDataRegistration(userName, userPwd1, userPwd2 string) error {
 	}
 
 	return nil
+}
+
+// Функция генерирует секретный ключ из входной строки. Возвращается массив байт.
+//
+// Параметры:
+//
+//	input - данные, на основе которых формируется ключ.
+func generateSecretKey(input string) [32]byte {
+
+	return sha256.Sum256([]byte(input))
+}
+
+// Шифрование данных. Возвращается результат шифрования и ошибка.
+//
+// Параметры:
+//
+//	data - данные для шифрования.
+//	key - ключ шифрования.
+func encrypt(data string, key [32]byte) (string, error) {
+	// Создаём AES-256 шифр
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return "", err
+	}
+
+	// Преобразуем текст в байты
+	plaintextBytes := []byte(data)
+
+	// PKCS#7 заполнение
+	blockSize := block.BlockSize()
+	padding := blockSize - len(plaintextBytes)%blockSize
+	padText := append(plaintextBytes, bytes.Repeat([]byte{byte(padding)}, padding)...)
+
+	// Вектор инициализации (нулевой — для воспроизводимости)
+	iv := make([]byte, blockSize)
+
+	// Шифрование
+	ciphertext := make([]byte, len(padText))
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext, padText)
+
+	// Кодируем в Base64
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+// Расшифровка данных. Возвращается результат расшифровки и ошибка.
+//
+// Параметры:
+//
+//	data - зашифрованные данные.
+//	key - ключ шифрования.
+func decrypt(data string, key [32]byte) (string, error) {
+	// Декодируем из Base64
+	ciphertextBytes, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return "", err
+	}
+
+	// Создаём AES-256 шифр
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return "", err
+	}
+
+	blockSize := block.BlockSize()
+	if len(ciphertextBytes)%blockSize != 0 {
+		return "", errors.New("некорректная длина зашифрованных данных")
+	}
+
+	// Вектор инициализации (такой же, как при шифровании)
+	iv := make([]byte, blockSize)
+
+	// Расшифровка
+	plaintextPadded := make([]byte, len(ciphertextBytes))
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(plaintextPadded, ciphertextBytes)
+
+	// Удаляем PKCS#7 заполнение
+	padding := int(plaintextPadded[len(plaintextPadded)-1])
+	if padding > blockSize || padding == 0 {
+		return "", errors.New("некорректное заполнение")
+	}
+	plaintext := plaintextPadded[:len(plaintextPadded)-padding]
+
+	return string(plaintext), nil
+}
+
+// Декодирование данных логин/пароль. Возвращаются декодированные данные и ошибка.
+//
+// Параметры:
+//
+//	encryptData - закодированные данные.
+//	key - секретный ключ.
+func decryptDataLoginPassword(encryptData []loginPassword, key [32]byte) (decryptData []loginPassword, err error) {
+
+	for _, v := range encryptData {
+		var el loginPassword
+
+		// Обработка поля - name
+		str, err := decrypt(v.name, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании name, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.name = str
+
+		// Обработка поля - login
+		str, err = decrypt(v.login, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании login, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.login = str
+
+		// Обработка поля - password
+		str, err = decrypt(v.password, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании password, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.password = str
+
+		// Обработка поля - createdAt
+		str, err = decrypt(v.createdAt, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании createdAt, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.createdAt = str
+
+		decryptData = append(decryptData, el)
+	}
+
+	// результат
+	return decryptData, nil
+}
+
+// Функция реализует получение пар логин/пароль из БД и выполняет декодирование. Возвращается количество записей и ошибка.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func showLoginPasswordWorkDB(c *handlerUI) (int, error) {
+
+	// Чтение из БД всех записей таблицы логин/пароль (data1).
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	encodeRxData, err := c.conf.DB.ReadTableLoginPasswordContext(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
+	}
+
+	// Перенос принятых закодированных данных логин/пароль, в in-memory.
+	c.data.encryptLoginPassword = []loginPassword{} // сброс содержимого слайса
+
+	for _, v := range encodeRxData {
+		var el loginPassword
+		el.name = v.Name
+		el.login = v.Login
+		el.password = v.Password
+		el.createdAt = v.CreatedAt
+
+		c.data.encryptLoginPassword = append(c.data.encryptLoginPassword, el)
+	}
+	// Декодирование принятых данных.
+	c.data.loginPassword, err = decryptDataLoginPassword(c.data.encryptLoginPassword, c.secret.secretKey)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка декодирования данных логин/пароль: <%v>", err)
+	}
+
+	// Результат.
+	return len(c.data.loginPassword), nil
+}
+
+// Получение данных логин/пароль по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func loginPasswordByIndex(c *handlerUI) (el loginPassword) {
+
+	el.name = c.data.loginPassword[c.index.loginPassword].name
+	el.login = c.data.loginPassword[c.index.loginPassword].login
+	el.password = c.data.loginPassword[c.index.loginPassword].password
+	el.createdAt = c.data.loginPassword[c.index.loginPassword].createdAt
+
+	return el
+}
+
+// Увеличение значения индекса для логин/пароль массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexloginPassword(c *handlerUI) {
+
+	if c.index.loginPassword < len(c.data.loginPassword)-1 {
+		c.index.loginPassword++
+	}
+}
+
+// Уменьшение значения индекса для логин/пароль массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexloginPassword(c *handlerUI) {
+
+	if c.index.loginPassword > 0 {
+		c.index.loginPassword--
+	}
 }

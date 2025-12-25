@@ -3,7 +3,9 @@ package sqlitestor
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -18,11 +20,23 @@ type DataBase struct {
 	mu    *sync.Mutex
 }
 
+// Формат записи логин/пароль
+type LoginPassword struct {
+	Name      string // наименование записи.
+	Login     string // логин.
+	Password  string // пароль.
+	CreatedAt string // время создания/обновления.
+}
+
 // Интерфейс.
 type Actions interface {
 	Close() error
 	AddUserContext(ctx context.Context, userName, userPwd string) error
 	AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error)
+	UserExistContext(ctx context.Context) (bool, error)
+	AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error
+	ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error)
+	DelDataLoginPasswordContext(ctx context.Context, field1 string) error
 }
 
 var inst *DataBase
@@ -105,4 +119,106 @@ func (d *DataBase) AuthenticateUserContext(ctx context.Context, userName, userPw
 	}
 
 	return true, nil // Аутентификация успешна.
+}
+
+// Проверка, что уже есть зарегистрированный пользователь. Возвращается true - если уже есть запись пользователя и ошибка.
+func (d *DataBase) UserExistContext(ctx context.Context) (bool, error) {
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	row := d.PtrDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM users")
+
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return false, fmt.Errorf("при выполнении row.Scan, возникла ошибка: <%w>", err)
+	}
+
+	// Ответ
+	if count > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// Добавление пары логин/пароль.
+func (d *DataBase) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
+
+	// Подготовка SQL-запроса
+	query := `INSERT INTO data1 (field_1, field_2, field_3, created_at) VALUES (?, ?, ?, ?)`
+
+	// Запрос.
+	_, err := d.PtrDB.ExecContext(ctx, query, field1, field2, field3, createdAt)
+	if err != nil {
+		return fmt.Errorf("ошибка добавления данных логин/пароль:<%w>", err)
+	}
+
+	return nil
+}
+
+// Получение всех записей логин/пароль из БД. Возвращается массив записей и ошибка.
+func (d *DataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error) {
+
+	limit := 100
+	offset := 0
+	query := "SELECT field_1, field_2, field_3, created_at FROM data1 LIMIT ? OFFSET ?"
+
+	// Порционные запросы.
+	for {
+		rows, err := d.PtrDB.QueryContext(ctx, query, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
+		}
+		defer rows.Close()
+
+		recordCount := 0 // Счетчик количества прочитанных записей
+
+		for rows.Next() {
+			var el LoginPassword
+
+			err := rows.Scan(&el.Name, &el.Login, &el.Password, &el.CreatedAt)
+			if err != nil {
+				log.Fatalf("Ошибка при считывании строки: %v", err)
+			}
+			list = append(list, el)
+			recordCount++
+		}
+
+		if err := rows.Err(); err != nil {
+			log.Fatalf("Ошибка при обработке строк: %v", err)
+		}
+
+		// Если меньше, значит записей больше нет.
+		if recordCount < limit {
+			break
+		}
+		// Изменение смещения.
+		offset += limit
+	}
+
+	// Результат.
+	return list, nil
+}
+
+// Удаление пары логин/пароль.
+func (d *DataBase) DelDataLoginPasswordContext(ctx context.Context, field1 string) error {
+
+	query := `DELETE FROM data1 WHERE field_1 = ?`
+
+	res, err := d.PtrDB.ExecContext(ctx, query, field1)
+	if err != nil {
+		return fmt.Errorf("ошибка удаления данных логин/пароль:<%w>", err)
+	}
+
+	cnt, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("ошибка получения результата удаления:<%w>", err)
+	}
+
+	if cnt == 0 {
+		return errors.New("удаление не выполнено")
+	}
+
+	return nil
 }

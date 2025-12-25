@@ -7,10 +7,14 @@ const (
 
 // Имена окон
 const (
-	viewMain             = "main"
-	viewRegistration     = "registration"
-	viewAutentification  = "autentification"
-	viewSettings         = "settings"
-	viewRequestSecretKey = "reqSecretKey"
-	viewUserData         = "userData"
+	viewMain              = "main"
+	viewRegistration      = "registration"
+	viewAutentification   = "autentification"
+	viewSettings          = "settings"
+	viewRequestSecretKey  = "reqSecretKey"
+	viewSelectType        = "selectType"
+	viewLoginPasswordData = "typeLoginPassword"
+	viewTextdData         = "typeText"
+	viewBinaryData        = "typeBinary"
+	viewBankCardData      = "typeBankCard"
 )

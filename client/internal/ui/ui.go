@@ -81,8 +81,49 @@ func Run(conf *udt.Configuration) error {
 		conf.PtrLogger.Error("Ошибка привязки Ctrl+L", zap.Error(err))
 		return fmt.Errorf("Ошибка привязки Ctrl+L: <%w>", err)
 	}
-	// Enter для всех полей ввода.
-	for _, name := range []string{"Login", "Password-1", "Password-2", "IP", "Port", "scrtKey"} {
+	// Возврат на предыдущее окно.
+	if err := g.SetKeybinding("", gocui.KeyCtrlU, gocui.ModNone, instUI.showSelectType); err != nil {
+		conf.PtrLogger.Error("Ошибка привязки Ctrl+U", zap.Error(err))
+		return fmt.Errorf("Ошибка привязки Ctrl+U: <%w>", err)
+	}
+	// Сохранение логин/пароль в БД.
+	if err := g.SetKeybinding("", gocui.KeyCtrlF, gocui.ModNone, instUI.doStoreLoginPasswordDB); err != nil {
+		conf.PtrLogger.Error("Ошибка привязки Ctrl+F", zap.Error(err))
+		return fmt.Errorf("Ошибка привязки Ctrl+F: <%w>", err)
+	}
+	// Отображение следующего элемента.
+	if err := g.SetKeybinding("", gocui.KeyCtrlE, gocui.ModNone, instUI.doShowNextElement); err != nil {
+		conf.PtrLogger.Error("Ошибка привязки Ctrl+E", zap.Error(err))
+		return fmt.Errorf("Ошибка привязки Ctrl+E: <%w>", err)
+	}
+	// Отображение следующего элемента.
+	if err := g.SetKeybinding("", gocui.KeyCtrlG, gocui.ModNone, instUI.doShowPrevElement); err != nil {
+		conf.PtrLogger.Error("Ошибка привязки Ctrl+G", zap.Error(err))
+		return fmt.Errorf("Ошибка привязки Ctrl+G: <%w>", err)
+	}
+	// Удаление.
+	if err := g.SetKeybinding("", gocui.KeyCtrlJ, gocui.ModNone, instUI.doDeleteElement); err != nil {
+		conf.PtrLogger.Error("Ошибка привязки Ctrl+J", zap.Error(err))
+		return fmt.Errorf("Ошибка привязки Ctrl+J: <%w>", err)
+	}
+	// Enter для полей.
+	listElement := []string{
+		"Login",
+		"Password-1",
+		"Password-2",
+		"IP",
+		"Port",
+		"scrtKey",
+		"selectLoginPassword",
+		"selectText",
+		"SelectBinary",
+		"SelectBankCard",
+		"fieldAddFor",
+		"fieldAddLogin",
+		"fieldAddPassword",
+		"indicatorAddSuccess"}
+
+	for _, name := range listElement {
 		if err := g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, instUI.handleEnter); err != nil {
 			log.Panicln(err)
 		}

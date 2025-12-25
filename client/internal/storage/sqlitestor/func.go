@@ -41,12 +41,17 @@ func CreateTables(db *sql.DB) error {
 		return fmt.Errorf("функция createTableUsers, вернула ошибку: <%w>", err)
 	}
 
+	// создание таблицы для хранения логин/пароль.
+	if err := createTableLoginPassword(db); err != nil {
+		return fmt.Errorf("функция createTableLoginPassword, вернула ошибку: <%w>", err)
+	}
+
 	return nil
 }
 
 // Создание таблицы пользователей.
 func createTableUsers(db *sql.DB) (err error) {
-	// Создание таблицы
+
 	query := `
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,13 +65,28 @@ func createTableUsers(db *sql.DB) (err error) {
 		return fmt.Errorf("Ошибка создания таблицы users: <%w>", err)
 	}
 
-	// Создание индекса
-	query = `
-    CREATE INDEX IF NOT EXISTS idx_users_user_name ON users(user_name);
+	return nil
+}
+
+// Создание таблицы для хранения логи/пароль.
+func createTableLoginPassword(db *sql.DB) (err error) {
+
+	// В запросе маскируется принадлежность данных.
+	//
+	// field_1 - наименование ресурса, к которому сопоставляется логин/пароль.
+	// field_2 - логин.
+	// field_3 - пароль.
+	query := `
+    CREATE TABLE IF NOT EXISTS data1 (  
+        field_1 TEXT UNIQUE NOT NULL,
+        field_2 TEXT NOT NULL,
+		field_3 TEXT NOT NULL,
+        created_at DATETIME NOT NULL
+    );
     `
 	_, err = db.Exec(query)
 	if err != nil {
-		return fmt.Errorf("Ошибка создания индекса: <%w>", err)
+		return fmt.Errorf("Ошибка создания таблицы data1: <%w>", err)
 	}
 
 	return nil
@@ -102,14 +122,25 @@ func isEqualHash(input, storedHash string) bool {
 	return generateHash(input) == storedHash
 }
 
-// Функция генерирует секретный клю из входной строки. Возвращает секретный клюй ключ.
+// Получение количества записей в таблице логин/пароль (data1). Возвращается количество записей и ошибка.
 //
 // Параметры:
 //
-//	input - данные, на основе которых формируется ключ.
-func generateSecretKey(input string) string {
+//	ctx - контекст.
+//	db - указатель на БД.
+func getRecordLoginPwdContext(ctx context.Context, db *sql.DB) (int, error) {
 
-	hash := sha256.Sum256([]byte(input)) // генерация 32-х бит
+	// Подготовка запроса.
+	query := "SELECT COUNT(*) FROM data1"
 
-	return hex.EncodeToString(hash[:])
+	// Запрос.
+	var count int
+
+	err := db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("функция db.QueryRowContext, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return count, nil
 }
