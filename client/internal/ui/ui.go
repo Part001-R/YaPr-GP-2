@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
@@ -18,7 +17,7 @@ func Run(conf *udt.Configuration) error {
 		return NilPtrArgumentConf
 	}
 	if err := conf.CheckConf(); err != nil {
-		return err
+		return fmt.Errorf("функция CheckConf, вернула ошибку: <%w>", err)
 	}
 
 	// GUI
@@ -87,7 +86,7 @@ func Run(conf *udt.Configuration) error {
 		return fmt.Errorf("Ошибка привязки Ctrl+U: <%w>", err)
 	}
 	// Сохранение логин/пароль в БД.
-	if err := g.SetKeybinding("", gocui.KeyCtrlF, gocui.ModNone, instUI.doStoreLoginPasswordDB); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlF, gocui.ModNone, instUI.doStoreDB); err != nil {
 		conf.PtrLogger.Error("Ошибка привязки Ctrl+F", zap.Error(err))
 		return fmt.Errorf("Ошибка привязки Ctrl+F: <%w>", err)
 	}
@@ -121,11 +120,13 @@ func Run(conf *udt.Configuration) error {
 		"fieldAddFor",
 		"fieldAddLogin",
 		"fieldAddPassword",
-		"indicatorAddSuccess"}
+		"indicatorAddSuccess",
+		"fieldAddText"}
 
 	for _, name := range listElement {
 		if err := g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, instUI.handleEnter); err != nil {
-			log.Panicln(err)
+			conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция SetKeybinding, вернула ошибку: <%v> при Enter на элементе: <%s>", err, name))
+			return fmt.Errorf("Ошибка привязки KeyEnter: <%w>", err)
 		}
 	}
 

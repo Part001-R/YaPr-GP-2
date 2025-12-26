@@ -40,7 +40,7 @@ func deleteViews(g *gocui.Gui) error {
 		viewRequestSecretKey:     {},
 		viewSelectType:           {},
 		viewLoginPasswordData:    {},
-		viewTextdData:            {},
+		viewTextData:             {},
 		viewBinaryData:           {},
 		viewBankCardData:         {},
 		"Login":                  {},
@@ -75,6 +75,8 @@ func deleteViews(g *gocui.Gui) error {
 		"NextElement":            {},
 		"PrevElement":            {},
 		"DeleteElement":          {},
+		"fieldShowText":          {},
+		"fieldAddText":           {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -425,6 +427,45 @@ func decryptDataLoginPassword(encryptData []loginPassword, key [32]byte) (decryp
 	return decryptData, nil
 }
 
+// Декодирование данных текста. Возвращаются декодированные данные и ошибка.
+//
+// Параметры:
+//
+//	encryptData - закодированные данные.
+//	key - секретный ключ.
+func decryptDataText(encryptData []textData, key [32]byte) (decryptData []textData, err error) {
+
+	for _, v := range encryptData {
+		var el textData
+
+		// Обработка поля - name
+		str, err := decrypt(v.name, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании name, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.name = str
+
+		// Обработка поля - text
+		str, err = decrypt(v.text, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании text, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.text = str
+
+		// Обработка поля - createdAt
+		str, err = decrypt(v.createdAt, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании createdAt, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.createdAt = str
+
+		decryptData = append(decryptData, el)
+	}
+
+	// результат
+	return decryptData, nil
+}
+
 // Функция реализует получение пар логин/пароль из БД и выполняет декодирование. Возвращается количество записей и ошибка.
 //
 // Параметры:
@@ -463,6 +504,43 @@ func showLoginPasswordWorkDB(c *handlerUI) (int, error) {
 	return len(c.data.loginPassword), nil
 }
 
+// Функция реализует получение данных текста из БД и выполняет декодирование. Возвращается количество записей и ошибка.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func showTextWorkDB(c *handlerUI) (int, error) {
+
+	// Чтение из БД всех записей таблицы логин/пароль (data1).
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	encodeRxData, err := c.conf.DB.ReadTableTextContext(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("функция ReadTableTextContext, вернула ошибку: <%v>", err)
+	}
+
+	// Перенос принятых закодированных данных логин/пароль, в in-memory.
+	c.data.encryptTextData = []textData{} // сброс содержимого слайса
+
+	for _, v := range encodeRxData {
+		var el textData
+		el.name = v.Name
+		el.text = v.Text
+		el.createdAt = v.CreatedAt
+
+		c.data.encryptTextData = append(c.data.encryptTextData, el)
+	}
+	// Декодирование принятых данных.
+	c.data.textData, err = decryptDataText(c.data.encryptTextData, c.secret.secretKey)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка декодирования данных логин/пароль: <%v>", err)
+	}
+
+	// Результат.
+	return len(c.data.loginPassword), nil
+}
+
 // Получение данных логин/пароль по индексу. Возвращается запись.
 //
 // Параметры:
@@ -474,6 +552,20 @@ func loginPasswordByIndex(c *handlerUI) (el loginPassword) {
 	el.login = c.data.loginPassword[c.index.loginPassword].login
 	el.password = c.data.loginPassword[c.index.loginPassword].password
 	el.createdAt = c.data.loginPassword[c.index.loginPassword].createdAt
+
+	return el
+}
+
+// Получение данных текста по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func textByIndex(c *handlerUI) (el textData) {
+
+	el.name = c.data.textData[c.index.text].name
+	el.text = c.data.textData[c.index.text].text
+	el.createdAt = c.data.textData[c.index.text].createdAt
 
 	return el
 }
@@ -490,6 +582,18 @@ func incrIndexloginPassword(c *handlerUI) {
 	}
 }
 
+// Увеличение значения индекса для текст массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexText(c *handlerUI) {
+
+	if c.index.text < len(c.data.textData)-1 {
+		c.index.text++
+	}
+}
+
 // Уменьшение значения индекса для логин/пароль массива.
 //
 // Параметры:
@@ -499,5 +603,17 @@ func decrIndexloginPassword(c *handlerUI) {
 
 	if c.index.loginPassword > 0 {
 		c.index.loginPassword--
+	}
+}
+
+// Уменьшение значения индекса для текст массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexText(c *handlerUI) {
+
+	if c.index.text > 0 {
+		c.index.text--
 	}
 }

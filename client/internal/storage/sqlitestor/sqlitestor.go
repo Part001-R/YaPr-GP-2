@@ -28,6 +28,13 @@ type LoginPassword struct {
 	CreatedAt string // время создания/обновления.
 }
 
+// Формат записи логин/пароль
+type TextData struct {
+	Name      string // наименование записи.
+	Text      string // текст.
+	CreatedAt string // время создания/обновления.
+}
+
 // Интерфейс.
 type Actions interface {
 	Close() error
@@ -37,6 +44,9 @@ type Actions interface {
 	AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error
 	ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error)
 	DelDataLoginPasswordContext(ctx context.Context, field1 string) error
+	AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error
+	ReadTableTextContext(ctx context.Context) (list []TextData, err error)
+	DelTextContext(ctx context.Context, field1 string) error
 }
 
 var inst *DataBase
@@ -142,6 +152,10 @@ func (d *DataBase) UserExistContext(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
+//
+// --- логин/пароль ---
+//
+
 // Добавление пары логин/пароль.
 func (d *DataBase) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
 
@@ -205,6 +219,91 @@ func (d *DataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []Lo
 func (d *DataBase) DelDataLoginPasswordContext(ctx context.Context, field1 string) error {
 
 	query := `DELETE FROM data1 WHERE field_1 = ?`
+
+	res, err := d.PtrDB.ExecContext(ctx, query, field1)
+	if err != nil {
+		return fmt.Errorf("ошибка удаления данных логин/пароль:<%w>", err)
+	}
+
+	cnt, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("ошибка получения результата удаления:<%w>", err)
+	}
+
+	if cnt == 0 {
+		return errors.New("удаление не выполнено")
+	}
+
+	return nil
+}
+
+//
+// --- текст ---
+//
+
+// Добавление текста.
+func (d *DataBase) AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error {
+
+	// Подготовка SQL-запроса
+	query := `INSERT INTO data2 (field_1, field_2, created_at) VALUES (?, ?, ?)`
+
+	// Запрос.
+	_, err := d.PtrDB.ExecContext(ctx, query, field1, field2, createdAt)
+	if err != nil {
+		return fmt.Errorf("ошибка добавления данных логин/пароль:<%w>", err)
+	}
+
+	return nil
+}
+
+// Получение всех записей текста из БД. Возвращается массив записей и ошибка.
+func (d *DataBase) ReadTableTextContext(ctx context.Context) (list []TextData, err error) {
+
+	limit := 100
+	offset := 0
+	query := "SELECT field_1, field_2, created_at FROM data2 LIMIT ? OFFSET ?"
+
+	// Порционные запросы.
+	for {
+		rows, err := d.PtrDB.QueryContext(ctx, query, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
+		}
+		defer rows.Close()
+
+		recordCount := 0 // Счетчик количества прочитанных записей
+
+		for rows.Next() {
+			var el TextData
+
+			err := rows.Scan(&el.Name, &el.Text, &el.CreatedAt)
+			if err != nil {
+				log.Fatalf("Ошибка при считывании строки: %v", err)
+			}
+			list = append(list, el)
+			recordCount++
+		}
+
+		if err := rows.Err(); err != nil {
+			log.Fatalf("Ошибка при обработке строк: %v", err)
+		}
+
+		// Если меньше, значит записей больше нет.
+		if recordCount < limit {
+			break
+		}
+		// Изменение смещения.
+		offset += limit
+	}
+
+	// Результат.
+	return list, nil
+}
+
+// Удаление текста.
+func (d *DataBase) DelTextContext(ctx context.Context, field1 string) error {
+
+	query := `DELETE FROM data2 WHERE field_1 = ?`
 
 	res, err := d.PtrDB.ExecContext(ctx, query, field1)
 	if err != nil {

@@ -27,6 +27,7 @@ type typeData struct {
 	dataFor      string // информация - для чего формируются данные
 	dataLogin    string // информация - логин
 	dataPassword string // информация - пароль
+	dataText     string // информация - текст
 }
 
 // Признаки выполнения логики
@@ -39,9 +40,15 @@ type flags struct {
 	addLoginPaaswordSUCCESS  bool // Признак успешного добавления пары логин/пароль.
 	addLoginPaaswordPassed   bool // Признак, что выполнена процедура добавления пары логин/пароль.
 	readLoginPaaswordSUCCESS bool // Признак, успешного получения данных логин/пароль.
-	readLoginPaaswordPassed  bool // Признак, что при получении данных логин/пароль, произошла ошибка.
+	readLoginPaaswordPassed  bool // Признак, что процедура чтения логин/пароль, пройдена.
 	delLoginPaaswordSUCCESS  bool // Признак, успешного удаления данных логин/пароль.
-	delLoginPaaswordPassed   bool // Признак, что при удалении данных логин/пароль, произошла ошибка.
+	delLoginPaaswordPassed   bool // Признак, что процедура удаления логин/пароль, пройдена.
+	addTextSUCCESS           bool // Признак успешного добавления текста.
+	addTextPassed            bool // Признак, что выполнена процедура добавления текста.
+	readTextSUCCESS          bool // Признак, успешного получения данных текста.
+	readTextPassed           bool // Признак, что процедура добавления текста, пройдена.
+	delTextSUCCESS           bool // Признак, успешного удаления данных текста.
+	delTextPassed            bool // Признак, что процедура удаления текста, пройдена.
 }
 
 // Для навигации по экранам.
@@ -58,15 +65,25 @@ type loginPassword struct {
 	createdAt string
 }
 
+// Представление записи - текст.
+type textData struct {
+	name      string
+	text      string
+	createdAt string
+}
+
 // Данные БД.
 type dataDB struct {
-	encryptLoginPassword []loginPassword // закодированные данные логин/пароль
-	loginPassword        []loginPassword // данные логин/пароль
+	encryptLoginPassword []loginPassword // закодированные данные - логин/пароль.
+	loginPassword        []loginPassword // данные - логин/пароль.
+	encryptTextData      []textData      // закодированные данные - текст.
+	textData             []textData      // данные - текст.
 }
 
 // Индесы.
 type indexes struct {
-	loginPassword int // текущий индекс для обхода массива логин/пароль
+	loginPassword int // текущий индекс для обхода массива - логин/пароль
+	text          int // текущий индекс для обхода массива - текст
 }
 
 // Общий тип для CLI UI.
@@ -718,6 +735,15 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
+	case viewTextData: // Если окно для взаимодействия с текстом.
+		switch c.view.currentFocus {
+		case "fieldAddFor":
+			c.view.currentFocus = "fieldAddText"
+		case "fieldAddText":
+			c.view.currentFocus = "fieldAddFor"
+		default:
+		}
+
 	default:
 		return nil
 	}
@@ -744,6 +770,9 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 	}
 	if c.view.activeView == viewLoginPasswordData {
 		fields = []string{"fieldAddFor", "fieldAddLogin", "fieldAddPassword"}
+	}
+	if c.view.activeView == viewTextData {
+		fields = []string{"fieldAddFor", "fieldAddText"}
 	}
 
 	for _, name := range fields {
@@ -842,6 +871,8 @@ func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 
 	case viewLoginPasswordData: // Если окно взаимодействия с логин/пароль.
 		c.flag.addLoginPaaswordPassed = false
+		c.flag.addLoginPaaswordSUCCESS = false
+
 		switch v.Name() {
 		case "fieldAddFor":
 			c.typed.dataFor = strings.TrimSpace(v.Buffer())
@@ -849,6 +880,18 @@ func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 			c.typed.dataLogin = strings.TrimSpace(v.Buffer())
 		case "fieldAddPassword":
 			c.typed.dataPassword = strings.TrimSpace(v.Buffer())
+		default:
+		}
+
+	case viewTextData: // Если окно взаимодействия с текстом
+		c.flag.addTextPassed = false  // Сброс признака.
+		c.flag.addTextSUCCESS = false // Сброс статуса.
+
+		switch v.Name() {
+		case "fieldAddFor":
+			c.typed.dataFor = strings.TrimSpace(v.Buffer())
+		case "fieldAddText":
+			c.typed.dataText = strings.TrimSpace(v.Buffer())
 		default:
 		}
 
@@ -997,6 +1040,68 @@ func (c *handlerUI) indicators(g *gocui.Gui) {
 			indicator.Write([]byte(""))
 		}
 	}
+
+	// Окно текста.
+	if c.view.activeView == viewTextData {
+
+		// Обработка индикатора получения данных.
+		indicatorRead, err := g.View("indicatorReadStatus")
+		if err != nil || indicatorRead == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
+			return
+		}
+		if c.flag.readTextPassed { // обработка при чтении
+			if c.flag.readTextSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.textData))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+		if c.flag.delTextPassed { // обработка при удалении
+			if c.flag.delTextSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+
+		// Обработка индикатора добавления записи.
+		indicator, err := g.View("indicatorAddSuccess")
+		if err != nil || indicator == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorAddSuccess: <%v>", err))
+			return
+		}
+
+		if c.flag.addTextPassed {
+			if c.flag.addTextSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte(""))
+		}
+	}
+
 }
 
 // Проверка связи с сервером.
@@ -1119,49 +1224,96 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 }
 
 // Запуск процесса сохранения данных логин/пароль.
-func (c *handlerUI) doStoreLoginPasswordDB(gui *gocui.Gui, v *gocui.View) error {
+func (c *handlerUI) doStoreDB(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.PtrLoggerFile.Write("Debug: запущена функция doStoreLoginPasswordDB")
 
-	c.flag.addLoginPaaswordPassed = true
-	c.flag.addLoginPaaswordSUCCESS = false
+	switch c.view.activeView {
+	case viewLoginPasswordData: // Если окно - логин/пароль
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
+		c.flag.addLoginPaaswordPassed = true
+		c.flag.addLoginPaaswordSUCCESS = false
 
-	// Шифрование данных
-	encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		// Шифрование данных
+		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			return nil
+		}
+		encrLogin, err := encrypt(c.typed.dataLogin, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
+			return nil
+		}
+		encrPassword, err := encrypt(c.typed.dataPassword, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
+			return nil
+		}
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			return nil
+		}
+
+		// Добавление зашифрованных данных в БД.
+		if err := c.conf.DB.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Debug: пара логин/пароль добавлена в БД")
+		c.flag.addLoginPaaswordSUCCESS = true
 		return nil
-	}
-	encrLogin, err := encrypt(c.typed.dataLogin, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
+
+	case viewTextData: // если окно - текст.
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Добавляются данные For:<%s> Text:<%s>", c.typed.dataFor, c.typed.dataText)) //====================
+
+		c.flag.addTextPassed = true
+		c.flag.addTextSUCCESS = false
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		// Шифрование данных
+		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			return nil
+		}
+		encrText, err := encrypt(c.typed.dataText, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataText: <%v>", err))
+			return nil
+		}
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			return nil
+		}
+		// Добавление зашифрованных данных в БД.
+		if err := c.conf.DB.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Debug: текст добавлен в БД")
+		c.flag.addTextSUCCESS = true
 		return nil
-	}
-	encrPassword, err := encrypt(c.typed.dataPassword, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
-		return nil
-	}
-	tn := time.Now().UTC()
-	strT := tn.Format(time.RFC3339)
-	encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
-		return nil
+
+	default:
 	}
 
-	// Добавление зашифрованных данных в БД.
-	if err := c.conf.DB.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
-		return nil
-	}
-
-	c.conf.PtrLoggerFile.Write("Debug: пара логин/пароль добавлена в БД")
-	c.flag.addLoginPaaswordSUCCESS = true
 	return nil
+
 }
 
 // Отображение слудующего элемента.
@@ -1216,6 +1368,41 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 		} else {
 			fieldPassword.Clear()
 			fieldPassword.Write([]byte(""))
+		}
+
+	case viewTextData: // Взаимодействие с текстом
+
+		el := textByIndex(c) // получение записи по индексу
+		incrIndexText(c)     // увеличение значения индекса
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldText, err := gui.View("fieldShowText")
+		if err != nil || fieldText == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			return nil
+		}
+		if el.text != "" {
+			fieldText.Clear()
+			fieldText.Write([]byte(el.text))
+
+		} else {
+			fieldText.Clear()
+			fieldText.Write([]byte(""))
 		}
 
 	default:
@@ -1278,6 +1465,41 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 			fieldPassword.Write([]byte(""))
 		}
 
+	case viewTextData: // Взаимодействие с текст
+
+		decrIndexText(c)     // уменьшение значения индекса
+		el := textByIndex(c) // получение записи по индексу
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldText, err := gui.View("fieldShowText")
+		if err != nil || fieldText == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			return nil
+		}
+		if el.text != "" {
+			fieldText.Clear()
+			fieldText.Write([]byte(el.text))
+
+		} else {
+			fieldText.Clear()
+			fieldText.Write([]byte(""))
+		}
+
 	default:
 	}
 
@@ -1318,6 +1540,38 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
 		c.flag.delLoginPaaswordSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные логин/пароль, успешно удалены"))
+
+	case viewTextData: // Взаимодействие с логин/пароль
+
+		c.flag.delTextPassed = true
+		c.flag.delTextSUCCESS = false
+
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer() // Получаем содержимое поля ввода
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление записи в БД.
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := c.conf.DB.DelTextContext(ctx, textEl); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.flag.delTextSUCCESS = true
+		c.conf.PtrLoggerFile.Write(("Debug: данные текста, успешно удалены"))
+
 	default:
 	}
 
@@ -1611,7 +1865,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
 	// Сброс состояния
 	layoutInitialized = false
-	c.view.currentFocus = "fieldAddFor" // Установка фокуса
+	c.view.currentFocus = "fieldAddFor" // Установка фокуса на элемент окна.
 
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewLoginPasswordData, 0, 0, screenWidth-1, screenHeight-1)
@@ -1901,6 +2155,16 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 // Окно для взаимодействия с логин/пароль.
 func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeText")
+
+	c.flag.readTextPassed = false // Сброс признака.
+	c.flag.addTextPassed = false
+	c.flag.delTextPassed = false
+	c.flag.readTextSUCCESS = false
+	c.index.text = 0 // Сброс индекса навигации по массиву логин/пароль.
+
+	// Логика.
+	//
 	c.view.activeView = "" // Сброс признака активного окна
 
 	// Удаляем все зависимые виды
@@ -1911,10 +2175,10 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
 	// Сброс состояния
 	layoutInitialized = false
-	c.view.currentFocus = "selectLoginPassword" // Установка фокуса
+	c.view.currentFocus = "fieldAddFor" // Установка фокуса на элемент окна.
 
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
-	view, err := g.SetView(viewTextdData, 0, 0, screenWidth-1, screenHeight-1)
+	view, err := g.SetView(viewTextData, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
@@ -1924,12 +2188,169 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	view.Clear()
 
 	//
+	// --- Индикаторы ---
+	//
+
+	// Результат чтения данных.
+	indicatorY := inputHeight * 3
+	indicatorX := 51
+	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vRead.Frame = false
+	vRead.BgColor = gocui.ColorDefault
+	vRead.FgColor = gocui.ColorDefault
+
+	// Результат добавления данных.
+	indicatorY = inputHeight*3 + 8
+	indicatorX = 53
+	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vAdd.Frame = false
+	vAdd.BgColor = gocui.ColorDefault
+	vAdd.FgColor = gocui.ColorDefault
+
+	//
 	// --- Отображение разделов ---
 	//
+
+	// Просмотр.
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
+	fmt.Fprintf(view, "%sПросмотр.\n", strings.Repeat(" ", 56))
+
+	if v, err := g.SetView("fieldShowFor", 1, 4, inputWidth-48, inputHeight+1+3); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Для"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowFor")
+	}
+	if v, err := g.SetView("fieldShowText", 33, 4, inputWidth+48, inputHeight+1+3); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Текст"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowText")
+	}
+
+	// Добавление
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 7))
+	fmt.Fprintf(view, "%sДобавление.\n", strings.Repeat(" ", 55))
+
+	if v, err := g.SetView("fieldAddFor", 1, 12, inputWidth-48, inputHeight+1+11); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Для"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorBlack
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddFor")
+	}
+	if v, err := g.SetView("fieldAddText", 33, 12, inputWidth+48, inputHeight+1+11); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Текст"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorBlack
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddText")
+	}
+
+	//
+	// --- Краткое пояснение ---
+	//
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 8))
+	fmt.Fprintf(view, "%sПри изменении данных, выполните Crl+U.\n", strings.Repeat(" ", 42))
 
 	//
 	// --- Нижняя часть экрана ---
 	//
+
+	// Верхний ряд.
+	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+F - сохранение"))
+	}
+	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctr+E - Далее"))
+	}
+	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+G - Назад"))
+	}
+	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+J - Удаление"))
+	}
+
+	// Нижний ряд
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
@@ -1991,13 +2412,24 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 		v.Write([]byte("Ctrl+U - назад"))
 	}
 
+	// Получение сохранённых значений текста.
+	c.flag.readTextPassed = true // Установка признака, что был запущен процесс получения значений текста.
+
+	_, err = showTextWorkDB(c)
+	if err != nil {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
+	} else {
+		c.conf.PtrLoggerFile.Write("Debug: текстовые данные успешно прочитаны")
+		c.flag.readTextSUCCESS = true
+	}
+
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	layoutInitialized = true
-	c.view.activeView = viewTextdData // Установка признака активного окна
+	c.view.activeView = viewTextData // Установка признака активного окна
 
 	return nil
 }

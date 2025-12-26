@@ -14,7 +14,7 @@ const (
 	viewRequestSecretKey  = "reqSecretKey"
 	viewSelectType        = "selectType"
 	viewLoginPasswordData = "typeLoginPassword"
-	viewTextdData         = "typeText"
+	viewTextData          = "typeText"
 	viewBinaryData        = "typeBinary"
 	viewBankCardData      = "typeBankCard"
 )

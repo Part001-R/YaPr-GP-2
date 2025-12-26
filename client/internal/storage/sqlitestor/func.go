@@ -46,6 +46,11 @@ func CreateTables(db *sql.DB) error {
 		return fmt.Errorf("функция createTableLoginPassword, вернула ошибку: <%w>", err)
 	}
 
+	// создание таблицы для хранения текста.
+	if err := createTableText(db); err != nil {
+		return fmt.Errorf("функция createTableText, вернула ошибку: <%w>", err)
+	}
+
 	return nil
 }
 
@@ -92,6 +97,28 @@ func createTableLoginPassword(db *sql.DB) (err error) {
 	return nil
 }
 
+// Создание таблицы для хранения текста.
+func createTableText(db *sql.DB) (err error) {
+
+	// В запросе маскируется принадлежность данных.
+	//
+	// field_1 - наименование ресурса, к которому сопоставляется текст.
+	// field_2 - текст.
+	query := `
+    CREATE TABLE IF NOT EXISTS data2 (  
+        field_1 TEXT UNIQUE NOT NULL,
+        field_2 TEXT NOT NULL,
+        created_at DATETIME NOT NULL
+    );
+    `
+	_, err = db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("Ошибка создания таблицы data2: <%w>", err)
+	}
+
+	return nil
+}
+
 // Генерация хеша из строки. Возвращается хеш.
 //
 // Параметры:
@@ -120,27 +147,4 @@ func generateHash(input string) string {
 //	storedHash - сохранённый хеш.
 func isEqualHash(input, storedHash string) bool {
 	return generateHash(input) == storedHash
-}
-
-// Получение количества записей в таблице логин/пароль (data1). Возвращается количество записей и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-//	db - указатель на БД.
-func getRecordLoginPwdContext(ctx context.Context, db *sql.DB) (int, error) {
-
-	// Подготовка запроса.
-	query := "SELECT COUNT(*) FROM data1"
-
-	// Запрос.
-	var count int
-
-	err := db.QueryRowContext(ctx, query).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("функция db.QueryRowContext, вернула ошибку: <%w>", err)
-	}
-
-	// Результат.
-	return count, nil
 }
