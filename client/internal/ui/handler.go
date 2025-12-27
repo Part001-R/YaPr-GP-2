@@ -19,15 +19,19 @@ type encrKey struct {
 
 // Введённые пользователем данные.
 type typeData struct {
-	login        string // введённое значение в поле имя пользователя
-	password1    string // введённое значение в воле пароль
-	password2    string // введённое значение в воле пароль (подтверждение)
-	ip           string // введённое значение в поле IP
-	port         string // введённое значение в поле Port
-	dataFor      string // информация - для чего формируются данные
-	dataLogin    string // информация - логин
-	dataPassword string // информация - пароль
-	dataText     string // информация - текст
+	login         string // имя пользователя
+	password1     string // пароль
+	password2     string // пароль (подтверждение)
+	ip            string // IP
+	port          string // Port
+	dataFor       string // для чего формируются данные
+	dataLogin     string // логин
+	dataPassword  string // пароль
+	dataText      string // текст
+	dataOwner     string // владелец
+	dataNumb      string // номер
+	dataValidDate string // дата валидности
+	dataCode      string // код
 }
 
 // Признаки выполнения логики
@@ -46,9 +50,15 @@ type flags struct {
 	addTextSUCCESS           bool // Признак успешного добавления текста.
 	addTextPassed            bool // Признак, что выполнена процедура добавления текста.
 	readTextSUCCESS          bool // Признак, успешного получения данных текста.
-	readTextPassed           bool // Признак, что процедура добавления текста, пройдена.
+	readTextPassed           bool // Признак, что процедура получения текста, пройдена.
 	delTextSUCCESS           bool // Признак, успешного удаления данных текста.
 	delTextPassed            bool // Признак, что процедура удаления текста, пройдена.
+	addBankCardSUCCESS       bool // Признак успешного добавления карты.
+	addBankCardPassed        bool // Признак, что выполнена процедура добавления карты.
+	readBankCardSUCCESS      bool // Признак, успешного получения данных карт.
+	readBankCardPassed       bool // Признак, что процедура получения данных карт, пройдена.
+	delBankCardSUCCESS       bool // Признак, успешного удаления данных карты.
+	delBankCardPassed        bool // Признак, что процедура удаления карты, пройдена.
 }
 
 // Для навигации по экранам.
@@ -72,18 +82,31 @@ type textData struct {
 	createdAt string
 }
 
+// Представление записи - банковская карта.
+type bankCard struct {
+	name      string
+	owner     string
+	numb      string
+	valid     string
+	code      string
+	createdAt string
+}
+
 // Данные БД.
 type dataDB struct {
 	encryptLoginPassword []loginPassword // закодированные данные - логин/пароль.
 	loginPassword        []loginPassword // данные - логин/пароль.
 	encryptTextData      []textData      // закодированные данные - текст.
 	textData             []textData      // данные - текст.
+	encryptBankCard      []bankCard      // закодированные данные - банковские карты.
+	bankCard             []bankCard      // данные - банковские карты.
 }
 
 // Индесы.
 type indexes struct {
-	loginPassword int // текущий индекс для обхода массива - логин/пароль
-	text          int // текущий индекс для обхода массива - текст
+	loginPassword int // текущий индекс для обхода массива - логин/пароль.
+	text          int // текущий индекс для обхода массива - текст.
+	bankCard      int // текущий индекс для обхода массива - банковских карт.
 }
 
 // Общий тип для CLI UI.
@@ -744,6 +767,21 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
+	case viewBankCardData: // Если окно для взаимодействия с банковскими картами.
+		switch c.view.currentFocus {
+		case "fieldAddFor":
+			c.view.currentFocus = "fieldAddOwner"
+		case "fieldAddOwner":
+			c.view.currentFocus = "fieldAddNumber"
+		case "fieldAddNumber":
+			c.view.currentFocus = "fieldAddValid"
+		case "fieldAddValid":
+			c.view.currentFocus = "fieldAddCode"
+		case "fieldAddCode":
+			c.view.currentFocus = "fieldAddFor"
+		default:
+		}
+
 	default:
 		return nil
 	}
@@ -773,6 +811,9 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 	}
 	if c.view.activeView == viewTextData {
 		fields = []string{"fieldAddFor", "fieldAddText"}
+	}
+	if c.view.activeView == viewBankCardData {
+		fields = []string{"fieldAddFor", "fieldAddOwner", "fieldAddNumber", "fieldAddValid", "fieldAddCode"}
 	}
 
 	for _, name := range fields {
@@ -883,7 +924,7 @@ func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewTextData: // Если окно взаимодействия с текстом
+	case viewTextData: // Если окно взаимодействия с текстом.
 		c.flag.addTextPassed = false  // Сброс признака.
 		c.flag.addTextSUCCESS = false // Сброс статуса.
 
@@ -892,6 +933,24 @@ func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 			c.typed.dataFor = strings.TrimSpace(v.Buffer())
 		case "fieldAddText":
 			c.typed.dataText = strings.TrimSpace(v.Buffer())
+		default:
+		}
+
+	case viewBankCardData: // Если окно взаимодействия с банковскими картами.
+		c.flag.addBankCardPassed = false  // Сброс признака.
+		c.flag.addBankCardSUCCESS = false // Сброс статуса.
+
+		switch v.Name() {
+		case "fieldAddFor":
+			c.typed.dataFor = strings.TrimSpace(v.Buffer())
+		case "fieldAddOwner":
+			c.typed.dataOwner = strings.TrimSpace(v.Buffer())
+		case "fieldAddNumber":
+			c.typed.dataNumb = strings.TrimSpace(v.Buffer())
+		case "fieldAddValid":
+			c.typed.dataValidDate = strings.TrimSpace(v.Buffer())
+		case "fieldAddCode":
+			c.typed.dataCode = strings.TrimSpace(v.Buffer())
 		default:
 		}
 
@@ -1086,6 +1145,67 @@ func (c *handlerUI) indicators(g *gocui.Gui) {
 
 		if c.flag.addTextPassed {
 			if c.flag.addTextSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte(""))
+		}
+	}
+
+	// Окно банковских карт.
+	if c.view.activeView == viewBankCardData {
+
+		// Обработка индикатора получения данных.
+		indicatorRead, err := g.View("indicatorReadStatus")
+		if err != nil || indicatorRead == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
+			return
+		}
+		if c.flag.readBankCardPassed { // обработка при чтении
+			if c.flag.readBankCardSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.bankCard))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+		if c.flag.delBankCardPassed { // обработка при удалении
+			if c.flag.delBankCardSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+
+		// Обработка индикатора добавления записи.
+		indicator, err := g.View("indicatorAddSuccess")
+		if err != nil || indicator == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorAddSuccess: <%v>", err))
+			return
+		}
+
+		if c.flag.addBankCardPassed {
+			if c.flag.addBankCardSUCCESS {
 				indicator.Clear()
 				indicator.Write([]byte("Данные приняты!"))
 				indicator.FgColor = gocui.ColorGreen
@@ -1309,6 +1429,64 @@ func (c *handlerUI) doStoreDB(gui *gocui.Gui, v *gocui.View) error {
 		c.flag.addTextSUCCESS = true
 		return nil
 
+	case viewBankCardData: // если окно - банковские карты.
+
+		c.flag.addBankCardPassed = true
+		c.flag.addBankCardSUCCESS = false
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		// Шифрование данных
+		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			return nil
+		}
+		encrOwner, err := encrypt(c.typed.dataOwner, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataOwner: <%v>", err))
+			return nil
+		}
+		encrNumb, err := encrypt(c.typed.dataNumb, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataNumb: <%v>", err))
+			return nil
+		}
+		encrValid, err := encrypt(c.typed.dataValidDate, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataValidDate: <%v>", err))
+			return nil
+		}
+		encrCode, err := encrypt(c.typed.dataCode, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataCode: <%v>", err))
+			return nil
+		}
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			return nil
+		}
+
+		// Проверка номера банковской карты на валидность.
+		if !checkCardNumber(c.typed.dataNumb) {
+			c.conf.PtrLoggerFile.Write("Error: номер карты, не прошел проверку")
+			return nil
+		}
+
+		// Добавление зашифрованных данных в БД.
+		if err := c.conf.DB.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Debug: карта добавлена в БД")
+		c.flag.addBankCardSUCCESS = true
+		return nil
+
 	default:
 	}
 
@@ -1403,6 +1581,85 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 		} else {
 			fieldText.Clear()
 			fieldText.Write([]byte(""))
+		}
+	case viewBankCardData: // Взаимодействие с банковскими картами
+
+		el := bankCardByIndex(c) // получение записи по индексу
+		incrIndexBankCard(c)     // увеличение значения индекса
+
+		// отображение содержимого поля Для.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Владелец.
+		fieldOwner, err := gui.View("fieldShowOwner")
+		if err != nil || fieldOwner == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			return nil
+		}
+		if el.owner != "" {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(el.owner))
+
+		} else {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Номер.
+		fieldNumb, err := gui.View("fieldShowNumber")
+		if err != nil || fieldNumb == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			return nil
+		}
+		if el.numb != "" {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(el.numb))
+
+		} else {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Валидность.
+		fieldValid, err := gui.View("fieldShowValid")
+		if err != nil || fieldValid == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			return nil
+		}
+		if el.valid != "" {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(el.valid))
+
+		} else {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowCode")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			return nil
+		}
+		if el.code != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(el.code))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
 		}
 
 	default:
@@ -1499,6 +1756,85 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 			fieldText.Clear()
 			fieldText.Write([]byte(""))
 		}
+	case viewBankCardData: // Взаимодействие с банковскими картами
+
+		decrIndexBankCard(c)     // уменьшение значения индекса
+		el := bankCardByIndex(c) // получение записи по индексу
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Владелец.
+		fieldOwner, err := gui.View("fieldShowOwner")
+		if err != nil || fieldOwner == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			return nil
+		}
+		if el.owner != "" {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(el.owner))
+
+		} else {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Номер.
+		fieldNumb, err := gui.View("fieldShowNumber")
+		if err != nil || fieldNumb == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			return nil
+		}
+		if el.numb != "" {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(el.numb))
+
+		} else {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Валидность.
+		fieldValid, err := gui.View("fieldShowValid")
+		if err != nil || fieldValid == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			return nil
+		}
+		if el.valid != "" {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(el.valid))
+
+		} else {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowCode")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			return nil
+		}
+		if el.code != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(el.code))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
 
 	default:
 	}
@@ -1541,7 +1877,7 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 		c.flag.delLoginPaaswordSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные логин/пароль, успешно удалены"))
 
-	case viewTextData: // Взаимодействие с логин/пароль
+	case viewTextData: // Взаимодействие с текстом
 
 		c.flag.delTextPassed = true
 		c.flag.delTextSUCCESS = false
@@ -1571,6 +1907,37 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
 		c.flag.delTextSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные текста, успешно удалены"))
+
+	case viewBankCardData: // Взаимодействие с банковскими картами
+
+		c.flag.delBankCardPassed = true
+		c.flag.delBankCardSUCCESS = false
+
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer() // Получаем содержимое поля ввода
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление записи в БД.
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := c.conf.DB.DelBankCardContext(ctx, textEl); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.flag.delBankCardSUCCESS = true
+		c.conf.PtrLoggerFile.Write(("Debug: данные карты, успешно удалены"))
 
 	default:
 	}
@@ -2534,12 +2901,22 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	return nil
 }
 
-// Окно для взаимодействия с логин/пароль.
+// Окно для взаимодействия с банковской картой.
 func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeBankCard")
+
+	c.flag.readBankCardPassed = false // Сброс признака.
+	c.flag.addBankCardPassed = false
+	c.flag.delBankCardPassed = false
+	c.index.bankCard = 0 // Сброс индекса навигации по массиву логин/пароль.
+	c.flag.readBankCardSUCCESS = false
+
+	// Логика.
+	//
 	c.view.activeView = "" // Сброс признака активного окна
 
-	// Удаляем все зависимые виды
+	// Очистка.
 	if err := deleteViews(g); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
@@ -2547,7 +2924,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
 	// Сброс состояния
 	layoutInitialized = false
-	c.view.currentFocus = "selectLoginPassword" // Установка фокуса
+	c.view.currentFocus = "fieldAddFor" // Установка фокуса на элемент окна.
 
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewBankCardData, 0, 0, screenWidth-1, screenHeight-1)
@@ -2560,8 +2937,243 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	view.Clear()
 
 	//
+	// --- Отображение разделов ---
+	//
+
+	// Просмотр.
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 1))
+	fmt.Fprintf(view, "%sПросмотр.\n", strings.Repeat(" ", 56))
+
+	if v, err := g.SetView("fieldShowFor", 1, 2, inputWidth-48, inputHeight+1+1); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Для"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowFor")
+	}
+	if v, err := g.SetView("fieldShowOwner", 33, 2, inputWidth-4, inputHeight+1+1); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Владелец"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowOwner")
+	}
+	if v, err := g.SetView("fieldShowNumber", 33, 5, inputWidth-4, inputHeight+1+4); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Номер"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowNumber")
+	}
+	if v, err := g.SetView("fieldShowValid", 33, 8, inputWidth-30, inputHeight+1+7); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Дата"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowValid")
+	}
+	if v, err := g.SetView("fieldShowCode", 59, 8, inputWidth-4, inputHeight+1+7); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Код"
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowCode")
+	}
+
+	// Добавление
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 10))
+	fmt.Fprintf(view, "%sДобавление. %sПри изменении данных, выполните Crl+U\n", strings.Repeat(" ", 55), strings.Repeat(" ", 15))
+
+	if v, err := g.SetView("fieldAddFor", 1, 13, inputWidth-48, inputHeight+1+12); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Для"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddFor")
+	}
+	if v, err := g.SetView("fieldAddOwner", 33, 13, inputWidth-4, inputHeight+1+12); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Владелец"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddOwner")
+	}
+	if v, err := g.SetView("fieldAddNumber", 33, 16, inputWidth-4, inputHeight+1+15); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Номер"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddNumber")
+	}
+	if v, err := g.SetView("fieldAddValid", 33, 19, inputWidth-30, inputHeight+1+18); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Дата"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddValid")
+	}
+	if v, err := g.SetView("fieldAddCode", 59, 19, inputWidth-4, inputHeight+1+18); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Title = "Код"
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldAddCode")
+	}
+
+	//
+	// --- Индикаторы ---
+	//
+
+	// Результат чтения данных.
+
+	indicatorY := inputHeight*3 - 1
+	indicatorX := 80
+	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vRead.Frame = false
+	vRead.BgColor = gocui.ColorDefault
+	vRead.FgColor = gocui.ColorDefault
+
+	// Результат добавления данных.
+	indicatorY = inputHeight*3 + 10
+	indicatorX = 80
+	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vAdd.Frame = false
+	vAdd.BgColor = gocui.ColorDefault
+	vAdd.FgColor = gocui.ColorDefault
+
+	//
 	// --- Нижняя часть экрана ---
 	//
+
+	// Верхний ряд.
+	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+F - сохранение"))
+	}
+	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctr+E - Далее"))
+	}
+	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+G - Назад"))
+	}
+	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+J - Удаление"))
+	}
+
+	//Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
@@ -2584,7 +3196,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		v.Frame = true
 		v.BgColor = gocui.ColorDefault
 		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Enter - переход"))
+		v.Write([]byte("Enter - фиксация"))
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -2621,6 +3233,17 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		v.BgColor = gocui.ColorDefault
 		v.FgColor = gocui.ColorWhite
 		v.Write([]byte("Ctrl+U - назад"))
+	}
+
+	// Получение сохранённых значений банковских карт.
+	c.flag.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
+
+	_, err = showBankCardWorkDB(c)
+	if err != nil {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
+	} else {
+		c.conf.PtrLoggerFile.Write("Debug: данные банковских карт успешно прочитаны")
+		c.flag.readBankCardSUCCESS = true
 	}
 
 	// Установка фокуса.

@@ -51,6 +51,11 @@ func CreateTables(db *sql.DB) error {
 		return fmt.Errorf("функция createTableText, вернула ошибку: <%w>", err)
 	}
 
+	// создание таблицы для хранения банковских карт.
+	if err := createTableBankCard(db); err != nil {
+		return fmt.Errorf("функция createTableBankCard, вернула ошибку: <%w>", err)
+	}
+
 	return nil
 }
 
@@ -114,6 +119,35 @@ func createTableText(db *sql.DB) (err error) {
 	_, err = db.Exec(query)
 	if err != nil {
 		return fmt.Errorf("Ошибка создания таблицы data2: <%w>", err)
+	}
+
+	return nil
+}
+
+// Создание таблицы для хранения банковских кард.
+func createTableBankCard(db *sql.DB) (err error) {
+
+	// В запросе маскируется принадлежность данных.
+	//
+	// field_1 - наименование ресурса, к которому сопоставляется карта.
+	// field_2 - владелец.
+	// field_3 - номер.
+	// field_4 - дата.
+	// field_5 - код.
+
+	query := `
+    CREATE TABLE IF NOT EXISTS data4 (  
+        field_1 TEXT UNIQUE NOT NULL,
+        field_2 TEXT NOT NULL,
+		field_3 TEXT NOT NULL,
+		field_4 TEXT NOT NULL,
+		field_5 TEXT NOT NULL,
+        created_at DATETIME NOT NULL
+    );
+    `
+	_, err = db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("Ошибка создания таблицы data1: <%w>", err)
 	}
 
 	return nil

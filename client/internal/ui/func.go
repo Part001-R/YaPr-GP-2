@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -77,6 +78,14 @@ func deleteViews(g *gocui.Gui) error {
 		"DeleteElement":          {},
 		"fieldShowText":          {},
 		"fieldAddText":           {},
+		"fieldShowOwner":         {},
+		"fieldShowNumber":        {},
+		"fieldShowValid":         {},
+		"fieldShowCode":          {},
+		"fieldAddOwner":          {},
+		"fieldAddNumber":         {},
+		"fieldAddValid":          {},
+		"fieldAddCode":           {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -466,6 +475,66 @@ func decryptDataText(encryptData []textData, key [32]byte) (decryptData []textDa
 	return decryptData, nil
 }
 
+// Декодирование данных банковских карт. Возвращаются декодированные данные и ошибка.
+//
+// Параметры:
+//
+//	encryptData - закодированные данные.
+//	key - секретный ключ.
+func decryptDataBankCard(encryptData []bankCard, key [32]byte) (decryptData []bankCard, err error) {
+
+	for _, v := range encryptData {
+		var el bankCard
+
+		// Обработка поля - имя
+		str, err := decrypt(v.name, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании name, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.name = str
+
+		// Обработка поля - владелец
+		str, err = decrypt(v.owner, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании owner, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.owner = str
+
+		// Обработка поля - номер карты
+		str, err = decrypt(v.numb, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании numb, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.numb = str
+
+		// Обработка поля - валидность
+		str, err = decrypt(v.valid, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании valid, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.valid = str
+
+		// Обработка поля - код
+		str, err = decrypt(v.code, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании code, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.code = str
+
+		// Обработка поля - createdAt
+		str, err = decrypt(v.createdAt, key)
+		if err != nil {
+			return nil, fmt.Errorf("при декодировании createdAt, функция decrypt, вернула ошибку: <%w>", err)
+		}
+		el.createdAt = str
+
+		decryptData = append(decryptData, el)
+	}
+
+	// результат
+	return decryptData, nil
+}
+
 // Функция реализует получение пар логин/пароль из БД и выполняет декодирование. Возвращается количество записей и ошибка.
 //
 // Параметры:
@@ -502,6 +571,46 @@ func showLoginPasswordWorkDB(c *handlerUI) (int, error) {
 
 	// Результат.
 	return len(c.data.loginPassword), nil
+}
+
+// Функция реализует получение банковских карт из БД и выполняет декодирование. Возвращается количество записей и ошибка.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func showBankCardWorkDB(c *handlerUI) (int, error) {
+
+	// Чтение из БД всех записей таблицы логин/пароль (data1).
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	encodeRxData, err := c.conf.DB.ReadTableBankCardContext(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
+	}
+
+	// Перенос принятых закодированных данных логин/пароль, в in-memory.
+	c.data.encryptBankCard = []bankCard{} // сброс содержимого слайса
+
+	for _, v := range encodeRxData {
+		var el bankCard
+		el.name = v.Name
+		el.owner = v.Owner
+		el.numb = v.Numb
+		el.valid = v.Valid
+		el.code = v.Code
+		el.createdAt = v.CreatedAt
+
+		c.data.encryptBankCard = append(c.data.encryptBankCard, el)
+	}
+	// Декодирование принятых данных.
+	c.data.bankCard, err = decryptDataBankCard(c.data.encryptBankCard, c.secret.secretKey)
+	if err != nil {
+		return 0, fmt.Errorf("ошибка декодирования данных логин/пароль: <%v>", err)
+	}
+
+	// Результат.
+	return len(c.data.bankCard), nil
 }
 
 // Функция реализует получение данных текста из БД и выполняет декодирование. Возвращается количество записей и ошибка.
@@ -570,6 +679,23 @@ func textByIndex(c *handlerUI) (el textData) {
 	return el
 }
 
+// Получение данных банковской карты по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func bankCardByIndex(c *handlerUI) (el bankCard) {
+
+	el.name = c.data.bankCard[c.index.bankCard].name
+	el.owner = c.data.bankCard[c.index.bankCard].owner
+	el.numb = c.data.bankCard[c.index.bankCard].numb
+	el.valid = c.data.bankCard[c.index.bankCard].valid
+	el.code = c.data.bankCard[c.index.bankCard].code
+	el.createdAt = c.data.bankCard[c.index.bankCard].createdAt
+
+	return el
+}
+
 // Увеличение значения индекса для логин/пароль массива.
 //
 // Параметры:
@@ -591,6 +717,18 @@ func incrIndexText(c *handlerUI) {
 
 	if c.index.text < len(c.data.textData)-1 {
 		c.index.text++
+	}
+}
+
+// Увеличение значения индекса для массива банковских карт.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexBankCard(c *handlerUI) {
+
+	if c.index.bankCard < len(c.data.bankCard)-1 {
+		c.index.bankCard++
 	}
 }
 
@@ -616,4 +754,55 @@ func decrIndexText(c *handlerUI) {
 	if c.index.text > 0 {
 		c.index.text--
 	}
+}
+
+// Уменьшение значения индекса для массива банковских карт.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexBankCard(c *handlerUI) {
+
+	if c.index.bankCard > 0 {
+		c.index.bankCard--
+	}
+}
+
+// Проверка номера банковской карты. Возвращает true - номер корректный.
+//
+// Параметры:
+//
+//	cardNumber - номер карты.
+func checkCardNumber(cardNumber string) bool {
+
+	sum := 0
+	alternate := false
+
+	// С конца строки
+	for i := len(cardNumber) - 1; i >= 0; i-- {
+
+		// Отсев лишних символов.
+		if cardNumber[i] < '0' || cardNumber[i] > '9' {
+			continue
+		}
+
+		digit, err := strconv.Atoi(string(cardNumber[i]))
+		if err != nil {
+			return false
+		}
+
+		// *2 для каждого второго символа
+		if alternate {
+			digit *= 2
+			// Если число больше 9, то минус 9
+			if digit > 9 {
+				digit -= 9
+			}
+		}
+		sum += digit
+		alternate = !alternate
+	}
+
+	// Проверка.
+	return sum%10 == 0
 }

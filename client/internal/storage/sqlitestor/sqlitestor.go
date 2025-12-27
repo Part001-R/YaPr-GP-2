@@ -28,10 +28,20 @@ type LoginPassword struct {
 	CreatedAt string // время создания/обновления.
 }
 
-// Формат записи логин/пароль
+// Формат записи текстовых данных.
 type TextData struct {
 	Name      string // наименование записи.
 	Text      string // текст.
+	CreatedAt string // время создания/обновления.
+}
+
+// Формат записи банковской карты.
+type BankCard struct {
+	Name      string // наименование записи.
+	Owner     string // вдажелец.
+	Numb      string // номер карты.
+	Valid     string // дата валидности.
+	Code      string // код.
 	CreatedAt string // время создания/обновления.
 }
 
@@ -47,6 +57,9 @@ type Actions interface {
 	AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error
 	ReadTableTextContext(ctx context.Context) (list []TextData, err error)
 	DelTextContext(ctx context.Context, field1 string) error
+	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error
+	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)
+	DelBankCardContext(ctx context.Context, field1 string) error
 }
 
 var inst *DataBase
@@ -307,16 +320,101 @@ func (d *DataBase) DelTextContext(ctx context.Context, field1 string) error {
 
 	res, err := d.PtrDB.ExecContext(ctx, query, field1)
 	if err != nil {
-		return fmt.Errorf("ошибка удаления данных логин/пароль:<%w>", err)
+		return fmt.Errorf("ошибка удаления данных текста:<%w>", err)
 	}
 
 	cnt, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("ошибка получения результата удаления:<%w>", err)
+		return fmt.Errorf("ошибка получения результата удаления текста:<%w>", err)
 	}
 
 	if cnt == 0 {
 		return errors.New("удаление не выполнено")
+	}
+
+	return nil
+}
+
+//
+// --- банковские карты ---
+//
+
+// Добавление банковской карты.
+func (d *DataBase) AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error {
+
+	// Подготовка.
+	query := `INSERT INTO data4 (field_1, field_2, field_3, field_4, field_5, created_at) VALUES (?, ?, ?, ?, ?, ?)`
+
+	// Запрос.
+	_, err := d.PtrDB.ExecContext(ctx, query, field1, field2, field3, field4, field5, createdAt)
+	if err != nil {
+		return fmt.Errorf("ошибка добавления данных банковской карты:<%w>", err)
+	}
+
+	return nil
+}
+
+// Получение всех записей банковских карт из БД. Возвращается массив записей и ошибка.
+func (d *DataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error) {
+
+	limit := 100
+	offset := 0
+	query := "SELECT field_1, field_2, field_3, field_4, field_5, created_at FROM data4 LIMIT ? OFFSET ?"
+
+	// Порционные запросы.
+	for {
+		rows, err := d.PtrDB.QueryContext(ctx, query, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
+		}
+		defer rows.Close()
+
+		recordCount := 0 // Счетчик количества прочитанных записей
+
+		for rows.Next() {
+			var el BankCard
+
+			err := rows.Scan(&el.Name, &el.Owner, &el.Numb, &el.Valid, &el.Code, &el.CreatedAt)
+			if err != nil {
+				log.Fatalf("Ошибка при считывании строки: %v", err)
+			}
+			list = append(list, el)
+			recordCount++
+		}
+
+		if err := rows.Err(); err != nil {
+			log.Fatalf("Ошибка при обработке строк: %v", err)
+		}
+
+		// Если меньше, значит записей больше нет.
+		if recordCount < limit {
+			break
+		}
+		// Изменение смещения.
+		offset += limit
+	}
+
+	// Результат.
+	return list, nil
+}
+
+// Удаление банковской карты.
+func (d *DataBase) DelBankCardContext(ctx context.Context, field1 string) error {
+
+	query := `DELETE FROM data4 WHERE field_1 = ?`
+
+	res, err := d.PtrDB.ExecContext(ctx, query, field1)
+	if err != nil {
+		return fmt.Errorf("ошибка удаления данных банковской карты:<%w>", err)
+	}
+
+	cnt, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("ошибка получения результата удаления банковской карты:<%w>", err)
+	}
+
+	if cnt == 0 {
+		return errors.New("удаление банковской карты не выполнено")
 	}
 
 	return nil

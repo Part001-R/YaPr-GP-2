@@ -95,7 +95,7 @@ func Run(conf *udt.Configuration) error {
 		conf.PtrLogger.Error("Ошибка привязки Ctrl+E", zap.Error(err))
 		return fmt.Errorf("Ошибка привязки Ctrl+E: <%w>", err)
 	}
-	// Отображение следующего элемента.
+	// Отображение предыдцщего элемента.
 	if err := g.SetKeybinding("", gocui.KeyCtrlG, gocui.ModNone, instUI.doShowPrevElement); err != nil {
 		conf.PtrLogger.Error("Ошибка привязки Ctrl+G", zap.Error(err))
 		return fmt.Errorf("Ошибка привязки Ctrl+G: <%w>", err)
@@ -121,7 +121,12 @@ func Run(conf *udt.Configuration) error {
 		"fieldAddLogin",
 		"fieldAddPassword",
 		"indicatorAddSuccess",
-		"fieldAddText"}
+		"fieldAddText",
+		"fieldAddOwner",
+		"fieldAddNumber",
+		"fieldAddValid",
+		"fieldAddCode",
+	}
 
 	for _, name := range listElement {
 		if err := g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, instUI.handleEnter); err != nil {
