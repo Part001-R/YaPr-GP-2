@@ -3,6 +3,7 @@ package udt
 import (
 	"sync"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/container"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/logfile"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/storage/sqlitestor"
 	"go.uber.org/zap"
@@ -13,9 +14,10 @@ var onceConf sync.Once
 
 // Конфигурация сервиса.
 type Configuration struct {
-	PtrLogger     *zap.Logger      // Логгер терминала
-	PtrLoggerFile *logfile.LogFile // Логгер файл
-	DB            sqlitestor.Actions
+	PtrLogger     *zap.Logger        // Логгер терминала.
+	PtrLoggerFile *logfile.LogFile   // Логгер файл.
+	DB            sqlitestor.Actions // Интерфес БД.
+	Container     container.Actions  // Интерфейс контейнера.
 }
 
 // Указатель на конфигурацию сервиса.

@@ -86,7 +86,7 @@ func Run(conf *udt.Configuration) error {
 		return fmt.Errorf("Ошибка привязки Ctrl+U: <%w>", err)
 	}
 	// Сохранение логин/пароль в БД.
-	if err := g.SetKeybinding("", gocui.KeyCtrlF, gocui.ModNone, instUI.doStoreDB); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlF, gocui.ModNone, instUI.doStore); err != nil {
 		conf.PtrLogger.Error("Ошибка привязки Ctrl+F", zap.Error(err))
 		return fmt.Errorf("Ошибка привязки Ctrl+F: <%w>", err)
 	}
@@ -104,6 +104,11 @@ func Run(conf *udt.Configuration) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlJ, gocui.ModNone, instUI.doDeleteElement); err != nil {
 		conf.PtrLogger.Error("Ошибка привязки Ctrl+J", zap.Error(err))
 		return fmt.Errorf("Ошибка привязки Ctrl+J: <%w>", err)
+	}
+	// Извлечение.
+	if err := g.SetKeybinding("", gocui.KeyCtrlK, gocui.ModNone, instUI.doExtract); err != nil {
+		conf.PtrLogger.Error("Ошибка привязки Ctrl+K", zap.Error(err))
+		return fmt.Errorf("Ошибка привязки Ctrl+K: <%w>", err)
 	}
 	// Enter для полей.
 	listElement := []string{
@@ -126,6 +131,8 @@ func Run(conf *udt.Configuration) error {
 		"fieldAddNumber",
 		"fieldAddValid",
 		"fieldAddCode",
+		"fieldPathSource",
+		"fieldPathTarget",
 	}
 
 	for _, name := range listElement {

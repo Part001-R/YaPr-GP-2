@@ -3,12 +3,18 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/container"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
 	"github.com/jroimartin/gocui"
+)
+
+const (
+	containerName = "container.data"
 )
 
 var once sync.Once
@@ -19,19 +25,21 @@ type encrKey struct {
 
 // Введённые пользователем данные.
 type typeData struct {
-	login         string // имя пользователя
-	password1     string // пароль
-	password2     string // пароль (подтверждение)
-	ip            string // IP
-	port          string // Port
-	dataFor       string // для чего формируются данные
-	dataLogin     string // логин
-	dataPassword  string // пароль
-	dataText      string // текст
-	dataOwner     string // владелец
-	dataNumb      string // номер
-	dataValidDate string // дата валидности
-	dataCode      string // код
+	login         string // имя пользователя.
+	password1     string // пароль.
+	password2     string // пароль (подтверждение).
+	ip            string // IP.
+	port          string // Port.
+	dataFor       string // для чего формируются данные.
+	dataLogin     string // логин.
+	dataPassword  string // пароль.
+	dataText      string // текст.
+	dataOwner     string // владелец.
+	dataNumb      string // номер.
+	dataValidDate string // дата валидности.
+	dataCode      string // код.
+	dataPathSrc   string // путь, нахождения файла.
+	dataPathTrg   string // путь, куда нужно поместить файл.
 }
 
 // Признаки выполнения логики
@@ -59,6 +67,15 @@ type flags struct {
 	readBankCardPassed       bool // Признак, что процедура получения данных карт, пройдена.
 	delBankCardSUCCESS       bool // Признак, успешного удаления данных карты.
 	delBankCardPassed        bool // Признак, что процедура удаления карты, пройдена.
+	addFileSUCCESS           bool // Признак успешного добавления файла.
+	addFilePassed            bool // Признак, что выполнена процедура добавления файла.
+	readFileSUCCESS          bool // Признак, успешного получения данных файла.
+	readFilePassed           bool // Признак, что процедура получения данных файла, пройдена.
+	delFileSUCCESS           bool // Признак, успешного удаления файла.
+	delFilePassed            bool // Признак, что процедура удаления файла, пройдена.
+	extractFileSUCCESS       bool // Признак, успешного извлечения файла.
+	extractFilePassed        bool // Признак, что процедура извлечения файла, пройдена.
+
 }
 
 // Для навигации по экранам.
@@ -93,20 +110,22 @@ type bankCard struct {
 }
 
 // Данные БД.
-type dataDB struct {
+type data struct {
 	encryptLoginPassword []loginPassword // закодированные данные - логин/пароль.
 	loginPassword        []loginPassword // данные - логин/пароль.
 	encryptTextData      []textData      // закодированные данные - текст.
 	textData             []textData      // данные - текст.
 	encryptBankCard      []bankCard      // закодированные данные - банковские карты.
 	bankCard             []bankCard      // данные - банковские карты.
+	files                []string        // файлы
 }
 
 // Индесы.
 type indexes struct {
 	loginPassword int // текущий индекс для обхода массива - логин/пароль.
 	text          int // текущий индекс для обхода массива - текст.
-	bankCard      int // текущий индекс для обхода массива - банковских карт.
+	bankCard      int // текущий индекс для обхода массива - банковские карты.
+	file          int // текущий индекс для обхода массива - файлы.
 }
 
 // Общий тип для CLI UI.
@@ -116,7 +135,7 @@ type handlerUI struct {
 	flag   flags              // признаки сервиса
 	view   screens            // взаимодействие с окнами
 	secret encrKey            // секретность
-	data   dataDB             // данные
+	data   data               // данные
 	index  indexes            // индексы для обхода массивов
 }
 
@@ -136,7 +155,7 @@ func new(conf *udt.Configuration) *handlerUI {
 			secret: encrKey{
 				secretKey: [32]byte{},
 			},
-			data: dataDB{
+			data: data{
 				encryptLoginPassword: []loginPassword{},
 				loginPassword:        []loginPassword{},
 			},
@@ -782,6 +801,15 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
+	case viewBinaryData: // Если окно для взаимодействия с файлами.
+		switch c.view.currentFocus {
+		case "fieldPathSource":
+			c.view.currentFocus = "fieldPathTarget"
+		case "fieldPathTarget":
+			c.view.currentFocus = "fieldPathSource"
+		default:
+		}
+
 	default:
 		return nil
 	}
@@ -814,6 +842,9 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 	}
 	if c.view.activeView == viewBankCardData {
 		fields = []string{"fieldAddFor", "fieldAddOwner", "fieldAddNumber", "fieldAddValid", "fieldAddCode"}
+	}
+	if c.view.activeView == viewBinaryData {
+		fields = []string{"fieldPathSource", "fieldPathTarget"}
 	}
 
 	for _, name := range fields {
@@ -951,6 +982,20 @@ func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 			c.typed.dataValidDate = strings.TrimSpace(v.Buffer())
 		case "fieldAddCode":
 			c.typed.dataCode = strings.TrimSpace(v.Buffer())
+		default:
+		}
+
+	case viewBinaryData: // Если окно взаимодействия с файлами.
+		c.flag.addFilePassed = false  // Сброс признака.
+		c.flag.addFileSUCCESS = false // Сброс статуса.
+
+		switch v.Name() {
+		case "fieldPathSource":
+			c.typed.dataPathSrc = strings.ReplaceAll(c.typed.dataPathSrc, "\n", "")
+			c.typed.dataPathSrc = strings.TrimSpace(v.Buffer())
+		case "fieldPathTarget":
+			c.typed.dataPathTrg = strings.ReplaceAll(c.typed.dataPathTrg, "\n", "")
+			c.typed.dataPathTrg = strings.TrimSpace(v.Buffer())
 		default:
 		}
 
@@ -1222,6 +1267,84 @@ func (c *handlerUI) indicators(g *gocui.Gui) {
 		}
 	}
 
+	// Окно файлов.
+	if c.view.activeView == viewBinaryData {
+
+		// Есть установлен признак отработки добавления файла в контейнер.
+		if c.flag.addFilePassed {
+			element, err := g.View("Save")
+			if err != nil || element == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу Save: <%v>", err))
+			}
+			if err == nil {
+				if c.flag.addFileSUCCESS {
+					element.FgColor = gocui.ColorGreen
+				} else {
+					element.FgColor = gocui.ColorRed
+				}
+			}
+		}
+
+		// Есть установлен признак извлечения файла из контейнера.
+		if c.flag.extractFilePassed {
+			element, err := g.View("Extraction")
+			if err != nil || element == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу Extraction: <%v>", err))
+			}
+			if err == nil {
+				if c.flag.extractFileSUCCESS {
+					element.FgColor = gocui.ColorGreen
+				} else {
+					element.FgColor = gocui.ColorRed
+				}
+			}
+		}
+
+		// Есть установлен признак удаления файла из контейнера.
+		if c.flag.delFilePassed {
+			element, err := g.View("DeleteElement")
+			if err != nil || element == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу DeleteElement: <%v>", err))
+			}
+			if err == nil {
+				if c.flag.delFileSUCCESS {
+					element.FgColor = gocui.ColorGreen
+				} else {
+					element.FgColor = gocui.ColorRed
+				}
+			}
+
+			c.flag.delFilePassed = false
+			c.flag.delFileSUCCESS = false
+		}
+
+		// Если чтение файлов контейнера выполнено.
+		if c.flag.readFilePassed {
+
+			indicator, err := g.View("indicatorReadStatus")
+			if err != nil || indicator == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
+				return
+			}
+			if c.flag.readFileSUCCESS {
+
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Есть признак чтения файлов. В хранилище <%d> файлов", len(c.data.files))) //================
+
+				indicator.Clear()
+				indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.files))))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка чтения."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+
+			c.flag.readFilePassed = false  // Для разовой отработки при открытии экрана.
+			c.flag.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
+		}
+	}
 }
 
 // Проверка связи с сервером.
@@ -1343,8 +1466,8 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// Запуск процесса сохранения данных логин/пароль.
-func (c *handlerUI) doStoreDB(gui *gocui.Gui, v *gocui.View) error {
+// Запуск процесса сохранения данных.
+func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.PtrLoggerFile.Write("Debug: запущена функция doStoreLoginPasswordDB")
 
@@ -1487,6 +1610,18 @@ func (c *handlerUI) doStoreDB(gui *gocui.Gui, v *gocui.View) error {
 		c.flag.addBankCardSUCCESS = true
 		return nil
 
+	case viewBinaryData: // Окно для работы с файлами.
+
+		c.flag.addFilePassed = true
+		c.flag.addFileSUCCESS = false
+
+		if err := c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка при добавлении файла <%s>, в контейнер", c.typed.dataPathSrc))
+			return nil
+		}
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: файл <%s>, добавлен в контейнер", c.typed.dataPathSrc))
+		c.flag.addFileSUCCESS = true
+
 	default:
 	}
 
@@ -1499,6 +1634,10 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Взаимодействие с логин/пароль
+
+		if len(c.data.loginPassword) == 0 {
+			return nil
+		}
 
 		el := loginPasswordByIndex(c) // получение записи по индексу
 		incrIndexloginPassword(c)     // увеличение значения индекса
@@ -1550,6 +1689,10 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 
 	case viewTextData: // Взаимодействие с текстом
 
+		if len(c.data.textData) == 0 {
+			return nil
+		}
+
 		el := textByIndex(c) // получение записи по индексу
 		incrIndexText(c)     // увеличение значения индекса
 
@@ -1583,6 +1726,10 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 			fieldText.Write([]byte(""))
 		}
 	case viewBankCardData: // Взаимодействие с банковскими картами
+
+		if len(c.data.bankCard) == 0 {
+			return nil
+		}
 
 		el := bankCardByIndex(c) // получение записи по индексу
 		incrIndexBankCard(c)     // увеличение значения индекса
@@ -1662,6 +1809,29 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 			fieldCode.Write([]byte(""))
 		}
 
+	case viewBinaryData: // Взаимодействие с файлами
+
+		if len(c.data.files) == 0 {
+			return nil
+		}
+
+		el := fileByIndex(c) // получение записи по индексу
+		incrIndexFile(c)     // увеличение значения индекса
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowFor")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(el))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
 	default:
 	}
 
@@ -1836,6 +2006,26 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 			fieldCode.Write([]byte(""))
 		}
 
+	case viewBinaryData: // Взаимодействие с файлами.
+
+		decrIndexFile(c)     // уменьшение значения индекса
+		el := fileByIndex(c) // получение записи по индексу
+
+		// отображение содержимого.
+		fieldCode, err := gui.View("fieldShowFor")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(el))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
+
 	default:
 	}
 
@@ -1939,9 +2129,68 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 		c.flag.delBankCardSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные карты, успешно удалены"))
 
+	case viewBinaryData: // Окно работы с файлами.
+
+		c.flag.delFilePassed = true
+		c.flag.delFileSUCCESS = false
+
+		// Чтение буфера.
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+			return nil
+		}
+		name := v.ViewBuffer()
+		name = strings.ReplaceAll(name, "\n", "") // удаление символа
+
+		// Удаление файла.
+		if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
+			return nil
+		}
+		c.flag.delFileSUCCESS = true
+
 	default:
 	}
 
+	return nil
+}
+
+// Извлечение.
+func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
+
+	switch c.view.activeView {
+	case viewBinaryData: // Окно работы с файлами
+
+		c.flag.extractFilePassed = true
+		c.flag.extractFileSUCCESS = false
+
+		// Чтение буфера.
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+			return nil
+		}
+		name := v.ViewBuffer()
+		name = strings.ReplaceAll(name, "\n", "") // удаления символа
+
+		// Получение файла из хранилища.
+		contentFile, err := c.conf.Container.GetFileFromContainer(name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения файла: <%s> их контейнера: <%v>", name, err))
+			return nil
+		}
+
+		// Сохранение файла.
+		path := c.typed.dataPathTrg + name
+
+		err = os.WriteFile(path, contentFile, 0644)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения файла: <%s> из контейнера: <%v>", c.typed.dataPathTrg, err))
+			return nil
+		}
+		c.flag.extractFileSUCCESS = true
+	}
 	return nil
 }
 
@@ -2050,6 +2299,16 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 // Окно с выбором типа записей.
 func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
+	// Создание экземпляра контейнера.
+	//
+	// Создаётся экземпляр в этом месте, т.к. ключ шифрования формируется после запроса дополнительного ключа.
+	inst := container.New(containerName, c.secret.secretKey)
+	c.conf.Container = inst
+
+	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: стартовая обработка контейнера <%s> пройдена", containerName))
+
+	// Логика обработчика
+	//
 	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Debug: выполнен переход на окно: <%s>", viewSelectType))
 
 	c.view.activeView = "" // Сброс признака активного окна
@@ -2804,17 +3063,30 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 // Окно для взаимодействия с логин/пароль.
 func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 
-	c.view.activeView = "" // Сброс признака активного окна
+	c.view.activeView = "" // Сброс
+	c.index.file = 0
 
-	// Удаляем все зависимые виды
+	c.flag.addFilePassed = false
+	c.flag.addFileSUCCESS = false
+
+	c.flag.readFilePassed = false
+	c.flag.readFileSUCCESS = false
+
+	c.flag.delFilePassed = false
+	c.flag.delFileSUCCESS = false
+
+	c.flag.extractFilePassed = false
+	c.flag.extractFileSUCCESS = false
+
+	// Удаляем все зависимые виды.
 	if err := deleteViews(g); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
-	// Сброс состояния
+	// Сброс состояния.
 	layoutInitialized = false
-	c.view.currentFocus = "selectLoginPassword" // Установка фокуса
+	c.view.currentFocus = "fieldPathSource" // Установка фокуса на поле ввода.
 
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewBinaryData, 0, 0, screenWidth-1, screenHeight-1)
@@ -2827,8 +3099,170 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	view.Clear()
 
 	//
+	// --- Вывод надписей ---
+	//
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
+	fmt.Fprintf(view, "%sФайл в хранилище:\n", strings.Repeat(" ", 2))
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
+	fmt.Fprintf(view, "%sОткуда:\n", strings.Repeat(" ", 2))
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
+	fmt.Fprintf(view, "%sКуда:\n", strings.Repeat(" ", 2))
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
+	fmt.Fprintf(view, "%sДобавление файла: - указать путь к файлу <Откуда> и выполнить Crl+F.\n", strings.Repeat(" ", 2))
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
+	fmt.Fprintf(view, "%sИзвлечение файла: - указать путь к директории <Куда>.%sПри изменении данных, выполнить Ctrl+U\n", strings.Repeat(" ", 2), strings.Repeat(" ", 30))
+	fmt.Fprintf(view, "%s                  - используя Crl+E и Ctrl+G, выбрать файл в хранилище.\n", strings.Repeat(" ", 2))
+	fmt.Fprintf(view, "%s                  - выполнить извлечение Ctrl+K.\n", strings.Repeat(" ", 2))
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
+	fmt.Fprintf(view, "%sУдаление файла:   - выбрать файл через Ctrl+E, Ctrl+G и нажать Crl+J.\n", strings.Repeat(" ", 2))
+
+	//
+	// --- Индикаторы ---
+	//
+
+	// Результат чтения данных.
+	indicatorY := 2
+	indicatorX := 105
+	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vRead.Frame = false
+	vRead.BgColor = gocui.ColorDefault
+	vRead.FgColor = gocui.ColorDefault
+
+	//
+	// --- Поля вывода ---
+	//
+
+	// Отображение имени файла
+	if v, err := g.SetView("fieldShowFor", 22, 2, inputWidth+20, inputHeight+1+1); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldShowFor")
+	}
+
+	//
+	// --- Поля ввода ---
+	//
+
+	// Полный путь к файлу.
+	if v, err := g.SetView("fieldPathSource", 22, 6, inputWidth+48, inputHeight+1+5); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = true
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorBlack
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldPathSource")
+	}
+	// Директория назначения.
+	if v, err := g.SetView("fieldPathTarget", 22, 10, inputWidth+48, inputHeight+1+9); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = true
+		v.Editable = true
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorBlack
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+
+		v.Write([]byte("....."))
+		c.setFocusStyle(v, "fieldPathTarget")
+	}
+
+	//
 	// --- Нижняя часть экрана ---
 	//
+
+	// Верхний ряд.
+	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+F - сохранение"))
+	}
+	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctr+E - Далее"))
+	}
+	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+G - Назад"))
+	}
+	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+J - Удаление"))
+	}
+	if v, err := g.SetView("Extraction", 104, 23, inputWidth+48, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+K - Извлечение"))
+	}
+
+	//Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
@@ -2851,7 +3285,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 		v.Frame = true
 		v.BgColor = gocui.ColorDefault
 		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Enter - переход"))
+		v.Write([]byte("Enter - Фиксация"))
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -2888,6 +3322,17 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 		v.BgColor = gocui.ColorDefault
 		v.FgColor = gocui.ColorWhite
 		v.Write([]byte("Ctrl+U - назад"))
+	}
+
+	// Получение списка названий файлов.
+	c.flag.readFilePassed = true // Установка признака, что был запущен процесс получения значений текста.
+
+	c.data.files, err = c.conf.Container.ListFilesInContainer(c.secret.secretKey)
+	if err != nil {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
+	} else {
+		c.conf.PtrLoggerFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
+		c.flag.readFileSUCCESS = true
 	}
 
 	// Установка фокуса.

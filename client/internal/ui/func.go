@@ -86,6 +86,9 @@ func deleteViews(g *gocui.Gui) error {
 		"fieldAddNumber":         {},
 		"fieldAddValid":          {},
 		"fieldAddCode":           {},
+		"Extraction":             {},
+		"fieldPathSource":        {},
+		"fieldPathTarget":        {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -696,6 +699,16 @@ func bankCardByIndex(c *handlerUI) (el bankCard) {
 	return el
 }
 
+// Получение данных afqkf по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func fileByIndex(c *handlerUI) string {
+
+	return c.data.files[c.index.file]
+}
+
 // Увеличение значения индекса для логин/пароль массива.
 //
 // Параметры:
@@ -732,6 +745,18 @@ func incrIndexBankCard(c *handlerUI) {
 	}
 }
 
+// Увеличение значения индекса для массива файлов.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexFile(c *handlerUI) {
+
+	if c.index.file < len(c.data.files)-1 {
+		c.index.file++
+	}
+}
+
 // Уменьшение значения индекса для логин/пароль массива.
 //
 // Параметры:
@@ -765,6 +790,18 @@ func decrIndexBankCard(c *handlerUI) {
 
 	if c.index.bankCard > 0 {
 		c.index.bankCard--
+	}
+}
+
+// Уменьшение значения индекса для массива файлов.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexFile(c *handlerUI) {
+
+	if c.index.file > 0 {
+		c.index.file--
 	}
 }
 
