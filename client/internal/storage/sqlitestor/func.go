@@ -13,7 +13,7 @@ import (
 )
 
 // Подключение к БД.
-func Connect(dsn string) (*sql.DB, error) {
+func connect(dsn string) (*sql.DB, error) {
 	if dsn == "" {
 		return nil, errors.New("нет содержимого в аргументе dsn")
 	}
@@ -31,126 +31,6 @@ func Connect(dsn string) (*sql.DB, error) {
 	}
 
 	return ptrDB, nil
-}
-
-// Создание таблиц.
-func CreateTables(db *sql.DB) error {
-
-	// Создание таблицы пользователей.
-	if err := createTableUsers(db); err != nil {
-		return fmt.Errorf("функция createTableUsers, вернула ошибку: <%w>", err)
-	}
-
-	// создание таблицы для хранения логин/пароль.
-	if err := createTableLoginPassword(db); err != nil {
-		return fmt.Errorf("функция createTableLoginPassword, вернула ошибку: <%w>", err)
-	}
-
-	// создание таблицы для хранения текста.
-	if err := createTableText(db); err != nil {
-		return fmt.Errorf("функция createTableText, вернула ошибку: <%w>", err)
-	}
-
-	// создание таблицы для хранения банковских карт.
-	if err := createTableBankCard(db); err != nil {
-		return fmt.Errorf("функция createTableBankCard, вернула ошибку: <%w>", err)
-	}
-
-	return nil
-}
-
-// Создание таблицы пользователей.
-func createTableUsers(db *sql.DB) (err error) {
-
-	query := `
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_name TEXT UNIQUE NOT NULL,
-        user_password TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    `
-	_, err = db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("Ошибка создания таблицы users: <%w>", err)
-	}
-
-	return nil
-}
-
-// Создание таблицы для хранения логи/пароль.
-func createTableLoginPassword(db *sql.DB) (err error) {
-
-	// В запросе маскируется принадлежность данных.
-	//
-	// field_1 - наименование ресурса, к которому сопоставляется логин/пароль.
-	// field_2 - логин.
-	// field_3 - пароль.
-	query := `
-    CREATE TABLE IF NOT EXISTS data1 (  
-        field_1 TEXT UNIQUE NOT NULL,
-        field_2 TEXT NOT NULL,
-		field_3 TEXT NOT NULL,
-        created_at DATETIME NOT NULL
-    );
-    `
-	_, err = db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("Ошибка создания таблицы data1: <%w>", err)
-	}
-
-	return nil
-}
-
-// Создание таблицы для хранения текста.
-func createTableText(db *sql.DB) (err error) {
-
-	// В запросе маскируется принадлежность данных.
-	//
-	// field_1 - наименование ресурса, к которому сопоставляется текст.
-	// field_2 - текст.
-	query := `
-    CREATE TABLE IF NOT EXISTS data2 (  
-        field_1 TEXT UNIQUE NOT NULL,
-        field_2 TEXT NOT NULL,
-        created_at DATETIME NOT NULL
-    );
-    `
-	_, err = db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("Ошибка создания таблицы data2: <%w>", err)
-	}
-
-	return nil
-}
-
-// Создание таблицы для хранения банковских кард.
-func createTableBankCard(db *sql.DB) (err error) {
-
-	// В запросе маскируется принадлежность данных.
-	//
-	// field_1 - наименование ресурса, к которому сопоставляется карта.
-	// field_2 - владелец.
-	// field_3 - номер.
-	// field_4 - дата.
-	// field_5 - код.
-
-	query := `
-    CREATE TABLE IF NOT EXISTS data4 (  
-        field_1 TEXT UNIQUE NOT NULL,
-        field_2 TEXT NOT NULL,
-		field_3 TEXT NOT NULL,
-		field_4 TEXT NOT NULL,
-		field_5 TEXT NOT NULL,
-        created_at DATETIME NOT NULL
-    );
-    `
-	_, err = db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("Ошибка создания таблицы data1: <%w>", err)
-	}
-
-	return nil
 }
 
 // Генерация хеша из строки. Возвращается хеш.

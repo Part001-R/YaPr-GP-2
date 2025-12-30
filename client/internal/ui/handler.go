@@ -1411,7 +1411,7 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 	defer cancel()
 
 	// Проверка, что в БД уже есть регистрация пользователя.
-	busy, err := c.conf.DB.UserExistContext(ctx)
+	busy, err := c.conf.DataBase.UserExistContext(ctx)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция UserExistContext, вернуля ошибку: <%v>", err))
 		return nil
@@ -1423,7 +1423,7 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 	}
 
 	// Добавление пользователя в БД.
-	if err := c.conf.DB.AddUserContext(ctx, userName, userPwd1); err != nil {
+	if err := c.conf.DataBase.AddUserContext(ctx, userName, userPwd1); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция AddUserContext, вернуля ошибку: <%v>", err))
 		return nil
 	}
@@ -1446,7 +1446,7 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 	defer cancel()
 
 	// Выполнение запроса.
-	ok, err := c.conf.DB.AuthenticateUserContext(ctx, userName, userPwd1)
+	ok, err := c.conf.DataBase.AuthenticateUserContext(ctx, userName, userPwd1)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err))
 		return nil
@@ -1505,7 +1505,7 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 		}
 
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DB.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
+		if err := c.conf.DataBase.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
 			return nil
 		}
@@ -1543,7 +1543,7 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 			return nil
 		}
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DB.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
+		if err := c.conf.DataBase.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
 			return nil
 		}
@@ -1601,7 +1601,7 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 		}
 
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DB.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
+		if err := c.conf.DataBase.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
 			return nil
 		}
@@ -2059,7 +2059,7 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		if err := c.conf.DB.DelDataLoginPasswordContext(ctx, textEl); err != nil {
+		if err := c.conf.DataBase.DelDataLoginPasswordContext(ctx, textEl); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
 			return nil
 		}
@@ -2090,7 +2090,7 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		if err := c.conf.DB.DelTextContext(ctx, textEl); err != nil {
+		if err := c.conf.DataBase.DelTextContext(ctx, textEl); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
 			return nil
 		}
@@ -2121,7 +2121,7 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		if err := c.conf.DB.DelBankCardContext(ctx, textEl); err != nil {
+		if err := c.conf.DataBase.DelBankCardContext(ctx, textEl); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
 			return nil
 		}
@@ -3106,21 +3106,13 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	fmt.Fprintf(view, "%sФайл в хранилище:\n", strings.Repeat(" ", 2))
 
 	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
-	fmt.Fprintf(view, "%sОткуда:\n", strings.Repeat(" ", 2))
+	fmt.Fprintf(view, "%sОткуда (файл):\n", strings.Repeat(" ", 2))
 
 	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
-	fmt.Fprintf(view, "%sКуда:\n", strings.Repeat(" ", 2))
+	fmt.Fprintf(view, "%sКуда (директория):\n", strings.Repeat(" ", 2))
 
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
-	fmt.Fprintf(view, "%sДобавление файла: - указать путь к файлу <Откуда> и выполнить Crl+F.\n", strings.Repeat(" ", 2))
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
-	fmt.Fprintf(view, "%sИзвлечение файла: - указать путь к директории <Куда>.%sПри изменении данных, выполнить Ctrl+U\n", strings.Repeat(" ", 2), strings.Repeat(" ", 30))
-	fmt.Fprintf(view, "%s                  - используя Crl+E и Ctrl+G, выбрать файл в хранилище.\n", strings.Repeat(" ", 2))
-	fmt.Fprintf(view, "%s                  - выполнить извлечение Ctrl+K.\n", strings.Repeat(" ", 2))
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
-	fmt.Fprintf(view, "%sУдаление файла:   - выбрать файл через Ctrl+E, Ctrl+G и нажать Crl+J.\n", strings.Repeat(" ", 2))
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 5))
+	fmt.Fprintf(view, "%sПри внесении изменений, выполните Crl+U.\n", strings.Repeat(" ", 45))
 
 	//
 	// --- Индикаторы ---

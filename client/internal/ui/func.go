@@ -549,7 +549,7 @@ func showLoginPasswordWorkDB(c *handlerUI) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	encodeRxData, err := c.conf.DB.ReadTableLoginPasswordContext(ctx)
+	encodeRxData, err := c.conf.DataBase.ReadTableLoginPasswordContext(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
 	}
@@ -587,7 +587,7 @@ func showBankCardWorkDB(c *handlerUI) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	encodeRxData, err := c.conf.DB.ReadTableBankCardContext(ctx)
+	encodeRxData, err := c.conf.DataBase.ReadTableBankCardContext(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
 	}
@@ -627,7 +627,7 @@ func showTextWorkDB(c *handlerUI) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	encodeRxData, err := c.conf.DB.ReadTableTextContext(ctx)
+	encodeRxData, err := c.conf.DataBase.ReadTableTextContext(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("функция ReadTableTextContext, вернула ошибку: <%v>", err)
 	}

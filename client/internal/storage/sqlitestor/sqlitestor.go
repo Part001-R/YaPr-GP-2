@@ -15,8 +15,8 @@ import (
 var once sync.Once
 
 // База данных.
-type DataBase struct {
-	PtrDB *sql.DB
+type dataBase struct {
+	ptrDB *sql.DB
 	mu    *sync.Mutex
 }
 
@@ -62,30 +62,48 @@ type Actions interface {
 	DelBankCardContext(ctx context.Context, field1 string) error
 }
 
-var inst *DataBase
+var inst *dataBase
 
 // Конструктор.
-func New(db *sql.DB) Actions {
+func New(dsn string) (Actions, error) {
+
+	var err error
+
 	once.Do(func() {
-		inst = &DataBase{
-			PtrDB: db,
+		db, connErr := connect(dsn)
+		if connErr != nil {
+			err = fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
+			return
+		}
+		if migrationErr := migrationUp(db); migrationErr != nil {
+			err = fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
+			return
+		}
+
+		inst = &dataBase{
+			ptrDB: db,
 			mu:    &sync.Mutex{},
 		}
 	})
-	return inst
+
+	if err != nil {
+		return nil, fmt.Errorf("Error: %v", err)
+	}
+
+	return inst, nil
 }
 
 // Закрытие подключения к БД.
-func (d *DataBase) Close() error {
+func (d *dataBase) Close() error {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	return d.PtrDB.Close()
+	return d.ptrDB.Close()
 }
 
 // Регистрация нового пользователя.
-func (d *DataBase) AddUserContext(ctx context.Context, userName, userPwd string) error {
+func (d *dataBase) AddUserContext(ctx context.Context, userName, userPwd string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -102,7 +120,7 @@ func (d *DataBase) AddUserContext(ctx context.Context, userName, userPwd string)
 	defer cancel()
 
 	// Выполнение запроса.
-	_, err := d.PtrDB.ExecContext(ctx, query, userName, hashPwd)
+	_, err := d.ptrDB.ExecContext(ctx, query, userName, hashPwd)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления пользователя: <%w>", err)
 	}
@@ -111,7 +129,7 @@ func (d *DataBase) AddUserContext(ctx context.Context, userName, userPwd string)
 }
 
 // Аутентификация пользователя.
-func (d *DataBase) AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error) {
+func (d *dataBase) AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error) {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -128,7 +146,7 @@ func (d *DataBase) AuthenticateUserContext(ctx context.Context, userName, userPw
 
 	// Выполнение запроса.
 	var hashPwd string
-	err := d.PtrDB.QueryRowContext(ctx, query, userName).Scan(&hashPwd)
+	err := d.ptrDB.QueryRowContext(ctx, query, userName).Scan(&hashPwd)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil // Пользователь не найден.
@@ -145,12 +163,12 @@ func (d *DataBase) AuthenticateUserContext(ctx context.Context, userName, userPw
 }
 
 // Проверка, что уже есть зарегистрированный пользователь. Возвращается true - если уже есть запись пользователя и ошибка.
-func (d *DataBase) UserExistContext(ctx context.Context) (bool, error) {
+func (d *dataBase) UserExistContext(ctx context.Context) (bool, error) {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	row := d.PtrDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM users")
+	row := d.ptrDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM users")
 
 	var count int
 	if err := row.Scan(&count); err != nil {
@@ -170,13 +188,13 @@ func (d *DataBase) UserExistContext(ctx context.Context) (bool, error) {
 //
 
 // Добавление пары логин/пароль.
-func (d *DataBase) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
+func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
 
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data1 (field_1, field_2, field_3, created_at) VALUES (?, ?, ?, ?)`
 
 	// Запрос.
-	_, err := d.PtrDB.ExecContext(ctx, query, field1, field2, field3, createdAt)
+	_, err := d.ptrDB.ExecContext(ctx, query, field1, field2, field3, createdAt)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления данных логин/пароль:<%w>", err)
 	}
@@ -185,7 +203,7 @@ func (d *DataBase) AddDataLoginPasswordContext(ctx context.Context, field1, fiel
 }
 
 // Получение всех записей логин/пароль из БД. Возвращается массив записей и ошибка.
-func (d *DataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error) {
+func (d *dataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error) {
 
 	limit := 100
 	offset := 0
@@ -193,7 +211,7 @@ func (d *DataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []Lo
 
 	// Порционные запросы.
 	for {
-		rows, err := d.PtrDB.QueryContext(ctx, query, limit, offset)
+		rows, err := d.ptrDB.QueryContext(ctx, query, limit, offset)
 		if err != nil {
 			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
 		}
@@ -229,11 +247,11 @@ func (d *DataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []Lo
 }
 
 // Удаление пары логин/пароль.
-func (d *DataBase) DelDataLoginPasswordContext(ctx context.Context, field1 string) error {
+func (d *dataBase) DelDataLoginPasswordContext(ctx context.Context, field1 string) error {
 
 	query := `DELETE FROM data1 WHERE field_1 = ?`
 
-	res, err := d.PtrDB.ExecContext(ctx, query, field1)
+	res, err := d.ptrDB.ExecContext(ctx, query, field1)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления данных логин/пароль:<%w>", err)
 	}
@@ -255,13 +273,13 @@ func (d *DataBase) DelDataLoginPasswordContext(ctx context.Context, field1 strin
 //
 
 // Добавление текста.
-func (d *DataBase) AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error {
+func (d *dataBase) AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error {
 
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data2 (field_1, field_2, created_at) VALUES (?, ?, ?)`
 
 	// Запрос.
-	_, err := d.PtrDB.ExecContext(ctx, query, field1, field2, createdAt)
+	_, err := d.ptrDB.ExecContext(ctx, query, field1, field2, createdAt)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления данных логин/пароль:<%w>", err)
 	}
@@ -270,7 +288,7 @@ func (d *DataBase) AddDataTextContext(ctx context.Context, field1, field2, creat
 }
 
 // Получение всех записей текста из БД. Возвращается массив записей и ошибка.
-func (d *DataBase) ReadTableTextContext(ctx context.Context) (list []TextData, err error) {
+func (d *dataBase) ReadTableTextContext(ctx context.Context) (list []TextData, err error) {
 
 	limit := 100
 	offset := 0
@@ -278,7 +296,7 @@ func (d *DataBase) ReadTableTextContext(ctx context.Context) (list []TextData, e
 
 	// Порционные запросы.
 	for {
-		rows, err := d.PtrDB.QueryContext(ctx, query, limit, offset)
+		rows, err := d.ptrDB.QueryContext(ctx, query, limit, offset)
 		if err != nil {
 			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
 		}
@@ -314,11 +332,11 @@ func (d *DataBase) ReadTableTextContext(ctx context.Context) (list []TextData, e
 }
 
 // Удаление текста.
-func (d *DataBase) DelTextContext(ctx context.Context, field1 string) error {
+func (d *dataBase) DelTextContext(ctx context.Context, field1 string) error {
 
 	query := `DELETE FROM data2 WHERE field_1 = ?`
 
-	res, err := d.PtrDB.ExecContext(ctx, query, field1)
+	res, err := d.ptrDB.ExecContext(ctx, query, field1)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления данных текста:<%w>", err)
 	}
@@ -340,13 +358,13 @@ func (d *DataBase) DelTextContext(ctx context.Context, field1 string) error {
 //
 
 // Добавление банковской карты.
-func (d *DataBase) AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error {
+func (d *dataBase) AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error {
 
 	// Подготовка.
 	query := `INSERT INTO data4 (field_1, field_2, field_3, field_4, field_5, created_at) VALUES (?, ?, ?, ?, ?, ?)`
 
 	// Запрос.
-	_, err := d.PtrDB.ExecContext(ctx, query, field1, field2, field3, field4, field5, createdAt)
+	_, err := d.ptrDB.ExecContext(ctx, query, field1, field2, field3, field4, field5, createdAt)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления данных банковской карты:<%w>", err)
 	}
@@ -355,7 +373,7 @@ func (d *DataBase) AddDataBankCardContext(ctx context.Context, field1, field2, f
 }
 
 // Получение всех записей банковских карт из БД. Возвращается массив записей и ошибка.
-func (d *DataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error) {
+func (d *dataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error) {
 
 	limit := 100
 	offset := 0
@@ -363,7 +381,7 @@ func (d *DataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCar
 
 	// Порционные запросы.
 	for {
-		rows, err := d.PtrDB.QueryContext(ctx, query, limit, offset)
+		rows, err := d.ptrDB.QueryContext(ctx, query, limit, offset)
 		if err != nil {
 			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
 		}
@@ -399,11 +417,11 @@ func (d *DataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCar
 }
 
 // Удаление банковской карты.
-func (d *DataBase) DelBankCardContext(ctx context.Context, field1 string) error {
+func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error {
 
 	query := `DELETE FROM data4 WHERE field_1 = ?`
 
-	res, err := d.PtrDB.ExecContext(ctx, query, field1)
+	res, err := d.ptrDB.ExecContext(ctx, query, field1)
 	if err != nil {
 		return fmt.Errorf("ошибка удаления данных банковской карты:<%w>", err)
 	}
