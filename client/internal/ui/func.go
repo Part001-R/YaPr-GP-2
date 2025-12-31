@@ -8,9 +8,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -101,11 +101,11 @@ func deleteViews(g *gocui.Gui) error {
 func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 	// Проверка аргументов
 	if c == nil {
-		return false, errors.New("в аргументе <c> нет указателя")
+		return false, NilPtrArgumentC
 	}
 
 	// Логика
-	c.flag.checkConnectPassed = true
+	c.status.checkConnectPassed = true
 	srvAddr := c.typed.ip + ":" + c.typed.port
 
 	// Настройка TLS.
@@ -159,7 +159,7 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 	token := header[nameToken]
 	if len(token) == 0 || token[0] == "" {
 		c.conf.PtrLoggerFile.Write("в ответе на запрос ping, отсутствуют данные токена")
-		return false, errors.New("в ответе на запрос ping, отсутствуют данные токена")
+		return false, MissingTokenData
 	}
 	rxToken := token[0]
 
@@ -184,10 +184,10 @@ func createToken(subjectName, secretKey string, validTime time.Duration) (string
 
 	// Проверка аргументов.
 	if subjectName == "" {
-		return "", errors.New("в аргументе <subjectName>, нет данных")
+		return "", EmptyDataArgumentSubjectName
 	}
 	if len(secretKey) < 32 {
-		return "", errors.New("длина <secretKey> должна быть не менее 32 символов")
+		return "", LenSecretKey
 	}
 
 	// Логика.
@@ -256,10 +256,10 @@ func checkToken(tokenStr string, secretKey string) error {
 
 	// Проверка аргументов.
 	if tokenStr == "" {
-		return errors.New("в аргументе tokenStr, нет данных")
+		return MissingDataArgumentTokenStr
 	}
 	if len(secretKey) < 32 {
-		return errors.New("длинная secretKey, меньше 32")
+		return LenSecretKey
 	}
 
 	// Логика.
@@ -267,7 +267,7 @@ func checkToken(tokenStr string, secretKey string) error {
 	// Проверка токена.
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("неизвестный метод подписи")
+			return nil, SigningMethodUnknown
 		}
 		return []byte(secretKey), nil
 	})
@@ -278,7 +278,7 @@ func checkToken(tokenStr string, secretKey string) error {
 	// Проверка на истечение срока действия токена.
 	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && claims.ExpiresAt != nil {
 		if time.Now().After(claims.ExpiresAt.Time) {
-			return errors.New("время валидности токена истекло")
+			return ValidTokenExpired
 		}
 	}
 
@@ -291,18 +291,18 @@ func checkDataRegistration(userName, userPwd1, userPwd2 string) error {
 
 	// Проверка аргументов.
 	if userName == "" {
-		return errors.New("в аргументе <userName>, нет данных")
+		return MissingDataArgumentUserName
 	}
 	if userPwd1 == "" {
-		return errors.New("в аргументе <userPwd1>, нет данных")
+		return MissingDataArgumentUserPwd1
 	}
 	if userPwd2 == "" {
-		return errors.New("в аргументе <userPwd2>, нет данных")
+		return MissingDataArgumentUserPwd2
 	}
 
 	// Проверка пароля.
 	if userPwd1 != userPwd2 {
-		return errors.New("данные пароля не эквивалентны")
+		return NotEqualPassword
 	}
 
 	return nil
@@ -325,13 +325,13 @@ func generateSecretKey(input string) [32]byte {
 //	data - данные для шифрования.
 //	key - ключ шифрования.
 func encrypt(data string, key [32]byte) (string, error) {
-	// Создаём AES-256 шифр
+
+	// Создание AES-256
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return "", err
 	}
 
-	// Преобразуем текст в байты
 	plaintextBytes := []byte(data)
 
 	// PKCS#7 заполнение
@@ -347,7 +347,7 @@ func encrypt(data string, key [32]byte) (string, error) {
 	mode := cipher.NewCBCEncrypter(block, iv)
 	mode.CryptBlocks(ciphertext, padText)
 
-	// Кодируем в Base64
+	// Кодирование в Base64
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
@@ -358,13 +358,14 @@ func encrypt(data string, key [32]byte) (string, error) {
 //	data - зашифрованные данные.
 //	key - ключ шифрования.
 func decrypt(data string, key [32]byte) (string, error) {
-	// Декодируем из Base64
+
+	// Декодирование из Base64
 	ciphertextBytes, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
 		return "", err
 	}
 
-	// Создаём AES-256 шифр
+	// Создание AES-256
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return "", err
@@ -372,7 +373,7 @@ func decrypt(data string, key [32]byte) (string, error) {
 
 	blockSize := block.BlockSize()
 	if len(ciphertextBytes)%blockSize != 0 {
-		return "", errors.New("некорректная длина зашифрованных данных")
+		return "", NotCorrectLenData
 	}
 
 	// Вектор инициализации (такой же, как при шифровании)
@@ -383,10 +384,10 @@ func decrypt(data string, key [32]byte) (string, error) {
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(plaintextPadded, ciphertextBytes)
 
-	// Удаляем PKCS#7 заполнение
+	// Удаление PKCS#7
 	padding := int(plaintextPadded[len(plaintextPadded)-1])
 	if padding > blockSize || padding == 0 {
-		return "", errors.New("некорректное заполнение")
+		return "", NotCorrectDataFill
 	}
 	plaintext := plaintextPadded[:len(plaintextPadded)-padding]
 
@@ -842,4 +843,703 @@ func checkCardNumber(cardNumber string) bool {
 
 	// Проверка.
 	return sum%10 == 0
+}
+
+// Очистка введённой строки от пробелов и \n. Возвращается очищенная трока.
+//
+// Параметры:
+//
+//	typed - введённая строка.
+func cleaningTypedString(typed string) string {
+
+	var str string
+
+	str = strings.TrimSpace(typed)
+	str = strings.TrimSuffix(str, "\n")
+
+	return str
+}
+
+//
+// --- Enter ---
+//
+
+// Обработка нажатия Enter в окне viewRegistration. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	с - указатель на конфигурацию.
+func enterViewRegistration(v *gocui.View, c *handlerUI) error {
+
+	// Обработка полей ввода.
+	switch v.Name() {
+	case "Login":
+		c.typed.login = cleaningTypedString(v.Buffer())
+	case "Password-1":
+		c.typed.password1 = cleaningTypedString(v.Buffer())
+	case "Password-2":
+		c.typed.password2 = cleaningTypedString(v.Buffer())
+	default:
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewAutentification. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	с - указатель на конфигурацию.
+func enterViewAutentification(v *gocui.View, c *handlerUI) error {
+
+	switch v.Name() {
+	case "Login":
+		c.typed.login = cleaningTypedString(v.Buffer())
+	case "Password-1":
+		c.typed.password1 = cleaningTypedString(v.Buffer())
+	default:
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewSettings. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func enterViewSettings(v *gocui.View, g *gocui.Gui, c *handlerUI) error {
+
+	c.status.checkConnectPassed = false // Сброс признака процесса проверки связи.
+	c.status.checkConnectStatus = false // Сброс статуса результата проверки связи.
+
+	testConnectView, err := g.View("TestConnect")
+	if err != nil {
+		return fmt.Errorf("Ошибка в функции View: <%w>", err)
+	}
+	testConnectView.FgColor = gocui.ColorWhite // Сбор статусного цвета надписи.
+
+	switch v.Name() {
+	case "IP":
+		c.typed.ip = cleaningTypedString(v.Buffer())
+	case "Port":
+		c.typed.port = cleaningTypedString(v.Buffer())
+	default:
+	}
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewRequestSecretKey. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func enterViewRequestSecretKey(v *gocui.View, g *gocui.Gui, c *handlerUI) error {
+
+	switch v.Name() {
+	case "scrtKey":
+		str := c.typed.login + c.typed.password1 + strings.TrimSuffix(v.Buffer(), "\n")
+		c.secret.secretKey = generateSecretKey(str) // создание ключа шифрования из введённых данных.
+	default:
+	}
+
+	if err := c.showSelectType(g, v); err != nil {
+		return fmt.Errorf("функция c.showSelectType, фернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewSelectType. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func enterViewSelectType(v *gocui.View, g *gocui.Gui, c *handlerUI) error {
+
+	// определение, какое окно открыть.
+	switch c.view.currentFocus {
+	case "selectLoginPassword":
+		if err := c.showLoginPassword(g, v); err != nil {
+			return fmt.Errorf("функция c.showLoginPassword, вернула ошибку: <%w>", err)
+		}
+	case "selectText":
+		if err := c.showText(g, v); err != nil {
+			return fmt.Errorf("функция c.showText, вернула ошибку: <%w>", err)
+		}
+	case "SelectBinary":
+		if err := c.showBinary(g, v); err != nil {
+			return fmt.Errorf("функция c.showBinary, вернула ошибку: <%w>", err)
+		}
+	case "SelectBankCard":
+		if err := c.showBankCard(g, v); err != nil {
+			return fmt.Errorf("функция c.showBankCard, вернула ошибку: <%w>", err)
+		}
+	default:
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewLoginPasswordData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	с - указатель на конфигурацию.
+func enterViewLoginPasswordData(v *gocui.View, c *handlerUI) error {
+
+	c.status.addLoginPaaswordPassed = false
+	c.status.addLoginPaaswordSUCCESS = false
+
+	switch v.Name() {
+	case "fieldAddFor":
+		c.typed.dataFor = cleaningTypedString(v.Buffer())
+	case "fieldAddLogin":
+		c.typed.dataLogin = cleaningTypedString(v.Buffer())
+	case "fieldAddPassword":
+		c.typed.dataPassword = cleaningTypedString(v.Buffer())
+	default:
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewTextData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	с - указатель на конфигурацию.
+func enterViewTextData(v *gocui.View, c *handlerUI) error {
+
+	c.status.addTextPassed = false  // Сброс признака.
+	c.status.addTextSUCCESS = false // Сброс статуса.
+
+	switch v.Name() {
+	case "fieldAddFor":
+		c.typed.dataFor = cleaningTypedString(v.Buffer())
+	case "fieldAddText":
+		c.typed.dataText = cleaningTypedString(v.Buffer())
+	default:
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewBankCardData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	с - указатель на конфигурацию.
+func enterViewBankCardData(v *gocui.View, c *handlerUI) error {
+
+	c.status.addBankCardPassed = false  // Сброс признака.
+	c.status.addBankCardSUCCESS = false // Сброс статуса.
+
+	switch v.Name() {
+	case "fieldAddFor":
+		c.typed.dataFor = cleaningTypedString(v.Buffer())
+	case "fieldAddOwner":
+		c.typed.dataOwner = cleaningTypedString(v.Buffer())
+	case "fieldAddNumber":
+		c.typed.dataNumb = cleaningTypedString(v.Buffer())
+	case "fieldAddValid":
+		c.typed.dataValidDate = cleaningTypedString(v.Buffer())
+	case "fieldAddCode":
+		c.typed.dataCode = cleaningTypedString(v.Buffer())
+	default:
+	}
+
+	return nil
+}
+
+// Обработка нажатия Enter в окне viewBinaryData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	v - указатель на вид.
+//	с - указатель на конфигурацию.
+func enterViewBinaryData(v *gocui.View, c *handlerUI) error {
+
+	c.status.addFilePassed = false  // Сброс признака.
+	c.status.addFileSUCCESS = false // Сброс статуса.
+
+	switch v.Name() {
+	case "fieldPathSource":
+		c.typed.dataPathSrc = cleaningTypedString(v.Buffer())
+	case "fieldPathTarget":
+		c.typed.dataPathTrg = cleaningTypedString(v.Buffer())
+	default:
+	}
+
+	return nil
+}
+
+//
+// --- Индикаторы ---
+//
+
+// Обновление цвета у индикторов окна viewRegistration. Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewRegistration(g *gocui.Gui, c *handlerUI) error {
+
+	// Обработка индикатора проверки введённых данных
+	name := "indicator-match"
+
+	indicator, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicator == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+	if c.typed.password1 != "" && c.typed.password2 != "" && c.typed.password1 == c.typed.password2 {
+		indicator.Clear()
+		indicator.Write([]byte("Данные приняты!"))
+		indicator.FgColor = gocui.ColorGreen
+		indicator.BgColor = gocui.ColorDefault
+	} else {
+		indicator.Clear()
+		indicator.Write([]byte("Укажите данные"))
+		indicator.FgColor = gocui.ColorRed
+		indicator.BgColor = gocui.ColorDefault
+	}
+
+	// Обработка индикатора процесса регистрации.
+	if c.status.addUserPassed {
+		name := "indicator-registration"
+
+		indicator, err = g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		if c.status.addUserSUCCESS {
+			indicator.Clear()
+			indicator.Write([]byte("Пользователь зарегистрирован. Выполните вход."))
+			indicator.FgColor = gocui.ColorGreen
+			indicator.BgColor = gocui.ColorDefault
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte("Ошибка при регистрации нового пользователя."))
+			indicator.FgColor = gocui.ColorRed
+			indicator.BgColor = gocui.ColorDefault
+		}
+
+		c.status.addUserPassed = false
+	}
+
+	// Обработка случая, если при регистрации пользователя, в системе уже присутствует запись.
+	if c.status.addUserRegBusy {
+		name := "indicator-registration"
+
+		indicator, err = g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.Clear()
+		indicator.Write([]byte("Уже есть зарегистрированный пользователь."))
+		indicator.FgColor = gocui.ColorRed
+		indicator.BgColor = gocui.ColorDefault
+
+		c.status.addUserRegBusy = false
+	}
+
+	return nil
+}
+
+// Обновление цвета у индикторов окна viewSettings. Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewSettings(g *gocui.Gui, c *handlerUI) error {
+
+	// Есть установлен признак отработки проверки связи.
+	if c.status.checkConnectPassed {
+
+		name := "TestConnect"
+
+		// Изменение цвета, в зависимости от результата.
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.checkConnectStatus {
+			indicator.FgColor = gocui.ColorGreen
+		} else {
+			indicator.FgColor = gocui.ColorRed
+		}
+
+		c.status.checkConnectPassed = false
+
+	}
+
+	return nil
+}
+
+// Обновление цвета у индикторов окна viewLoginPasswordData . Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewLoginPasswordData(g *gocui.Gui, c *handlerUI) error {
+
+	name := "indicatorReadStatus"
+
+	// Обработка индикатора получения данных.
+	indicatorRead, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicatorRead == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
+	if c.status.readLoginPaaswordPassed { // обработка при чтении
+		if c.status.readLoginPaaswordSUCCESS {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.loginPassword))))
+			indicatorRead.FgColor = gocui.ColorGreen
+			indicatorRead.BgColor = gocui.ColorDefault
+		} else {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Ошибка"))
+			indicatorRead.FgColor = gocui.ColorRed
+			indicatorRead.BgColor = gocui.ColorDefault
+		}
+	}
+	if c.status.delLoginPaaswordPassed { // обработка при удалении
+		if c.status.delLoginPaaswordSUCCESS {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Запись удалена"))
+			indicatorRead.FgColor = gocui.ColorGreen
+			indicatorRead.BgColor = gocui.ColorDefault
+		} else {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Ошибка удаления"))
+			indicatorRead.FgColor = gocui.ColorRed
+			indicatorRead.BgColor = gocui.ColorDefault
+		}
+	}
+
+	// Обработка индикатора добавления записи.
+	name = "indicatorAddSuccess"
+
+	indicator, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicator == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
+	if c.status.addLoginPaaswordPassed {
+		if c.status.addLoginPaaswordSUCCESS {
+			indicator.Clear()
+			indicator.Write([]byte("Данные приняты!"))
+			indicator.FgColor = gocui.ColorGreen
+			indicator.BgColor = gocui.ColorDefault
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte("Ошибка добавления."))
+			indicator.FgColor = gocui.ColorRed
+			indicator.BgColor = gocui.ColorDefault
+		}
+	} else {
+		indicator.Clear()
+		indicator.Write([]byte(""))
+	}
+
+	return nil
+}
+
+// Обновление цвета у индикторов окна viewTextData . Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewTextData(g *gocui.Gui, c *handlerUI) error {
+
+	// Обработка индикатора получения данных.
+	name := "indicatorReadStatus"
+
+	indicatorRead, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicatorRead == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
+	if c.status.readTextPassed { // обработка при чтении
+		if c.status.readTextSUCCESS {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.textData))))
+			indicatorRead.FgColor = gocui.ColorGreen
+			indicatorRead.BgColor = gocui.ColorDefault
+		} else {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Ошибка"))
+			indicatorRead.FgColor = gocui.ColorRed
+			indicatorRead.BgColor = gocui.ColorDefault
+		}
+		c.status.readTextPassed = false
+	}
+	if c.status.delTextPassed { // обработка при удалении
+		if c.status.delTextSUCCESS {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Запись удалена"))
+			indicatorRead.FgColor = gocui.ColorGreen
+			indicatorRead.BgColor = gocui.ColorDefault
+		} else {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Ошибка удаления"))
+			indicatorRead.FgColor = gocui.ColorRed
+			indicatorRead.BgColor = gocui.ColorDefault
+		}
+		c.status.delTextPassed = false
+	}
+
+	// Обработка индикатора добавления записи.
+	name = "indicatorAddSuccess"
+
+	indicator, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicator == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
+	if c.status.addTextPassed {
+		if c.status.addTextSUCCESS {
+			indicator.Clear()
+			indicator.Write([]byte("Данные приняты!"))
+			indicator.FgColor = gocui.ColorGreen
+			indicator.BgColor = gocui.ColorDefault
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte("Ошибка добавления."))
+			indicator.FgColor = gocui.ColorRed
+			indicator.BgColor = gocui.ColorDefault
+		}
+		c.status.addTextPassed = false
+	} else {
+		indicator.Clear()
+		indicator.Write([]byte(""))
+	}
+
+	return nil
+}
+
+// Обновление цвета у индикторов окна viewBankCardData . Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewBankCardData(g *gocui.Gui, c *handlerUI) error {
+
+	// Обработка индикатора получения данных.
+	name := "indicatorReadStatus"
+
+	indicatorRead, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicatorRead == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+	if c.status.readBankCardPassed { // обработка при чтении
+		if c.status.readBankCardSUCCESS {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.bankCard))))
+			indicatorRead.FgColor = gocui.ColorGreen
+			indicatorRead.BgColor = gocui.ColorDefault
+		} else {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Ошибка"))
+			indicatorRead.FgColor = gocui.ColorRed
+			indicatorRead.BgColor = gocui.ColorDefault
+		}
+		c.status.readBankCardPassed = false
+	}
+
+	if c.status.delBankCardPassed { // обработка при удалении
+		if c.status.delBankCardSUCCESS {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Запись удалена"))
+			indicatorRead.FgColor = gocui.ColorGreen
+			indicatorRead.BgColor = gocui.ColorDefault
+		} else {
+			indicatorRead.Clear()
+			indicatorRead.Write([]byte("Ошибка удаления"))
+			indicatorRead.FgColor = gocui.ColorRed
+			indicatorRead.BgColor = gocui.ColorDefault
+		}
+		c.status.delBankCardPassed = false
+	}
+
+	// Обработка индикатора добавления записи.
+	name = "indicatorAddSuccess"
+
+	indicator, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if indicator == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
+	if c.status.addBankCardPassed {
+		if c.status.addBankCardSUCCESS {
+			indicator.Clear()
+			indicator.Write([]byte("Данные приняты!"))
+			indicator.FgColor = gocui.ColorGreen
+			indicator.BgColor = gocui.ColorDefault
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte("Ошибка добавления."))
+			indicator.FgColor = gocui.ColorRed
+			indicator.BgColor = gocui.ColorDefault
+		}
+	} else {
+		indicator.Clear()
+		indicator.Write([]byte(""))
+	}
+
+	return nil
+}
+
+// Обновление цвета у индикторов окна viewBinaryData . Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
+
+	// Есть установлен признак отработки добавления файла в контейнер.
+	if c.status.addFilePassed {
+		name := "Save"
+
+		element, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if element == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addFileSUCCESS {
+			element.FgColor = gocui.ColorGreen
+		} else {
+			element.FgColor = gocui.ColorRed
+		}
+
+		c.status.addFilePassed = false
+	}
+
+	// Есть установлен признак извлечения файла из контейнера.
+	if c.status.extractFilePassed {
+		name := "Extraction"
+
+		element, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if element == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.extractFileSUCCESS {
+			element.FgColor = gocui.ColorGreen
+		} else {
+			element.FgColor = gocui.ColorRed
+		}
+
+		c.status.extractFilePassed = false
+	}
+
+	// Есть установлен признак удаления файла из контейнера.
+	if c.status.delFilePassed {
+		name := "DeleteElement"
+
+		element, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if element == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.delFileSUCCESS {
+			element.FgColor = gocui.ColorGreen
+		} else {
+			element.FgColor = gocui.ColorRed
+		}
+
+		c.status.delFilePassed = false
+		c.status.delFileSUCCESS = false
+	}
+
+	// Если чтение файлов контейнера выполнено.
+	if c.status.readFilePassed {
+		name := "indicatorReadStatus"
+
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.readFileSUCCESS {
+
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Есть признак чтения файлов. В хранилище <%d> файлов", len(c.data.files))) //================
+
+			indicator.Clear()
+			indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.files))))
+			indicator.FgColor = gocui.ColorGreen
+			indicator.BgColor = gocui.ColorDefault
+		} else {
+			indicator.Clear()
+			indicator.Write([]byte("Ошибка чтения."))
+			indicator.FgColor = gocui.ColorRed
+			indicator.BgColor = gocui.ColorDefault
+		}
+
+		c.status.readFilePassed = false  // Для разовой отработки при открытии экрана.
+		c.status.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
+	}
+
+	return nil
 }

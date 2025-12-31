@@ -9,6 +9,7 @@ func Run() error {
 	// Подготовка.
 	conf, err := prepare()
 	if err != nil {
+		conf.PtrLoggerFile.Write(fmt.Sprintf("функция prepare, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция prepare, вернула ошибку: <%w>", err)
 	}
 

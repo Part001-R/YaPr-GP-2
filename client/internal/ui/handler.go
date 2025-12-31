@@ -43,7 +43,7 @@ type typeData struct {
 }
 
 // Признаки выполнения логики
-type flags struct {
+type status struct {
 	checkConnectStatus       bool // Результат процедуры проверки связи с сервером.
 	checkConnectPassed       bool // Признак, что проверка связи была запущена.
 	addUserSUCCESS           bool // Признак успешного добавления пользователя.
@@ -132,7 +132,7 @@ type indexes struct {
 type handlerUI struct {
 	conf   *udt.Configuration // конфигурация сервиса
 	typed  typeData           // введённые пользователем данные
-	flag   flags              // признаки сервиса
+	status status             // признаки сервиса
 	view   screens            // взаимодействие с окнами
 	secret encrKey            // секретность
 	data   data               // данные
@@ -145,9 +145,9 @@ var inst *handlerUI
 func new(conf *udt.Configuration) *handlerUI {
 	once.Do(func() {
 		inst = &handlerUI{
-			conf:  conf,
-			typed: typeData{},
-			flag:  flags{},
+			conf:   conf,
+			typed:  typeData{},
+			status: status{},
 			view: screens{
 				activeView:   "",
 				currentFocus: "Login",
@@ -219,25 +219,25 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 // Регистрация.
 func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
-	// Сбросы
+	// Сбросы.
 	c.view.activeView = ""
 	c.typed.login = ""
 	c.typed.password1 = ""
 	c.typed.password2 = ""
-	c.flag.addUserPassed = false
-	c.flag.addUserSUCCESS = false
+	c.status.addUserPassed = false
+	c.status.addUserSUCCESS = false
 
-	// Удаляем все зависимые виды (включая поля ввода)
+	// Удаляем все зависимые виды (включая поля ввода).
 	if err := deleteViews(g); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
-	// Сброс состояния
+	// Инициализация.
 	layoutInitialized = false
 	c.view.currentFocus = "Login" // Установка фокуса
 
-	// Создание контейнера регистрации
+	// Создание контейнера регистрации.
 	loginView, err := g.SetView(viewRegistration, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
@@ -401,8 +401,8 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
-	layoutInitialized = true
 
+	layoutInitialized = true
 	c.view.activeView = viewRegistration // Установка признака активного окна
 
 	return nil
@@ -882,469 +882,125 @@ func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 
 	switch c.view.activeView {
-	case viewRegistration: // Если окно registration
-		switch v.Name() {
-		case "Login":
-			c.typed.login = strings.TrimSpace(v.Buffer())
-		case "Password-1":
-			c.typed.password1 = strings.TrimSpace(v.Buffer())
-		case "Password-2":
-			c.typed.password2 = strings.TrimSpace(v.Buffer())
-		}
-	case viewAutentification: // Если окно authentication
-		switch v.Name() {
-		case "Login":
-			c.typed.login = strings.TrimSpace(v.Buffer())
-		case "Password-1":
-			c.typed.password1 = strings.TrimSpace(v.Buffer())
-		}
-	case viewSettings: // Если окно settings
 
-		c.flag.checkConnectPassed = false // Сброс признака процесса проверки связи.
-		c.flag.checkConnectStatus = false // Сброс статуса результата проверки связи.
-
-		testConnectView, err := g.View("TestConnect")
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Ошибка в функции View: <%v>", err))
-			return fmt.Errorf("Ошибка в функции View: <%w>", err)
-		}
-		testConnectView.FgColor = gocui.ColorWhite // Сбор статусного цвета надписи.
-
-		switch v.Name() {
-		case "IP":
-			c.typed.ip = strings.TrimSpace(v.Buffer())
-		case "Port":
-			c.typed.port = strings.TrimSpace(v.Buffer())
-		default:
+	// Окно регистрации.
+	case viewRegistration:
+		if err := enterViewRegistration(v, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewRegistration, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewRegistration, вернула ошибку: <%v>", err)
 		}
 
-	case viewRequestSecretKey: // Если окно с запросом дополнительного ключа шифрования.
-		switch v.Name() {
-		case "scrtKey":
-			str := c.typed.login + c.typed.password1 + strings.TrimSpace(v.Buffer())
-			c.secret.secretKey = generateSecretKey(str) // создание ключа шифрования из введённых данных.
-		default:
-		}
-		c.showSelectType(g, v) // Отображение данных пользователя.
-
-	case viewSelectType: // Если окно с выбором типа данных.
-		// определение, какое окно открыть.
-		switch c.view.currentFocus {
-		case "selectLoginPassword":
-			c.showLoginPassword(g, v)
-		case "selectText":
-			c.showText(g, v)
-		case "SelectBinary":
-			c.showBinary(g, v)
-		case "SelectBankCard":
-			c.showBankCard(g, v)
-		default:
+	// Окно аутентификации.
+	case viewAutentification:
+		if err := enterViewAutentification(v, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewAutentification, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewAutentification, вернула ошибку: <%v>", err)
 		}
 
-	case viewLoginPasswordData: // Если окно взаимодействия с логин/пароль.
-		c.flag.addLoginPaaswordPassed = false
-		c.flag.addLoginPaaswordSUCCESS = false
-
-		switch v.Name() {
-		case "fieldAddFor":
-			c.typed.dataFor = strings.TrimSpace(v.Buffer())
-		case "fieldAddLogin":
-			c.typed.dataLogin = strings.TrimSpace(v.Buffer())
-		case "fieldAddPassword":
-			c.typed.dataPassword = strings.TrimSpace(v.Buffer())
-		default:
+	// Окно настроек.
+	case viewSettings:
+		if err := enterViewSettings(v, g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewSettings, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewSettings, вернула ошибку: <%v>", err)
 		}
 
-	case viewTextData: // Если окно взаимодействия с текстом.
-		c.flag.addTextPassed = false  // Сброс признака.
-		c.flag.addTextSUCCESS = false // Сброс статуса.
-
-		switch v.Name() {
-		case "fieldAddFor":
-			c.typed.dataFor = strings.TrimSpace(v.Buffer())
-		case "fieldAddText":
-			c.typed.dataText = strings.TrimSpace(v.Buffer())
-		default:
+	// Окно с запросом дополнительного ключа шифрования.
+	case viewRequestSecretKey:
+		if err := enterViewRequestSecretKey(v, g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewRequestSecretKey, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewRequestSecretKey, вернула ошибку: <%v>", err)
 		}
 
-	case viewBankCardData: // Если окно взаимодействия с банковскими картами.
-		c.flag.addBankCardPassed = false  // Сброс признака.
-		c.flag.addBankCardSUCCESS = false // Сброс статуса.
-
-		switch v.Name() {
-		case "fieldAddFor":
-			c.typed.dataFor = strings.TrimSpace(v.Buffer())
-		case "fieldAddOwner":
-			c.typed.dataOwner = strings.TrimSpace(v.Buffer())
-		case "fieldAddNumber":
-			c.typed.dataNumb = strings.TrimSpace(v.Buffer())
-		case "fieldAddValid":
-			c.typed.dataValidDate = strings.TrimSpace(v.Buffer())
-		case "fieldAddCode":
-			c.typed.dataCode = strings.TrimSpace(v.Buffer())
-		default:
+	// Окно с выбором типа данных.
+	case viewSelectType:
+		if err := enterViewSelectType(v, g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewSelectType, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewSelectType, вернула ошибку: <%v>", err)
 		}
 
-	case viewBinaryData: // Если окно взаимодействия с файлами.
-		c.flag.addFilePassed = false  // Сброс признака.
-		c.flag.addFileSUCCESS = false // Сброс статуса.
+	// Окно взаимодействия с логин/пароль.
+	case viewLoginPasswordData:
+		if err := enterViewLoginPasswordData(v, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewLoginPasswordData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewLoginPasswordData, вернула ошибку: <%v>", err)
+		}
 
-		switch v.Name() {
-		case "fieldPathSource":
-			c.typed.dataPathSrc = strings.ReplaceAll(c.typed.dataPathSrc, "\n", "")
-			c.typed.dataPathSrc = strings.TrimSpace(v.Buffer())
-		case "fieldPathTarget":
-			c.typed.dataPathTrg = strings.ReplaceAll(c.typed.dataPathTrg, "\n", "")
-			c.typed.dataPathTrg = strings.TrimSpace(v.Buffer())
-		default:
+	// Окно взаимодействия с текстом.
+	case viewTextData:
+		if err := enterViewTextData(v, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewTextData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewTextData, вернула ошибку: <%v>", err)
+		}
+
+	// Окно взаимодействия с банковскими картами.
+	case viewBankCardData:
+		if err := enterViewBankCardData(v, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewBankCardData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewBankCardData, вернула ошибку: <%v>", err)
+		}
+
+	// Окно взаимодействия с файлами.
+	case viewBinaryData:
+		if err := enterViewBinaryData(v, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewBinaryData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция enterViewBinaryData, вернула ошибку: <%v>", err)
 		}
 
 	default:
-		return nil
 	}
 
 	return nil
 }
 
-// Проверка совпадения паролей при регистрации.
-func (c *handlerUI) indicators(g *gocui.Gui) {
+// Проверка совпадения паролей при регистрации. Возвращается ошибка.
+func (c *handlerUI) indicators(g *gocui.Gui) error {
+
+	switch c.view.activeView {
 
 	// Окно регистрации.
-	if c.view.activeView == viewRegistration {
-
-		// Обработка индикатора проверки введённых данных
-		indicator, err := g.View("indicator-match")
-		if err != nil || indicator == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View: <%v>", err))
-			return
+	case viewRegistration:
+		if err := indicatorViewRegistration(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewRegistration, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewRegistration, вернула ошибку: <%w>", err)
 		}
-		if c.typed.password1 != "" && c.typed.password2 != "" && c.typed.password1 == c.typed.password2 {
-			indicator.Clear()
-			indicator.Write([]byte("Данные приняты!"))
-			indicator.FgColor = gocui.ColorGreen
-			indicator.BgColor = gocui.ColorDefault
-		} else {
-			indicator.Clear()
-			indicator.Write([]byte("Укажите данные"))
-			indicator.FgColor = gocui.ColorRed
-			indicator.BgColor = gocui.ColorDefault
-		}
-
-		// Обработка индикатора процесса регистрации.
-		if c.flag.addUserPassed {
-			indicator, err = g.View("indicator-registration")
-			if err != nil || indicator == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View: <%v>", err))
-				return
-			}
-			if c.flag.addUserSUCCESS {
-				indicator.Clear()
-				indicator.Write([]byte("Пользователь зарегистрирован. Выполните вход."))
-				indicator.FgColor = gocui.ColorGreen
-				indicator.BgColor = gocui.ColorDefault
-			} else {
-				indicator.Clear()
-				indicator.Write([]byte("Ошибка при регистрации нового пользователя."))
-				indicator.FgColor = gocui.ColorRed
-				indicator.BgColor = gocui.ColorDefault
-			}
-		}
-
-		// Обработка случая, если при регистрации пользователя, в системе уже присутствует запись.
-		if c.flag.addUserRegBusy {
-			indicator, err = g.View("indicator-registration")
-			if err != nil || indicator == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View: <%v>", err))
-				return
-			}
-			indicator.Clear()
-			indicator.Write([]byte("Уже есть зарегистрированный пользователь."))
-			indicator.FgColor = gocui.ColorRed
-			indicator.BgColor = gocui.ColorDefault
-		}
-
-		return
-	}
 
 	// Окно настроек.
-	if c.view.activeView == viewSettings {
-
-		// Есть установлен признак отработки проверки связи.
-		if c.flag.checkConnectPassed {
-
-			// Изменение цвета, в зависимости от результата.
-			testConnectView, err := g.View("TestConnect")
-			if err == nil {
-				if c.flag.checkConnectStatus {
-					testConnectView.FgColor = gocui.ColorGreen
-				} else {
-					testConnectView.FgColor = gocui.ColorRed
-				}
-			}
+	case viewSettings:
+		if err := indicatorViewSettings(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewSettings, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewSettings, вернула ошибку: <%v>", err)
 		}
-	}
 
 	// Окно логин/пароль
-	if c.view.activeView == viewLoginPasswordData {
-
-		// Обработка индикатора получения данных.
-		indicatorRead, err := g.View("indicatorReadStatus")
-		if err != nil || indicatorRead == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
-			return
+	case viewLoginPasswordData:
+		if err := indicatorViewLoginPasswordData(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewLoginPasswordData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewLoginPasswordData, вернула ошибку: <%v>", err)
 		}
-		if c.flag.readLoginPaaswordPassed { // обработка при чтении
-			if c.flag.readLoginPaaswordSUCCESS {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.loginPassword))))
-				indicatorRead.FgColor = gocui.ColorGreen
-				indicatorRead.BgColor = gocui.ColorDefault
-			} else {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Ошибка"))
-				indicatorRead.FgColor = gocui.ColorRed
-				indicatorRead.BgColor = gocui.ColorDefault
-			}
-		}
-		if c.flag.delLoginPaaswordPassed { // обработка при удалении
-			if c.flag.delLoginPaaswordSUCCESS {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Запись удалена"))
-				indicatorRead.FgColor = gocui.ColorGreen
-				indicatorRead.BgColor = gocui.ColorDefault
-			} else {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Ошибка удаления"))
-				indicatorRead.FgColor = gocui.ColorRed
-				indicatorRead.BgColor = gocui.ColorDefault
-			}
-		}
-
-		// Обработка индикатора добавления записи.
-		indicator, err := g.View("indicatorAddSuccess")
-		if err != nil || indicator == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorAddSuccess: <%v>", err))
-			return
-		}
-
-		if c.flag.addLoginPaaswordPassed {
-			if c.flag.addLoginPaaswordSUCCESS {
-				indicator.Clear()
-				indicator.Write([]byte("Данные приняты!"))
-				indicator.FgColor = gocui.ColorGreen
-				indicator.BgColor = gocui.ColorDefault
-			} else {
-				indicator.Clear()
-				indicator.Write([]byte("Ошибка добавления."))
-				indicator.FgColor = gocui.ColorRed
-				indicator.BgColor = gocui.ColorDefault
-			}
-		} else {
-			indicator.Clear()
-			indicator.Write([]byte(""))
-		}
-	}
 
 	// Окно текста.
-	if c.view.activeView == viewTextData {
-
-		// Обработка индикатора получения данных.
-		indicatorRead, err := g.View("indicatorReadStatus")
-		if err != nil || indicatorRead == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
-			return
+	case viewTextData:
+		if err := indicatorViewTextData(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewTextData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewTextData, вернула ошибку: <%v>", err)
 		}
-		if c.flag.readTextPassed { // обработка при чтении
-			if c.flag.readTextSUCCESS {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.textData))))
-				indicatorRead.FgColor = gocui.ColorGreen
-				indicatorRead.BgColor = gocui.ColorDefault
-			} else {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Ошибка"))
-				indicatorRead.FgColor = gocui.ColorRed
-				indicatorRead.BgColor = gocui.ColorDefault
-			}
-		}
-		if c.flag.delTextPassed { // обработка при удалении
-			if c.flag.delTextSUCCESS {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Запись удалена"))
-				indicatorRead.FgColor = gocui.ColorGreen
-				indicatorRead.BgColor = gocui.ColorDefault
-			} else {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Ошибка удаления"))
-				indicatorRead.FgColor = gocui.ColorRed
-				indicatorRead.BgColor = gocui.ColorDefault
-			}
-		}
-
-		// Обработка индикатора добавления записи.
-		indicator, err := g.View("indicatorAddSuccess")
-		if err != nil || indicator == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorAddSuccess: <%v>", err))
-			return
-		}
-
-		if c.flag.addTextPassed {
-			if c.flag.addTextSUCCESS {
-				indicator.Clear()
-				indicator.Write([]byte("Данные приняты!"))
-				indicator.FgColor = gocui.ColorGreen
-				indicator.BgColor = gocui.ColorDefault
-			} else {
-				indicator.Clear()
-				indicator.Write([]byte("Ошибка добавления."))
-				indicator.FgColor = gocui.ColorRed
-				indicator.BgColor = gocui.ColorDefault
-			}
-		} else {
-			indicator.Clear()
-			indicator.Write([]byte(""))
-		}
-	}
 
 	// Окно банковских карт.
-	if c.view.activeView == viewBankCardData {
-
-		// Обработка индикатора получения данных.
-		indicatorRead, err := g.View("indicatorReadStatus")
-		if err != nil || indicatorRead == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
-			return
+	case viewBankCardData:
+		if err := indicatorViewBankCardData(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err)
 		}
-		if c.flag.readBankCardPassed { // обработка при чтении
-			if c.flag.readBankCardSUCCESS {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.bankCard))))
-				indicatorRead.FgColor = gocui.ColorGreen
-				indicatorRead.BgColor = gocui.ColorDefault
-			} else {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Ошибка"))
-				indicatorRead.FgColor = gocui.ColorRed
-				indicatorRead.BgColor = gocui.ColorDefault
-			}
-		}
-		if c.flag.delBankCardPassed { // обработка при удалении
-			if c.flag.delBankCardSUCCESS {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Запись удалена"))
-				indicatorRead.FgColor = gocui.ColorGreen
-				indicatorRead.BgColor = gocui.ColorDefault
-			} else {
-				indicatorRead.Clear()
-				indicatorRead.Write([]byte("Ошибка удаления"))
-				indicatorRead.FgColor = gocui.ColorRed
-				indicatorRead.BgColor = gocui.ColorDefault
-			}
-		}
-
-		// Обработка индикатора добавления записи.
-		indicator, err := g.View("indicatorAddSuccess")
-		if err != nil || indicator == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorAddSuccess: <%v>", err))
-			return
-		}
-
-		if c.flag.addBankCardPassed {
-			if c.flag.addBankCardSUCCESS {
-				indicator.Clear()
-				indicator.Write([]byte("Данные приняты!"))
-				indicator.FgColor = gocui.ColorGreen
-				indicator.BgColor = gocui.ColorDefault
-			} else {
-				indicator.Clear()
-				indicator.Write([]byte("Ошибка добавления."))
-				indicator.FgColor = gocui.ColorRed
-				indicator.BgColor = gocui.ColorDefault
-			}
-		} else {
-			indicator.Clear()
-			indicator.Write([]byte(""))
-		}
-	}
 
 	// Окно файлов.
-	if c.view.activeView == viewBinaryData {
-
-		// Есть установлен признак отработки добавления файла в контейнер.
-		if c.flag.addFilePassed {
-			element, err := g.View("Save")
-			if err != nil || element == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу Save: <%v>", err))
-			}
-			if err == nil {
-				if c.flag.addFileSUCCESS {
-					element.FgColor = gocui.ColorGreen
-				} else {
-					element.FgColor = gocui.ColorRed
-				}
-			}
+	case viewBinaryData:
+		if err := indicatorViewBinaryData(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err)
 		}
-
-		// Есть установлен признак извлечения файла из контейнера.
-		if c.flag.extractFilePassed {
-			element, err := g.View("Extraction")
-			if err != nil || element == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу Extraction: <%v>", err))
-			}
-			if err == nil {
-				if c.flag.extractFileSUCCESS {
-					element.FgColor = gocui.ColorGreen
-				} else {
-					element.FgColor = gocui.ColorRed
-				}
-			}
-		}
-
-		// Есть установлен признак удаления файла из контейнера.
-		if c.flag.delFilePassed {
-			element, err := g.View("DeleteElement")
-			if err != nil || element == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу DeleteElement: <%v>", err))
-			}
-			if err == nil {
-				if c.flag.delFileSUCCESS {
-					element.FgColor = gocui.ColorGreen
-				} else {
-					element.FgColor = gocui.ColorRed
-				}
-			}
-
-			c.flag.delFilePassed = false
-			c.flag.delFileSUCCESS = false
-		}
-
-		// Если чтение файлов контейнера выполнено.
-		if c.flag.readFilePassed {
-
-			indicator, err := g.View("indicatorReadStatus")
-			if err != nil || indicator == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при работе с индикатором indicatorReadStatus: <%v>", err))
-				return
-			}
-			if c.flag.readFileSUCCESS {
-
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Есть признак чтения файлов. В хранилище <%d> файлов", len(c.data.files))) //================
-
-				indicator.Clear()
-				indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.files))))
-				indicator.FgColor = gocui.ColorGreen
-				indicator.BgColor = gocui.ColorDefault
-			} else {
-				indicator.Clear()
-				indicator.Write([]byte("Ошибка чтения."))
-				indicator.FgColor = gocui.ColorRed
-				indicator.BgColor = gocui.ColorDefault
-			}
-
-			c.flag.readFilePassed = false  // Для разовой отработки при открытии экрана.
-			c.flag.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
-		}
+	default:
 	}
+	return nil
 }
 
 // Проверка связи с сервером.
@@ -1357,13 +1013,13 @@ func (c *handlerUI) testConnect(g *gocui.Gui, _ *gocui.View) error {
 	// Выполнение проверки связи.
 	ok, err := pingContext(ctx, c)
 	if err != nil {
-		c.flag.checkConnectStatus = false
+		c.status.checkConnectStatus = false
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция pingContext, вернула ошибку: <%v>", err))
 		return nil // Возврат nil, чтобы приложение продолжило работу.
 	}
 
 	// Результат.
-	c.flag.checkConnectStatus = ok
+	c.status.checkConnectStatus = ok
 	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: проверка связи с %s:%s пройдена", c.typed.ip, c.typed.port))
 	return nil
 }
@@ -1392,9 +1048,9 @@ func (c *handlerUI) setFocusStyle(v *gocui.View, name string) {
 // Запуск процесса регистрации нового пользователя.
 func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 
-	c.flag.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
-	c.flag.addUserPassed = false  // сброс признака, что процедура регистрации быд запущена.
-	c.flag.addUserRegBusy = false // сброс признака, что в системе уже есть зарегистрированный пользователь.
+	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
+	c.status.addUserPassed = false  // сброс признака, что процедура регистрации быд запущена.
+	c.status.addUserRegBusy = false // сброс признака, что в системе уже есть зарегистрированный пользователь.
 
 	userName := c.typed.login
 	userPwd1 := c.typed.password1
@@ -1418,7 +1074,7 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 	}
 
 	if busy {
-		c.flag.addUserRegBusy = true // установка признака, что в системе уже есть зарегистрированный пользоатель.
+		c.status.addUserRegBusy = true // установка признака, что в системе уже есть зарегистрированный пользоатель.
 		return nil
 	}
 
@@ -1428,8 +1084,8 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 
-	c.flag.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
-	c.flag.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
+	c.status.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
+	c.status.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
 	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: выполнена регистрация пользователя с именем: <%s>", userName))
 
 	return nil
@@ -1474,8 +1130,8 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Если окно - логин/пароль
 
-		c.flag.addLoginPaaswordPassed = true
-		c.flag.addLoginPaaswordSUCCESS = false
+		c.status.addLoginPaaswordPassed = true
+		c.status.addLoginPaaswordSUCCESS = false
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -1511,15 +1167,15 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 		}
 
 		c.conf.PtrLoggerFile.Write("Debug: пара логин/пароль добавлена в БД")
-		c.flag.addLoginPaaswordSUCCESS = true
+		c.status.addLoginPaaswordSUCCESS = true
 		return nil
 
 	case viewTextData: // если окно - текст.
 
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Добавляются данные For:<%s> Text:<%s>", c.typed.dataFor, c.typed.dataText)) //====================
 
-		c.flag.addTextPassed = true
-		c.flag.addTextSUCCESS = false
+		c.status.addTextPassed = true
+		c.status.addTextSUCCESS = false
 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -1549,13 +1205,13 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 		}
 
 		c.conf.PtrLoggerFile.Write("Debug: текст добавлен в БД")
-		c.flag.addTextSUCCESS = true
+		c.status.addTextSUCCESS = true
 		return nil
 
 	case viewBankCardData: // если окно - банковские карты.
 
-		c.flag.addBankCardPassed = true
-		c.flag.addBankCardSUCCESS = false
+		c.status.addBankCardPassed = true
+		c.status.addBankCardSUCCESS = false
 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -1607,20 +1263,20 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 		}
 
 		c.conf.PtrLoggerFile.Write("Debug: карта добавлена в БД")
-		c.flag.addBankCardSUCCESS = true
+		c.status.addBankCardSUCCESS = true
 		return nil
 
 	case viewBinaryData: // Окно для работы с файлами.
 
-		c.flag.addFilePassed = true
-		c.flag.addFileSUCCESS = false
+		c.status.addFilePassed = true
+		c.status.addFileSUCCESS = false
 
 		if err := c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка при добавлении файла <%s>, в контейнер", c.typed.dataPathSrc))
 			return nil
 		}
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: файл <%s>, добавлен в контейнер", c.typed.dataPathSrc))
-		c.flag.addFileSUCCESS = true
+		c.status.addFileSUCCESS = true
 
 	default:
 	}
@@ -2038,8 +1694,8 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Взаимодействие с логин/пароль
 
-		c.flag.delLoginPaaswordPassed = true
-		c.flag.delLoginPaaswordSUCCESS = false
+		c.status.delLoginPaaswordPassed = true
+		c.status.delLoginPaaswordSUCCESS = false
 
 		v, err := gui.View("fieldShowFor")
 		if err != nil {
@@ -2064,13 +1720,13 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 			return nil
 		}
 
-		c.flag.delLoginPaaswordSUCCESS = true
+		c.status.delLoginPaaswordSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные логин/пароль, успешно удалены"))
 
 	case viewTextData: // Взаимодействие с текстом
 
-		c.flag.delTextPassed = true
-		c.flag.delTextSUCCESS = false
+		c.status.delTextPassed = true
+		c.status.delTextSUCCESS = false
 
 		v, err := gui.View("fieldShowFor")
 		if err != nil {
@@ -2095,13 +1751,13 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 			return nil
 		}
 
-		c.flag.delTextSUCCESS = true
+		c.status.delTextSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные текста, успешно удалены"))
 
 	case viewBankCardData: // Взаимодействие с банковскими картами
 
-		c.flag.delBankCardPassed = true
-		c.flag.delBankCardSUCCESS = false
+		c.status.delBankCardPassed = true
+		c.status.delBankCardSUCCESS = false
 
 		v, err := gui.View("fieldShowFor")
 		if err != nil {
@@ -2126,13 +1782,13 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 			return nil
 		}
 
-		c.flag.delBankCardSUCCESS = true
+		c.status.delBankCardSUCCESS = true
 		c.conf.PtrLoggerFile.Write(("Debug: данные карты, успешно удалены"))
 
 	case viewBinaryData: // Окно работы с файлами.
 
-		c.flag.delFilePassed = true
-		c.flag.delFileSUCCESS = false
+		c.status.delFilePassed = true
+		c.status.delFileSUCCESS = false
 
 		// Чтение буфера.
 		v, err := gui.View("fieldShowFor")
@@ -2148,7 +1804,7 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
 			return nil
 		}
-		c.flag.delFileSUCCESS = true
+		c.status.delFileSUCCESS = true
 
 	default:
 	}
@@ -2162,8 +1818,8 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 	switch c.view.activeView {
 	case viewBinaryData: // Окно работы с файлами
 
-		c.flag.extractFilePassed = true
-		c.flag.extractFileSUCCESS = false
+		c.status.extractFilePassed = true
+		c.status.extractFileSUCCESS = false
 
 		// Чтение буфера.
 		v, err := gui.View("fieldShowFor")
@@ -2189,7 +1845,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения файла: <%s> из контейнера: <%v>", c.typed.dataPathTrg, err))
 			return nil
 		}
-		c.flag.extractFileSUCCESS = true
+		c.status.extractFileSUCCESS = true
 	}
 	return nil
 }
@@ -2474,9 +2130,9 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeLoginPassword")
 
-	c.flag.readLoginPaaswordPassed = false // Сброс признака.
-	c.flag.addLoginPaaswordPassed = false
-	c.flag.delLoginPaaswordPassed = false
+	c.status.readLoginPaaswordPassed = false // Сброс признака.
+	c.status.addLoginPaaswordPassed = false
+	c.status.delLoginPaaswordPassed = false
 	c.index.loginPassword = 0 // Сброс индекса навигации по массиву логин/пароль.
 
 	// Логика.
@@ -2756,15 +2412,15 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	// Получение сохранённых значений логин/пароль.
-	c.flag.readLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения значений логин/пароль.
+	c.status.readLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения значений логин/пароль.
 
 	_, err = showLoginPasswordWorkDB(c)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция funcshowLoginPasswordWorkDB, вернула ошибку: <%v>", err))
-		c.flag.readLoginPaaswordSUCCESS = false
+		c.status.readLoginPaaswordSUCCESS = false
 	} else {
 		c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
-		c.flag.readLoginPaaswordSUCCESS = true
+		c.status.readLoginPaaswordSUCCESS = true
 	}
 
 	// Установка фокуса.
@@ -2783,10 +2439,10 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeText")
 
-	c.flag.readTextPassed = false // Сброс признака.
-	c.flag.addTextPassed = false
-	c.flag.delTextPassed = false
-	c.flag.readTextSUCCESS = false
+	c.status.readTextPassed = false // Сброс признака.
+	c.status.addTextPassed = false
+	c.status.delTextPassed = false
+	c.status.readTextSUCCESS = false
 	c.index.text = 0 // Сброс индекса навигации по массиву логин/пароль.
 
 	// Логика.
@@ -3039,14 +2695,14 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	// Получение сохранённых значений текста.
-	c.flag.readTextPassed = true // Установка признака, что был запущен процесс получения значений текста.
+	c.status.readTextPassed = true // Установка признака, что был запущен процесс получения значений текста.
 
 	_, err = showTextWorkDB(c)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
 	} else {
 		c.conf.PtrLoggerFile.Write("Debug: текстовые данные успешно прочитаны")
-		c.flag.readTextSUCCESS = true
+		c.status.readTextSUCCESS = true
 	}
 
 	// Установка фокуса.
@@ -3066,17 +2722,17 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	c.view.activeView = "" // Сброс
 	c.index.file = 0
 
-	c.flag.addFilePassed = false
-	c.flag.addFileSUCCESS = false
+	c.status.addFilePassed = false
+	c.status.addFileSUCCESS = false
 
-	c.flag.readFilePassed = false
-	c.flag.readFileSUCCESS = false
+	c.status.readFilePassed = false
+	c.status.readFileSUCCESS = false
 
-	c.flag.delFilePassed = false
-	c.flag.delFileSUCCESS = false
+	c.status.delFilePassed = false
+	c.status.delFileSUCCESS = false
 
-	c.flag.extractFilePassed = false
-	c.flag.extractFileSUCCESS = false
+	c.status.extractFilePassed = false
+	c.status.extractFileSUCCESS = false
 
 	// Удаляем все зависимые виды.
 	if err := deleteViews(g); err != nil {
@@ -3317,14 +2973,14 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	// Получение списка названий файлов.
-	c.flag.readFilePassed = true // Установка признака, что был запущен процесс получения значений текста.
+	c.status.readFilePassed = true // Установка признака, что был запущен процесс получения значений текста.
 
 	c.data.files, err = c.conf.Container.ListFilesInContainer(c.secret.secretKey)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
 	} else {
 		c.conf.PtrLoggerFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
-		c.flag.readFileSUCCESS = true
+		c.status.readFileSUCCESS = true
 	}
 
 	// Установка фокуса.
@@ -3343,11 +2999,11 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeBankCard")
 
-	c.flag.readBankCardPassed = false // Сброс признака.
-	c.flag.addBankCardPassed = false
-	c.flag.delBankCardPassed = false
+	c.status.readBankCardPassed = false // Сброс признака.
+	c.status.addBankCardPassed = false
+	c.status.delBankCardPassed = false
 	c.index.bankCard = 0 // Сброс индекса навигации по массиву логин/пароль.
-	c.flag.readBankCardSUCCESS = false
+	c.status.readBankCardSUCCESS = false
 
 	// Логика.
 	//
@@ -3673,14 +3329,14 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	// Получение сохранённых значений банковских карт.
-	c.flag.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
+	c.status.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
 
 	_, err = showBankCardWorkDB(c)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
 	} else {
 		c.conf.PtrLoggerFile.Write("Debug: данные банковских карт успешно прочитаны")
-		c.flag.readBankCardSUCCESS = true
+		c.status.readBankCardSUCCESS = true
 	}
 
 	// Установка фокуса.

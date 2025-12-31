@@ -2,7 +2,6 @@ package sqlitestor
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -16,7 +15,7 @@ func migrationUp(db *sql.DB) error {
 
 	// Проверка аргументов.
 	if db == nil {
-		return errors.New("в аргументе db, нет указателя")
+		return NilPtrArgumentDB
 	}
 
 	// Подготовка к миграции.

@@ -1,7 +1,6 @@
 package logfile
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -27,7 +26,7 @@ func New(nameLogFile string) (*LogFile, error) {
 	once.Do(func() {
 
 		if nameLogFile == "" {
-			err = errors.New("нет содержимого в названии файла логов")
+			err = EmptyDataArgumentNameLogFile
 			return
 		}
 
@@ -56,7 +55,7 @@ func (f *LogFile) Write(msg string) error {
 	defer f.mu.Unlock()
 
 	if f.PtrLogFile == nil {
-		return errors.New("файл логов не инициализирован")
+		return NilPtrLogger
 	}
 
 	// Проверка.

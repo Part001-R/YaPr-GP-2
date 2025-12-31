@@ -3,7 +3,6 @@ package sqlitestor
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -262,7 +261,7 @@ func (d *dataBase) DelDataLoginPasswordContext(ctx context.Context, field1 strin
 	}
 
 	if cnt == 0 {
-		return errors.New("удаление не выполнено")
+		return FaultDelete
 	}
 
 	return nil
@@ -347,7 +346,7 @@ func (d *dataBase) DelTextContext(ctx context.Context, field1 string) error {
 	}
 
 	if cnt == 0 {
-		return errors.New("удаление не выполнено")
+		return FaultDelete
 	}
 
 	return nil
@@ -432,7 +431,7 @@ func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error 
 	}
 
 	if cnt == 0 {
-		return errors.New("удаление банковской карты не выполнено")
+		return FaultDelete
 	}
 
 	return nil

@@ -9,7 +9,9 @@ import (
 
 // Шифрование данных
 func encrypt(data []byte, key [32]byte) ([]byte, error) {
+
 	var nonce [24]byte
+
 	if _, err := rand.Read(nonce[:]); err != nil {
 		return nil, err
 	}
@@ -19,7 +21,9 @@ func encrypt(data []byte, key [32]byte) ([]byte, error) {
 
 // Дешифрование данных
 func decrypt(encrypted []byte, key [32]byte) ([]byte, error) {
+
 	var nonce [24]byte
+
 	copy(nonce[:], encrypted[:nonceSize])
 	decrypted, ok := secretbox.Open(nil, encrypted[nonceSize:], &nonce, &key)
 	if !ok {

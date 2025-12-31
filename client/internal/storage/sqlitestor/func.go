@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 // Подключение к БД.
 func connect(dsn string) (*sql.DB, error) {
 	if dsn == "" {
-		return nil, errors.New("нет содержимого в аргументе dsn")
+		return nil, EmptyDataArgumentDSN
 	}
 
 	ptrDB, err := sql.Open("sqlite", dsn)
