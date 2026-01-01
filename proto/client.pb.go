@@ -7,12 +7,12 @@
 package proto
 
 import (
-	reflect "reflect"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -22,22 +22,143 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Запрос с данными файла
+type FileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileRequest) Reset() {
+	*x = FileRequest{}
+	mi := &file_proto_client_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileRequest) ProtoMessage() {}
+
+func (x *FileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileRequest.ProtoReflect.Descriptor instead.
+func (*FileRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *FileRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *FileRequest) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+// Ответ, по завершению приёма файла
+type UploadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadResponse) Reset() {
+	*x = UploadResponse{}
+	mi := &file_proto_client_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadResponse) ProtoMessage() {}
+
+func (x *UploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadResponse.ProtoReflect.Descriptor instead.
+func (*UploadResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *UploadResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
 	"\n" +
-	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto2I\n" +
+	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"C\n" +
+	"\vFileRequest\x12\x1a\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\"*\n" +
+	"\x0eUploadResponse\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage2\x84\x01\n" +
 	"\x0fPasswordManager\x126\n" +
-	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.EmptyB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x129\n" +
+	"\x06Upload\x12\x14.manager.FileRequest\x1a\x17.manager.UploadResponse(\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
+var (
+	file_proto_client_proto_rawDescOnce sync.Once
+	file_proto_client_proto_rawDescData []byte
+)
+
+func file_proto_client_proto_rawDescGZIP() []byte {
+	file_proto_client_proto_rawDescOnce.Do(func() {
+		file_proto_client_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)))
+	})
+	return file_proto_client_proto_rawDescData
+}
+
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_proto_client_proto_goTypes = []any{
-	(*emptypb.Empty)(nil), // 0: google.protobuf.Empty
+	(*FileRequest)(nil),    // 0: manager.FileRequest
+	(*UploadResponse)(nil), // 1: manager.UploadResponse
+	(*emptypb.Empty)(nil),  // 2: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
-	0, // 0: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
-	0, // 1: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 0: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	0, // 1: manager.PasswordManager.Upload:input_type -> manager.FileRequest
+	2, // 2: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1, // 3: manager.PasswordManager.Upload:output_type -> manager.UploadResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -54,12 +175,13 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   0,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_client_proto_goTypes,
 		DependencyIndexes: file_proto_client_proto_depIdxs,
+		MessageInfos:      file_proto_client_proto_msgTypes,
 	}.Build()
 	File_proto_client_proto = out.File
 	file_proto_client_proto_goTypes = nil

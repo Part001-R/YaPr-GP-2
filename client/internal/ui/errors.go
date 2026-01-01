@@ -15,6 +15,9 @@ var (
 	// В аргументе subjectName, нет данных.
 	EmptyDataArgumentSubjectName = errors.New("в аргументе <subjectName>, нет данных")
 
+	// В аргументе fileName, нет данных.
+	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
+
 	// Длинна ключа не соответутсвует 32-м.
 	LenSecretKey = errors.New("длина <secretKey> должна быть не менее 32 символов")
 
@@ -44,4 +47,7 @@ var (
 
 	// Некорректное заполнение
 	NotCorrectDataFill = errors.New("некорректное заполнение")
+
+	// Нет подтверждения
+	NotConfirm = errors.New("нет подтверждения")
 )

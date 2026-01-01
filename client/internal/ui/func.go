@@ -15,12 +15,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jroimartin/gocui"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/types/known/emptypb"
-
-	pb "github.com/Part001-R/YaPr-GP-2/proto"
 )
 
 const (
@@ -89,6 +83,10 @@ func deleteViews(g *gocui.Gui) error {
 		"Extraction":             {},
 		"fieldPathSource":        {},
 		"fieldPathTarget":        {},
+		"Backup":                 {},
+		"Restore":                {},
+		"indicatorProcessName":   {},
+		"indicatorProcessBar":    {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -99,78 +97,96 @@ func deleteViews(g *gocui.Gui) error {
 
 // Реализация проверки связи с сервером.
 func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
+
 	// Проверка аргументов
 	if c == nil {
 		return false, NilPtrArgumentC
 	}
 
-	// Логика
-	c.status.checkConnectPassed = true
-	srvAddr := c.typed.ip + ":" + c.typed.port
-
-	// Настройка TLS.
-	creds, err := credentials.NewClientTLSFromFile("tls/server.crt", "")
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("ошибка получения TLS-креденциалов: <%v>", err))
-		return false, fmt.Errorf("ошибка получения TLS-креденциалов: <%w>", err)
-	}
-
 	// Подключение к серверу.
-	conn, err := grpc.NewClient(srvAddr, grpc.WithTransportCredentials(creds))
+	client, conn, err := connectSrv(c)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("ошибка подключения к серверу: <%v>", err))
-		return false, fmt.Errorf("ошибка подключения к серверу: <%w>", err)
+		return false, fmt.Errorf("функция layerConnectSrv, вернула ошибку: <%w>", err)
 	}
-	defer conn.Close()
-
-	client := pb.NewPasswordManagerClient(conn)
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения: <%v>", err))
+		}
+	}()
 
 	// Подготовка данных к запросу.
-	secretKey, err := generateRandomString(50)
+	txMD, nameToken, secretKey, err := layerPrepareDataPingContext(c)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция generateRandomString, вернула ошибку: <%v>", err))
-		return false, fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+		return false, fmt.Errorf("Функция layerPrepareDataPingContext, вернула ошибку: <%w>", err)
 	}
-
-	timeValidToken := time.Duration(5 * time.Second)
-	txToken, err := createToken("clientManager", secretKey, timeValidToken)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция createToken, вернула ошибку: <%v>", err))
-		return false, fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
-	}
-
-	nameToken := "token"
-	txMD := metadata.Pairs(nameToken, txToken)
-
-	// Создание нового контекста, основанного на переданном контексте, с метаданными.
-	ctx = metadata.NewOutgoingContext(ctx, txMD)
 
 	// Запрос.
-	emptyRequest := &emptypb.Empty{}
-	var header metadata.MD
-
-	_, err = client.Ping(ctx, emptyRequest, grpc.Header(&header))
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("ошибка выполнения Ping: <%v>", err))
-		return false, fmt.Errorf("ошибка выполнения Ping: <%w>", err)
+	if err := layerRequestPingContext(ctx, txMD, client, nameToken, secretKey); err != nil {
+		return false, fmt.Errorf("функция layerRequestPingContext, вернула ошибку: <%w>", err)
 	}
 
-	// Получение токена из метаданных ответа.
-	token := header[nameToken]
-	if len(token) == 0 || token[0] == "" {
-		c.conf.PtrLoggerFile.Write("в ответе на запрос ping, отсутствуют данные токена")
-		return false, MissingTokenData
-	}
-	rxToken := token[0]
-
-	// Проверка метаданных ответа.
-	if err := checkToken(rxToken, secretKey); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция checkToken, вернула ошибку: <%v>", err))
-		return false, err
-	}
-
-	// Проверка пройдена успешно.
+	// Проверка пройдена.
 	return true, nil
+}
+
+// Создание резервной копии файла БД, на сервере.
+func backUpDB(c *handlerUI) error {
+
+	fileName := "manager.db" // имя передаваемого файла
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+		}
+	}()
+
+	// Передача файла на сервер.
+	resp, err := layerTx(client, fileName, c)
+	if err != nil {
+		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
+	}
+
+	// Анализ данных ответа от сервера.
+	if err := layerCheckResultBackUp(resp, fileName); err != nil {
+		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Создание резервной копии файла контейнера, на сервере.
+func backUpContainer(c *handlerUI) error {
+
+	fileName := "container.data" // имя передаваемого файла
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+		}
+	}()
+
+	// Передача файла на сервер.
+	resp, err := layerTx(client, fileName, c)
+	if err != nil {
+		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
+	}
+
+	// Анализ данных ответа от сервера.
+	if err := layerCheckResultBackUp(resp, fileName); err != nil {
+		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
+	}
+
+	return nil
 }
 
 // Создание JWT токена.
@@ -942,6 +958,7 @@ func enterViewSettings(v *gocui.View, g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func enterViewRequestSecretKey(v *gocui.View, g *gocui.Gui, c *handlerUI) error {
 
+	// Получение данных секретного ключа.
 	switch v.Name() {
 	case "scrtKey":
 		str := c.typed.login + c.typed.password1 + strings.TrimSuffix(v.Buffer(), "\n")
@@ -949,8 +966,9 @@ func enterViewRequestSecretKey(v *gocui.View, g *gocui.Gui, c *handlerUI) error 
 	default:
 	}
 
+	// Отображение окно, выбранного типа.
 	if err := c.showSelectType(g, v); err != nil {
-		return fmt.Errorf("функция c.showSelectType, фернула ошибку: <%w>", err)
+		return fmt.Errorf("функция c.showSelectType, вернула ошибку: <%w>", err)
 	}
 
 	return nil
@@ -1524,8 +1542,6 @@ func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 
 		if c.status.readFileSUCCESS {
 
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Есть признак чтения файлов. В хранилище <%d> файлов", len(c.data.files))) //================
-
 			indicator.Clear()
 			indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.files))))
 			indicator.FgColor = gocui.ColorGreen
@@ -1539,6 +1555,121 @@ func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 
 		c.status.readFilePassed = false  // Для разовой отработки при открытии экрана.
 		c.status.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
+	}
+
+	return nil
+}
+
+// Обновление индикторов окна viewSelectType . Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель на интерфейс.
+//	с - указатель на конфигурацию.
+func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
+
+	//
+	// Обновление вида элемента backUp (---> сервер).
+	//
+
+	switch c.status.backUp {
+	case stageNotActive: // Нет активности процесса.
+		name := "Backup"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorWhite
+
+	case stageActive: // Есть активность процесса.
+		name := "Backup"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorYellow
+
+	case stageOk: // Процесс завершён успешно.
+		name := "Backup"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorGreen
+
+	case stageFault: // Ошибка процесса.
+		name := "Backup"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorRed
+
+	default:
+	}
+
+	//
+	// Обновление вида элемента restore (<--- сервер).
+	//
+
+	switch c.status.restore {
+	case stageNotActive: // Нет активности процесса.
+		name := "Restore"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorWhite
+
+	case stageActive: // Есть активность процесса.
+		name := "Restore"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorYellow
+
+	case stageOk: // Процесс завершён успешно.
+		name := "Restore"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorGreen
+
+	case stageFault: // Ошибка процесса.
+		name := "Restore"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		indicator.FgColor = gocui.ColorRed
+
+	default:
 	}
 
 	return nil

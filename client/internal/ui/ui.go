@@ -31,7 +31,7 @@ func Run(conf *udt.Configuration) error {
 
 	g.SetManagerFunc(layout)
 
-	// Привязки клавиш
+	// Привязки.
 	//
 	// Завершение работы.
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, instUI.quit); err != nil {
@@ -92,6 +92,14 @@ func Run(conf *udt.Configuration) error {
 	// Извлечение.
 	if err := g.SetKeybinding("", gocui.KeyCtrlK, gocui.ModNone, instUI.doExtract); err != nil {
 		return fmt.Errorf("Error: Ошибка Ctrl+K: <%w>", err)
+	}
+	// Backup (---> сервер).
+	if err := g.SetKeybinding("", gocui.KeyCtrlO, gocui.ModNone, instUI.doBackup); err != nil {
+		return fmt.Errorf("Error: Ошибка Ctrl+O: <%w>", err)
+	}
+	// Restore (<--- сервер).
+	if err := g.SetKeybinding("", gocui.KeyCtrlO, gocui.ModNone, instUI.doRestore); err != nil {
+		return fmt.Errorf("Error: Ошибка Ctrl+P: <%w>", err)
 	}
 	// Enter для полей ввода и выбора.
 	listElement := []string{

@@ -2,6 +2,8 @@ package grpc
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"sync"
 
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -33,7 +35,7 @@ func New(l *zap.Logger) *PasswordManager {
 	return inst
 }
 
-// Функция проверки связи.
+// Обработчик проверки связи.
 func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
 
 	s.ptrLogger.Debug("Принят Ping запрос")
@@ -63,4 +65,38 @@ func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*empt
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+// Обработчик приёма файла.
+func (s *PasswordManager) Upload(stream pb.PasswordManager_UploadServer) error {
+
+	var fileName string
+
+	// Приём данных файла.
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF { // конец потока
+			break
+		}
+		if err != nil {
+			s.ptrLogger.Error("ошибка при получении данных файла", zap.String("файл", fileName), zap.String("ошибка", err.Error()))
+			return status.Error(codes.Internal, fmt.Sprintf("ошибка при чтении потока: <%v>", err))
+		}
+
+		if fileName == "" {
+			fileName = req.GetFilename()
+		}
+
+		// Сохранение файла
+		err = appendToFile(fileName, req.GetContent())
+		if err != nil {
+			s.ptrLogger.Error("ошибка при добавлении данных файла", zap.String("файл", fileName), zap.String("ошибка", err.Error()))
+			return status.Error(codes.Internal, fmt.Sprintf("ошибка при добавлении принятых данных: <%v>", err))
+		}
+	}
+
+	s.ptrLogger.Info("Принят файл", zap.String("имя", fileName))
+
+	// Финальное сообщение сервера.
+	return stream.SendAndClose(&pb.UploadResponse{Message: fileName})
 }

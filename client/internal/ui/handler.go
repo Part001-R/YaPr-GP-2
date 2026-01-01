@@ -75,7 +75,8 @@ type status struct {
 	delFilePassed            bool // Признак, что процедура удаления файла, пройдена.
 	extractFileSUCCESS       bool // Признак, успешного извлечения файла.
 	extractFilePassed        bool // Признак, что процедура извлечения файла, пройдена.
-
+	restore                  int  // Статус процесса воостановления из резервной копии.
+	backUp                   int  // Статус процесса создания резервной копии.
 }
 
 // Для навигации по экранам.
@@ -128,15 +129,21 @@ type indexes struct {
 	file          int // текущий индекс для обхода массива - файлы.
 }
 
+// Мьютексы.
+type mutex struct {
+	restoreBackup sync.Mutex // для резервного копирования и восстановления.
+}
+
 // Общий тип для CLI UI.
 type handlerUI struct {
-	conf   *udt.Configuration // конфигурация сервиса
-	typed  typeData           // введённые пользователем данные
-	status status             // признаки сервиса
-	view   screens            // взаимодействие с окнами
-	secret encrKey            // секретность
-	data   data               // данные
-	index  indexes            // индексы для обхода массивов
+	conf   *udt.Configuration // конфигурация сервиса.
+	typed  typeData           // введённые пользователем данные.
+	status status             // признаки сервиса.
+	view   screens            // взаимодействие с окнами.
+	secret encrKey            // секретность.
+	data   data               // данные.
+	index  indexes            // индексы для обхода массивов.
+	mutex  mutex              // мьютексы.
 }
 
 var inst *handlerUI
@@ -998,6 +1005,14 @@ func (c *handlerUI) indicators(g *gocui.Gui) error {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err)
 		}
+
+	// Окно выбора типов.
+	case viewSelectType:
+		if err := indicatorViewSelectType(g, c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewSelectType, вернула ошибку: <%v>", err))
+			return fmt.Errorf("Error: Функция indicatorViewSelectType, вернула ошибку: <%v>", err)
+		}
+
 	default:
 	}
 	return nil
@@ -1015,7 +1030,7 @@ func (c *handlerUI) testConnect(g *gocui.Gui, _ *gocui.View) error {
 	if err != nil {
 		c.status.checkConnectStatus = false
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция pingContext, вернула ошибку: <%v>", err))
-		return nil // Возврат nil, чтобы приложение продолжило работу.
+		return nil
 	}
 
 	// Результат.
@@ -1116,7 +1131,6 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию.", userName))
 
 	// Открытие окна, с запросом ввода дополнительного кода шифрования.
-
 	c.showRequestEncryptKey(gui, v)
 
 	return nil
@@ -1955,6 +1969,10 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 // Окно с выбором типа записей.
 func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
+	// Сброс статусных признаков.
+	c.status.backUp = stageNotActive
+	c.status.restore = stageNotActive
+
 	// Создание экземпляра контейнера.
 	//
 	// Создаётся экземпляр в этом месте, т.к. ключ шифрования формируется после запроса дополнительного ключа.
@@ -2056,6 +2074,34 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	//
+	// --- Индикаторы ---
+	//
+
+	// Название процесса (передача на сервер, приём от сервера).
+	indicatorY := inputHeight * 3
+	indicatorX := 51
+	vRead, err := g.SetView("indicatorProcessName", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vRead.Frame = false
+	vRead.BgColor = gocui.ColorDefault
+	vRead.FgColor = gocui.ColorDefault
+
+	// Статус-бар, активного процесса.
+	indicatorY = inputHeight*3 + 8
+	indicatorX = 53
+	vAdd, err := g.SetView("indicatorProcessBar", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	}
+	vAdd.Frame = false
+	vAdd.BgColor = gocui.ColorDefault
+	vAdd.FgColor = gocui.ColorDefault
+
+	//
 	// --- Пояснение к действию ---
 	//
 	fmt.Fprintf(view, "%s", strings.Repeat("\n", 15))
@@ -2064,6 +2110,22 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	//
 	// --- Нижняя часть экрана ---
 	//
+
+	// Верхний ряд.
+	if v, err := g.SetView("Backup", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+O - ---> сервер"))
+	}
+
+	// Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
@@ -2112,6 +2174,18 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		v.FgColor = gocui.ColorWhite
 		v.Write([]byte("Ctrl+C - выход"))
 	}
+	if v, err := g.SetView("Restore", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = true
+		v.Frame = true
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorWhite
+		v.Write([]byte("Ctrl+P - <--- сервер"))
+	}
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
@@ -2120,7 +2194,6 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	}
 	layoutInitialized = true
 	c.view.activeView = viewSelectType // Установка признака активного окна
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Debug: в окне: <%s>, установлен фокус на: <%s>", viewSelectType, c.view.activeView))
 
 	return nil
 }
@@ -3346,6 +3419,54 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	layoutInitialized = true
 	c.view.activeView = viewBankCardData // Установка признака активного окна
+
+	return nil
+}
+
+// Передача данных клиента, на сервер.
+func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) error {
+
+	// Логика работает только из окна выбора типа.
+	if c.view.activeView == viewSelectType {
+
+		c.mutex.restoreBackup.Lock()
+		defer c.mutex.restoreBackup.Unlock()
+
+		c.status.backUp = stageActive // Установка признака, что запущен процесс передачи файлов на сервер.
+
+		// Логика процесса.
+		//
+		// БД.
+		if err := backUpDB(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция backUpDB, вернула ошибку: <%v>", err))
+			c.status.backUp = stageFault // Установка признака ошибки процесса создания резервной копии.
+			return nil
+		}
+		c.conf.PtrLoggerFile.Write("Info: Резервное копирование БД, выполнено")
+
+		// Контейнер.
+		if err := backUpContainer(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция backUpContainer, вернула ошибку: <%v>", err))
+			c.status.backUp = stageFault // Установка признака ошибки процесса создания резервной копии.
+			return nil
+		}
+		c.conf.PtrLoggerFile.Write("Info: Резервное копирование контейнера, выполнено")
+
+		c.status.backUp = stageOk // Установка признака, что резервное копирование выполнено.
+	}
+
+	return nil
+}
+
+// Получение данных клиента, от сервер.
+func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
+
+	// Логика работает только из окна выбора типа.
+	if c.view.activeView == viewSelectType {
+
+		c.mutex.restoreBackup.Lock()
+		defer c.mutex.restoreBackup.Unlock()
+	}
 
 	return nil
 }
