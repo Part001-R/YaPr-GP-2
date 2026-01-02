@@ -22,8 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Запрос с данными файла
-type FileRequest struct {
+type UploadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
 	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
@@ -31,20 +30,20 @@ type FileRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *FileRequest) Reset() {
-	*x = FileRequest{}
+func (x *UploadRequest) Reset() {
+	*x = UploadRequest{}
 	mi := &file_proto_client_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *FileRequest) String() string {
+func (x *UploadRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*FileRequest) ProtoMessage() {}
+func (*UploadRequest) ProtoMessage() {}
 
-func (x *FileRequest) ProtoReflect() protoreflect.Message {
+func (x *UploadRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_client_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,26 +55,25 @@ func (x *FileRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use FileRequest.ProtoReflect.Descriptor instead.
-func (*FileRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UploadRequest.ProtoReflect.Descriptor instead.
+func (*UploadRequest) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *FileRequest) GetFilename() string {
+func (x *UploadRequest) GetFilename() string {
 	if x != nil {
 		return x.Filename
 	}
 	return ""
 }
 
-func (x *FileRequest) GetContent() []byte {
+func (x *UploadRequest) GetContent() []byte {
 	if x != nil {
 		return x.Content
 	}
 	return nil
 }
 
-// Ответ, по завершению приёма файла
 type UploadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
@@ -120,19 +118,122 @@ func (x *UploadResponse) GetMessage() string {
 	return ""
 }
 
+type DownloadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadRequest) Reset() {
+	*x = DownloadRequest{}
+	mi := &file_proto_client_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadRequest) ProtoMessage() {}
+
+func (x *DownloadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadRequest.ProtoReflect.Descriptor instead.
+func (*DownloadRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DownloadRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+type DownloadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownloadResponse) Reset() {
+	*x = DownloadResponse{}
+	mi := &file_proto_client_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownloadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownloadResponse) ProtoMessage() {}
+
+func (x *DownloadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownloadResponse.ProtoReflect.Descriptor instead.
+func (*DownloadResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DownloadResponse) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *DownloadResponse) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
 	"\n" +
-	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"C\n" +
-	"\vFileRequest\x12\x1a\n" +
+	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"E\n" +
+	"\rUploadRequest\x12\x1a\n" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\fR\acontent\"*\n" +
 	"\x0eUploadResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2\x84\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"-\n" +
+	"\x0fDownloadRequest\x12\x1a\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename\"H\n" +
+	"\x10DownloadResponse\x12\x1a\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent2\xd0\x01\n" +
 	"\x0fPasswordManager\x126\n" +
-	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x129\n" +
-	"\x06Upload\x12\x14.manager.FileRequest\x1a\x17.manager.UploadResponse(\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
+	"\n" +
+	"BackupFile\x12\x16.manager.UploadRequest\x1a\x17.manager.UploadResponse(\x01\x12D\n" +
+	"\vRestoreFile\x12\x18.manager.DownloadRequest\x1a\x19.manager.DownloadResponse0\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -146,19 +247,23 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_client_proto_goTypes = []any{
-	(*FileRequest)(nil),    // 0: manager.FileRequest
-	(*UploadResponse)(nil), // 1: manager.UploadResponse
-	(*emptypb.Empty)(nil),  // 2: google.protobuf.Empty
+	(*UploadRequest)(nil),    // 0: manager.UploadRequest
+	(*UploadResponse)(nil),   // 1: manager.UploadResponse
+	(*DownloadRequest)(nil),  // 2: manager.DownloadRequest
+	(*DownloadResponse)(nil), // 3: manager.DownloadResponse
+	(*emptypb.Empty)(nil),    // 4: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
-	2, // 0: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
-	0, // 1: manager.PasswordManager.Upload:input_type -> manager.FileRequest
-	2, // 2: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1, // 3: manager.PasswordManager.Upload:output_type -> manager.UploadResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 0: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	0, // 1: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
+	2, // 2: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
+	4, // 3: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1, // 4: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
+	3, // 5: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -175,7 +280,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

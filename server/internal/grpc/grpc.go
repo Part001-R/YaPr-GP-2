@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -68,7 +69,7 @@ func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*empt
 }
 
 // Обработчик приёма файла.
-func (s *PasswordManager) Upload(stream pb.PasswordManager_UploadServer) error {
+func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer) error {
 
 	var fileName string
 
@@ -95,8 +96,39 @@ func (s *PasswordManager) Upload(stream pb.PasswordManager_UploadServer) error {
 		}
 	}
 
-	s.ptrLogger.Info("Принят файл", zap.String("имя", fileName))
+	s.ptrLogger.Info("От клиента принят файл", zap.String("имя", fileName))
 
 	// Финальное сообщение сервера.
 	return stream.SendAndClose(&pb.UploadResponse{Message: fileName})
+}
+
+// Обработчик передачи файлов.
+func (s *PasswordManager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager_RestoreFileServer) error {
+
+	// Загружаем файл; пример кода для чтения файла.
+	fileContent, err := os.ReadFile(req.Filename)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("Запрошенный файл <%s>, отсутствует", req.Filename))
+	}
+
+	// Передача файла через stream.
+	size := 1024
+
+	for i := 0; i < len(fileContent); i += size {
+		end := i + size
+		if end > len(fileContent) {
+			end = len(fileContent)
+		}
+
+		if err := stream.Send(&pb.DownloadResponse{
+			Filename: req.Filename,
+			Content:  fileContent[i:end],
+		}); err != nil {
+			return err
+		}
+	}
+
+	s.ptrLogger.Info("Клиенту отправлен файл", zap.String("имя", req.Filename))
+
+	return nil
 }

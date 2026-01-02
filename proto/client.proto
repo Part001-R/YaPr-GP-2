@@ -12,20 +12,26 @@ option go_package = "github.com/Part001-R/YaPr-GP-2/proto";
 
 service PasswordManager {
     rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
-    rpc Upload(stream FileRequest) returns (UploadResponse);
+    rpc BackupFile(stream UploadRequest) returns (UploadResponse);
+    rpc RestoreFile(DownloadRequest) returns (stream DownloadResponse);
 }
 
 //
 // Сообщения
 //
 
-// Запрос с данными файла
-message FileRequest {
+message UploadRequest {
     string filename = 1;
     bytes content = 2;
 }
-
-// Ответ, по завершению приёма файла
 message UploadResponse {
     string message = 1;
+}
+
+message DownloadRequest {
+    string filename = 1;
+}
+message DownloadResponse {
+    string filename = 1;
+    bytes content = 2;
 }

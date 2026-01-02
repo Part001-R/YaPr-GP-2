@@ -132,6 +132,14 @@ type indexes struct {
 // Мьютексы.
 type mutex struct {
 	restoreBackup sync.Mutex // для резервного копирования и восстановления.
+	processTxRx   sync.Mutex // для данных процесса Tx Rx файлов.
+}
+
+// Отправка-приём файлов.
+type txrx struct {
+	percentTxRx float32 // Процент выполнения процесса передачи файлов.
+	totalSizeB  int64   // Передаваемый размер (Байт).
+	passedB     int64   // обработано данных (Байт).
 }
 
 // Общий тип для CLI UI.
@@ -144,6 +152,7 @@ type handlerUI struct {
 	data   data               // данные.
 	index  indexes            // индексы для обхода массивов.
 	mutex  mutex              // мьютексы.
+	txrx   txrx               // данные по Tx-Rx файлов.
 }
 
 var inst *handlerUI
@@ -169,6 +178,11 @@ func new(conf *udt.Configuration) *handlerUI {
 			index: indexes{
 				loginPassword: 0,
 			},
+			mutex: mutex{
+				restoreBackup: sync.Mutex{},
+				processTxRx:   sync.Mutex{},
+			},
+			txrx: txrx{},
 		}
 	})
 	return inst
@@ -177,7 +191,6 @@ func new(conf *udt.Configuration) *handlerUI {
 // Главное окно.
 func layout(g *gocui.Gui) error {
 
-	// Главное меню
 	mainView, err := g.SetView(viewMain, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		return err
@@ -201,19 +214,24 @@ func layout(g *gocui.Gui) error {
 // Главное окно.
 func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 
+	// Запрет активности при активности процессов передачи файлов.
+	if c.status.backUp == stageActive || c.status.restore == stageActive {
+		return nil
+	}
+
 	c.view.activeView = "" // Сброс признака активного окна
 
-	// Удаление видов
+	// Удаление видов.
 	if err := deleteViews(g); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция deleteViews вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews вернула ошибку: <%w>", err)
 	}
 
-	// Сброс флагов
+	// Сброс флагов.
 	layoutInitialized = false
 	c.view.currentFocus = ""
 
-	// Пересоздание главного меню
+	// Отображение главного меню.
 	err := layout(g)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция layout вернула ошибку: <%v>", err))
@@ -225,6 +243,22 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 
 // Регистрация.
 func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
+
+	// Ограничение вызова окна.
+	if c.view.activeView == viewAutentification ||
+		c.view.activeView == viewBankCardData ||
+		c.view.activeView == viewBinaryData ||
+		c.view.activeView == viewLoginPasswordData ||
+		c.view.activeView == viewRegistration ||
+		c.view.activeView == viewRequestSecretKey ||
+		c.view.activeView == viewSelectType ||
+		c.view.activeView == viewSettings ||
+		c.view.activeView == viewTextData {
+		return nil
+	}
+
+	// Логика
+	//
 
 	// Сбросы.
 	c.view.activeView = ""
@@ -418,6 +452,22 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 // Аутентификация.
 func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
+	// Ограничение вызова окна.
+	if c.view.activeView == viewAutentification ||
+		c.view.activeView == viewBankCardData ||
+		c.view.activeView == viewBinaryData ||
+		c.view.activeView == viewLoginPasswordData ||
+		c.view.activeView == viewRegistration ||
+		c.view.activeView == viewRequestSecretKey ||
+		c.view.activeView == viewSelectType ||
+		c.view.activeView == viewSettings ||
+		c.view.activeView == viewTextData {
+		return nil
+	}
+
+	// Логика
+	//
+
 	// Сбросы
 	c.view.activeView = ""
 	c.typed.login = ""
@@ -578,6 +628,21 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 // Настройки.
 func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
+	// Ограничение вызова окна.
+	if c.view.activeView == viewAutentification ||
+		c.view.activeView == viewBankCardData ||
+		c.view.activeView == viewBinaryData ||
+		c.view.activeView == viewLoginPasswordData ||
+		c.view.activeView == viewRegistration ||
+		c.view.activeView == viewRequestSecretKey ||
+		c.view.activeView == viewSelectType ||
+		c.view.activeView == viewSettings ||
+		c.view.activeView == viewTextData {
+		return nil
+	}
+
+	// Логика
+	//
 	c.view.activeView = "" // Сброс признака активного окна
 
 	// Удаляем все зависимые виды (включая поля ввода)
@@ -888,6 +953,11 @@ func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 // Обработка нажатия Enter.
 func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 
+	// Запрет активности при активности процессов передачи файлов.
+	if c.status.backUp == stageActive || c.status.restore == stageActive {
+		return nil
+	}
+
 	switch c.view.activeView {
 
 	// Окно регистрации.
@@ -1109,29 +1179,32 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 // Запуск процесса аутентификации пользователя.
 func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 
-	userName := c.typed.login
-	userPwd1 := c.typed.password1
+	// Если окно аутентификации.
+	if c.view.activeView == viewAutentification {
+		userName := c.typed.login
+		userPwd1 := c.typed.password1
 
-	// Контекст для запроса.
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
 
-	// Выполнение запроса.
-	ok, err := c.conf.DataBase.AuthenticateUserContext(ctx, userName, userPwd1)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err))
-		return nil
+		// Выполнение запроса.
+		ok, err := c.conf.DataBase.AuthenticateUserContext(ctx, userName, userPwd1)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err))
+			return nil
+		}
+
+		// Обработка результата
+		if !ok {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, не прошел аутентификацию.", userName))
+			return nil
+		}
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию.", userName))
+
+		// Открытие окна, с запросом ввода дополнительного кода шифрования.
+		c.showRequestEncryptKey(gui, v)
 	}
-
-	// Обработка результата
-	if !ok {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, не прошел аутентификацию.", userName))
-		return nil
-	}
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию.", userName))
-
-	// Открытие окна, с запросом ввода дополнительного кода шифрования.
-	c.showRequestEncryptKey(gui, v)
 
 	return nil
 }
@@ -1969,6 +2042,15 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 // Окно с выбором типа записей.
 func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
+	// Ограничение.
+	if c.view.activeView != viewLoginPasswordData &&
+		c.view.activeView != viewTextData &&
+		c.view.activeView != viewBankCardData &&
+		c.view.activeView != viewBinaryData &&
+		c.view.activeView != viewRequestSecretKey {
+		return nil
+	}
+
 	// Сброс статусных признаков.
 	c.status.backUp = stageNotActive
 	c.status.restore = stageNotActive
@@ -2077,29 +2159,19 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// --- Индикаторы ---
 	//
 
-	// Название процесса (передача на сервер, приём от сервера).
-	indicatorY := inputHeight * 3
-	indicatorX := 51
-	vRead, err := g.SetView("indicatorProcessName", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	// процент выполнения.
+	if v, err := g.SetView("indicatorPercent", 50, 20, inputWidth+1, inputHeight+1+19); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = false
+		v.Frame = false
+		v.BgColor = gocui.ColorDefault
+		v.SelBgColor = gocui.ColorDefault
+		v.SelFgColor = gocui.ColorDefault
 	}
-	vRead.Frame = false
-	vRead.BgColor = gocui.ColorDefault
-	vRead.FgColor = gocui.ColorDefault
-
-	// Статус-бар, активного процесса.
-	indicatorY = inputHeight*3 + 8
-	indicatorX = 53
-	vAdd, err := g.SetView("indicatorProcessBar", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-	}
-	vAdd.Frame = false
-	vAdd.BgColor = gocui.ColorDefault
-	vAdd.FgColor = gocui.ColorDefault
 
 	//
 	// --- Пояснение к действию ---
@@ -2200,6 +2272,11 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
 // Окно для взаимодействия с логин/пароль.
 func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
+
+	// ограничение.
+	if c.view.activeView != viewSelectType {
+		return nil
+	}
 
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeLoginPassword")
 
@@ -2510,6 +2587,11 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 // Окно для взаимодействия с логин/пароль.
 func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
+	// ограничение.
+	if c.view.activeView != viewSelectType {
+		return nil
+	}
+
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeText")
 
 	c.status.readTextPassed = false // Сброс признака.
@@ -2792,6 +2874,11 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 // Окно для взаимодействия с логин/пароль.
 func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 
+	// ограничение.
+	if c.view.activeView != viewSelectType {
+		return nil
+	}
+
 	c.view.activeView = "" // Сброс
 	c.index.file = 0
 
@@ -3069,6 +3156,11 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 
 // Окно для взаимодействия с банковской картой.
 func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
+
+	// ограничение.
+	if c.view.activeView != viewSelectType {
+		return nil
+	}
 
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeBankCard")
 
@@ -3424,7 +3516,12 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 }
 
 // Передача данных клиента, на сервер.
-func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) error {
+func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
+
+	// Запрет активности при активности процессов передачи файлов.
+	if c.status.backUp == stageActive || c.status.restore == stageActive {
+		return nil
+	}
 
 	// Логика работает только из окна выбора типа.
 	if c.view.activeView == viewSelectType {
@@ -3436,37 +3533,71 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) error {
 
 		// Логика процесса.
 		//
+
+		fileNameDB := "manager.db"
+		fileNameContainer := "container.data"
+
+		// Определение общего размера файлов.
+		c.txrx.totalSizeB, err = totalFileSize(fileNameDB, fileNameContainer)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
+			c.status.backUp = stageFault
+			return nil
+		}
+
 		// БД.
-		if err := backUpDB(c); err != nil {
+		if err := backUpDB(c, fileNameDB); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция backUpDB, вернула ошибку: <%v>", err))
-			c.status.backUp = stageFault // Установка признака ошибки процесса создания резервной копии.
+			c.status.backUp = stageFault
 			return nil
 		}
 		c.conf.PtrLoggerFile.Write("Info: Резервное копирование БД, выполнено")
 
 		// Контейнер.
-		if err := backUpContainer(c); err != nil {
+		if err := backUpContainer(c, fileNameContainer); err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция backUpContainer, вернула ошибку: <%v>", err))
-			c.status.backUp = stageFault // Установка признака ошибки процесса создания резервной копии.
+			c.status.backUp = stageFault
 			return nil
 		}
+
 		c.conf.PtrLoggerFile.Write("Info: Резервное копирование контейнера, выполнено")
+		c.status.backUp = stageOk
 
-		c.status.backUp = stageOk // Установка признака, что резервное копирование выполнено.
 	}
-
 	return nil
 }
 
 // Получение данных клиента, от сервер.
 func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 
+	// Запрет активности при активности процессов передачи файлов.
+	if c.status.backUp == stageActive || c.status.restore == stageActive {
+		return nil
+	}
+
 	// Логика работает только из окна выбора типа.
 	if c.view.activeView == viewSelectType {
 
 		c.mutex.restoreBackup.Lock()
 		defer c.mutex.restoreBackup.Unlock()
-	}
 
+		c.status.restore = stageActive // Установка признака, что запущен процесс приёма файлов от сервера.
+
+		if err := restoreDB(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция restoreDB, вернула ошибку: <%v>", err))
+			c.status.restore = stageFault // Установка признака ошибки процесса получения резервной копии.
+			return nil
+		}
+		c.conf.PtrLoggerFile.Write("Info: Восстановление БД, выполнено")
+
+		if err := restoreContainer(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция restoreContainer, вернула ошибку: <%v>", err))
+			c.status.restore = stageFault // Установка признака ошибки процесса получения резервной копии.
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Info: Восстановление контейнера, выполнено")
+		c.status.restore = stageOk // Установка признака, что восстановление выполнено.
+	}
 	return nil
 }

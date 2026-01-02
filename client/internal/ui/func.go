@@ -9,6 +9,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -85,8 +87,7 @@ func deleteViews(g *gocui.Gui) error {
 		"fieldPathTarget":        {},
 		"Backup":                 {},
 		"Restore":                {},
-		"indicatorProcessName":   {},
-		"indicatorProcessBar":    {},
+		"indicatorPercent":       {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -130,9 +131,7 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 }
 
 // Создание резервной копии файла БД, на сервере.
-func backUpDB(c *handlerUI) error {
-
-	fileName := "manager.db" // имя передаваемого файла
+func backUpDB(c *handlerUI, fileName string) error {
 
 	// Подключение к серверу.
 	client, conn, err := connectSrv(c)
@@ -160,9 +159,7 @@ func backUpDB(c *handlerUI) error {
 }
 
 // Создание резервной копии файла контейнера, на сервере.
-func backUpContainer(c *handlerUI) error {
-
-	fileName := "container.data" // имя передаваемого файла
+func backUpContainer(c *handlerUI, fileName string) error {
 
 	// Подключение к серверу.
 	client, conn, err := connectSrv(c)
@@ -184,6 +181,66 @@ func backUpContainer(c *handlerUI) error {
 	// Анализ данных ответа от сервера.
 	if err := layerCheckResultBackUp(resp, fileName); err != nil {
 		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Восстановление из резервной копии файла БД.
+func restoreDB(c *handlerUI) error {
+
+	fileName := "manager.db" // имя запрашиваемого файла
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+		}
+	}()
+
+	// Запрос файла у сервера.
+	content, err := layerRx(client, fileName, c)
+	if err != nil {
+		return fmt.Errorf("Функция layerRx, вернула ошибку: <%w>", err)
+	}
+
+	// Сохранение файла.
+	if err := saveFile(content, fileName); err != nil {
+		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Восстановление из резервной копии файла контейнера.
+func restoreContainer(c *handlerUI) error {
+
+	fileName := "container.data" // имя запрашиваемого файла
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+		}
+	}()
+
+	// Запрос файла у сервера.
+	content, err := layerRx(client, fileName, c)
+	if err != nil {
+		return fmt.Errorf("Функция layerRx, вернула ошибку: <%w>", err)
+	}
+
+	// Сохранение файла.
+	if err := saveFile(content, fileName); err != nil {
+		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
 	}
 
 	return nil
@@ -1572,50 +1629,28 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 	// Обновление вида элемента backUp (---> сервер).
 	//
 
+	// Обработка элемента управления.
+	name := "Backup"
+	btnBackup, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if btnBackup == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
 	switch c.status.backUp {
 	case stageNotActive: // Нет активности процесса.
-		name := "Backup"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorWhite
+		btnBackup.FgColor = gocui.ColorWhite
 
 	case stageActive: // Есть активность процесса.
-		name := "Backup"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorYellow
+		btnBackup.FgColor = gocui.ColorYellow
 
 	case stageOk: // Процесс завершён успешно.
-		name := "Backup"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorGreen
+		btnBackup.FgColor = gocui.ColorGreen
 
 	case stageFault: // Ошибка процесса.
-		name := "Backup"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorRed
+		btnBackup.FgColor = gocui.ColorRed
 
 	default:
 	}
@@ -1624,53 +1659,101 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 	// Обновление вида элемента restore (<--- сервер).
 	//
 
+	name = "Restore"
+	btnRestore, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if btnRestore == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
+
 	switch c.status.restore {
 	case stageNotActive: // Нет активности процесса.
-		name := "Restore"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorWhite
+		btnRestore.FgColor = gocui.ColorWhite
 
 	case stageActive: // Есть активность процесса.
-		name := "Restore"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorYellow
+		btnRestore.FgColor = gocui.ColorYellow
 
 	case stageOk: // Процесс завершён успешно.
-		name := "Restore"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorGreen
+		btnRestore.FgColor = gocui.ColorGreen
 
 	case stageFault: // Ошибка процесса.
-		name := "Restore"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-		indicator.FgColor = gocui.ColorRed
+		btnRestore.FgColor = gocui.ColorRed
 
 	default:
 	}
 
+	//
+	// --- Индикатор процентов ---
+	//
+	if c.status.backUp == stageActive || c.status.backUp == stageOk ||
+		c.status.restore == stageActive || c.status.restore == stageOk {
+
+		c.mutex.processTxRx.Lock()
+		defer c.mutex.processTxRx.Unlock()
+
+		name = "indicatorPercent"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		indicator.Clear()
+		indicator.Write([]byte(fmt.Sprintf("Процент выполнения %.2f%%", c.txrx.percentTxRx)))
+	}
+
 	return nil
+}
+
+// Определение общего размера файлов в байтах. Возвращается общий размер и ошибка.
+//
+// Параметры:
+//
+//	filenames - названия файлов.
+func totalFileSize(filenames ...string) (int64, error) {
+
+	var totalSize int64
+
+	for _, filename := range filenames {
+		fileInfo, err := os.Stat(filename)
+		if err != nil {
+			return 0, fmt.Errorf("Ошибка получения данных по файлу: <%s>", filename)
+		}
+
+		// Проверка переполнения.
+		fileSize := fileInfo.Size()
+		if totalSize > math.MaxInt64-fileSize {
+			return 0, fmt.Errorf("Переполнение при суммировании размеров файлов")
+		}
+
+		totalSize += fileInfo.Size()
+	}
+
+	return totalSize, nil
+}
+
+// Вычисление процента выполнения.
+//
+// Параметры:
+//
+//	c - конфигурация.
+//	b - количество переданных байт.
+func updateDataProcess(c *handlerUI, b int64) {
+
+	c.mutex.processTxRx.Lock()
+	defer c.mutex.processTxRx.Unlock()
+
+	// Обновление данных накопителя.
+	c.txrx.passedB += b
+
+	// Вычисление процентов.
+	if c.txrx.totalSizeB > 0 {
+		c.txrx.percentTxRx = float32(float64(c.txrx.passedB) / float64(c.txrx.totalSizeB) * 100)
+	} else {
+		c.txrx.percentTxRx = 0
+	}
 }

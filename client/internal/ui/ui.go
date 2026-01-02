@@ -98,7 +98,7 @@ func Run(conf *udt.Configuration) error {
 		return fmt.Errorf("Error: Ошибка Ctrl+O: <%w>", err)
 	}
 	// Restore (<--- сервер).
-	if err := g.SetKeybinding("", gocui.KeyCtrlO, gocui.ModNone, instUI.doRestore); err != nil {
+	if err := g.SetKeybinding("", gocui.KeyCtrlP, gocui.ModNone, instUI.doRestore); err != nil {
 		return fmt.Errorf("Error: Ошибка Ctrl+P: <%w>", err)
 	}
 	// Enter для полей ввода и выбора.

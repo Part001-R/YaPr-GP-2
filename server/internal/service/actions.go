@@ -12,45 +12,6 @@ import (
 )
 
 // Функция содержит действия сервиса. Возвращается ошибка.
-/*
-func actions(c *udt.Configuration) error {
-
-	port := ":50100" // ============================================================= временно!
-
-	// Проверка аргументов
-	if c == nil {
-		return NilPtrArgumentConf
-	}
-	if err := c.CheckConf(); err != nil {
-		return fmt.Errorf("функция CheckConf, вернула ошибку: <%w>", err)
-	}
-
-	// Подключение к порту.
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		c.PtrLogger.Error("Ошибка подключения к порту",
-			zap.String("ошибка", err.Error()),
-			zap.String("порт", port))
-	}
-
-	s := grpc.NewServer(
-	//grpc.UnaryInterceptor(handler.AuthInterceptor),
-	)
-	pb.RegisterPasswordManagerServer(s, c.PtrGRPC)
-
-	// Запуск gPPC сервера.
-	c.PtrLogger.Info("Запуск gPRC сервера",
-		zap.String("порт", port))
-
-	if err := s.Serve(lis); err != nil {
-		c.PtrLogger.Error("Ошибка в работе gRPC сервера",
-			zap.String("ошибка", err.Error()))
-		return fmt.Errorf("ошибка в работе gRPC сервера:<%w>", err)
-	}
-
-	return nil
-}
-*/
 func actions(c *udt.Configuration) error {
 	port := ":50100" // ============================================================= временно!
 
@@ -68,7 +29,7 @@ func actions(c *udt.Configuration) error {
 		c.PtrLogger.Error("Ошибка подключения к порту",
 			zap.String("ошибка", err.Error()),
 			zap.String("порт", port))
-		return fmt.Errorf("ошибка подключения к порту: <%w>", err) // Добавить возврат ошибки
+		return fmt.Errorf("ошибка подключения к порту: <%w>", err)
 	}
 
 	// Создание конфигурации для TLS

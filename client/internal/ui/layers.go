@@ -106,14 +106,14 @@ func layerRequestPingContext(ctx context.Context, txMD metadata.MD, client proto
 }
 
 //
-// --- backUpDB ---
+// --- backUp ---
 //
 
 // Передача файла на сервер.
 func layerTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) (*pb.UploadResponse, error) {
 
 	// Инициация стрима для загрузки файла
-	stream, err := client.Upload(context.Background())
+	stream, err := client.BackupFile(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("ошибка создания stream, для передачи данных: <%w>", err)
 	}
@@ -142,7 +142,7 @@ func layerTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) 
 			break
 		}
 
-		req := &pb.FileRequest{
+		req := &pb.UploadRequest{
 			Filename: fileName,
 			Content:  buf[:n],
 		}
@@ -150,6 +150,9 @@ func layerTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) 
 		if err := stream.Send(req); err != nil {
 			return nil, fmt.Errorf("ошибка отправки данных файла: <%w>", err)
 		}
+
+		// Обновление статистики процесса.
+		updateDataProcess(c, 1024)
 	}
 
 	// Закрытие потока передачи и ожидание ответа от сервера.
@@ -173,6 +176,52 @@ func layerCheckResultBackUp(resp *proto.UploadResponse, fileName string) error {
 	// Проверка содержимого ответа сервера.
 	if fileName != resp.Message {
 		return NotConfirm
+	}
+
+	return nil
+}
+
+//
+// --- restore ---
+//
+
+// Приём файла.
+func layerRx(client proto.PasswordManagerClient, fileName string, c *handlerUI) (content []byte, err error) {
+
+	// Запрос.
+	req := &pb.DownloadRequest{Filename: fileName}
+	stream, err := client.RestoreFile(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("Функция client.Download, вернула ошибку: <%w>", err)
+	}
+
+	// Чтение потоком.
+	for {
+		res, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("Функция stream.Recv, вернула ошибку: <%w>", err)
+		}
+		if res.Filename != fileName {
+			return nil, fmt.Errorf("Приняты данные для другого файла: <%s>", res.Filename)
+		}
+		// Обновление статистики процесса.
+		updateDataProcess(c, int64(len(res.Content)))
+
+		content = append(content, res.Content...)
+	}
+
+	// Результат.
+	return content, nil
+}
+
+// Сохранение файла.
+func saveFile(content []byte, fileName string) error {
+
+	if err := os.WriteFile(fileName, content, 0644); err != nil {
+		return fmt.Errorf("Функция os.WriteFile, вернула ошибку: <%v>", err)
 	}
 
 	return nil
