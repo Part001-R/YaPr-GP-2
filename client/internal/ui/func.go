@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jroimartin/gocui"
 )
@@ -131,55 +132,16 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 }
 
 // Создание резервной копии файла БД, на сервере.
-func backUpDB(c *handlerUI, fileName string) error {
-
-	// Подключение к серверу.
-	client, conn, err := connectSrv(c)
-	if err != nil {
-		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-		}
-	}()
+func backUp(c *handlerUI, fileName string, client proto.PasswordManagerClient) error {
 
 	// Передача файла на сервер.
-	resp, err := layerTx(client, fileName, c)
+	resp, err := layerBackUpTx(client, fileName, c)
 	if err != nil {
 		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
 	}
 
 	// Анализ данных ответа от сервера.
-	if err := layerCheckResultBackUp(resp, fileName); err != nil {
-		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
-	}
-
-	return nil
-}
-
-// Создание резервной копии файла контейнера, на сервере.
-func backUpContainer(c *handlerUI, fileName string) error {
-
-	// Подключение к серверу.
-	client, conn, err := connectSrv(c)
-	if err != nil {
-		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-		}
-	}()
-
-	// Передача файла на сервер.
-	resp, err := layerTx(client, fileName, c)
-	if err != nil {
-		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
-	}
-
-	// Анализ данных ответа от сервера.
-	if err := layerCheckResultBackUp(resp, fileName); err != nil {
+	if err := layerBackUpCheckResult(resp, fileName); err != nil {
 		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
 	}
 
@@ -187,20 +149,7 @@ func backUpContainer(c *handlerUI, fileName string) error {
 }
 
 // Восстановление из резервной копии файла БД.
-func restoreDB(c *handlerUI) error {
-
-	fileName := "manager.db" // имя запрашиваемого файла
-
-	// Подключение к серверу.
-	client, conn, err := connectSrv(c)
-	if err != nil {
-		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-		}
-	}()
+func restore(c *handlerUI, fileName string, client proto.PasswordManagerClient) error {
 
 	// Запрос файла у сервера.
 	content, err := layerRx(client, fileName, c)
@@ -213,35 +162,8 @@ func restoreDB(c *handlerUI) error {
 		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
 	}
 
-	return nil
-}
-
-// Восстановление из резервной копии файла контейнера.
-func restoreContainer(c *handlerUI) error {
-
-	fileName := "container.data" // имя запрашиваемого файла
-
-	// Подключение к серверу.
-	client, conn, err := connectSrv(c)
-	if err != nil {
-		return fmt.Errorf("Функция connectSrv, вернула ошибку: <%w>", err)
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-		}
-	}()
-
-	// Запрос файла у сервера.
-	content, err := layerRx(client, fileName, c)
-	if err != nil {
-		return fmt.Errorf("Функция layerRx, вернула ошибку: <%w>", err)
-	}
-
-	// Сохранение файла.
-	if err := saveFile(content, fileName); err != nil {
-		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
-	}
+	// Анализ данных ответа от сервера.
+	// ...
 
 	return nil
 }
@@ -1629,7 +1551,6 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 	// Обновление вида элемента backUp (---> сервер).
 	//
 
-	// Обработка элемента управления.
 	name := "Backup"
 	btnBackup, err := g.View(name)
 	if err != nil {
@@ -1639,7 +1560,9 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 	}
 
-	switch c.status.backUp {
+	statusBackUp := c.getStatusBackUp()
+
+	switch statusBackUp {
 	case stageNotActive: // Нет активности процесса.
 		btnBackup.FgColor = gocui.ColorWhite
 
@@ -1668,7 +1591,9 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 	}
 
-	switch c.status.restore {
+	statusRestore := c.getStatusRestore()
+
+	switch statusRestore {
 	case stageNotActive: // Нет активности процесса.
 		btnRestore.FgColor = gocui.ColorWhite
 
@@ -1687,11 +1612,9 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 	//
 	// --- Индикатор процентов ---
 	//
-	if c.status.backUp == stageActive || c.status.backUp == stageOk ||
-		c.status.restore == stageActive || c.status.restore == stageOk {
 
-		c.mutex.processTxRx.Lock()
-		defer c.mutex.processTxRx.Unlock()
+	if statusBackUp == stageActive || statusBackUp == stageOk ||
+		statusRestore == stageActive || statusRestore == stageOk {
 
 		name = "indicatorPercent"
 		indicator, err := g.View(name)
@@ -1703,22 +1626,22 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 		}
 
 		indicator.Clear()
-		indicator.Write([]byte(fmt.Sprintf("Процент выполнения %.2f%%", c.txrx.percentTxRx)))
+		indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
 	}
 
 	return nil
 }
 
-// Определение общего размера файлов в байтах. Возвращается общий размер и ошибка.
+// Определение общего размера файлов в КБайт. Возвращается общий размер и ошибка.
 //
 // Параметры:
 //
-//	filenames - названия файлов.
-func totalFileSize(filenames ...string) (int64, error) {
+//	files - названия файлов.
+func totalFileSize(files []string) (int64, error) {
 
 	var totalSize int64
 
-	for _, filename := range filenames {
+	for _, filename := range files {
 		fileInfo, err := os.Stat(filename)
 		if err != nil {
 			return 0, fmt.Errorf("Ошибка получения данных по файлу: <%s>", filename)
@@ -1730,7 +1653,7 @@ func totalFileSize(filenames ...string) (int64, error) {
 			return 0, fmt.Errorf("Переполнение при суммировании размеров файлов")
 		}
 
-		totalSize += fileInfo.Size()
+		totalSize += fileInfo.Size() / 1024
 	}
 
 	return totalSize, nil
@@ -1742,17 +1665,20 @@ func totalFileSize(filenames ...string) (int64, error) {
 //
 //	c - конфигурация.
 //	b - количество переданных байт.
-func updateDataProcess(c *handlerUI, b int64) {
+func updateDataBackUpRestoreProcess(c *handlerUI, b int) {
 
 	c.mutex.processTxRx.Lock()
 	defer c.mutex.processTxRx.Unlock()
 
+	// Получение КБайт из Байт.
+	sendVolume := b / 1024
+
 	// Обновление данных накопителя.
-	c.txrx.passedB += b
+	c.txrx.passedKB += int64(sendVolume)
 
 	// Вычисление процентов.
-	if c.txrx.totalSizeB > 0 {
-		c.txrx.percentTxRx = float32(float64(c.txrx.passedB) / float64(c.txrx.totalSizeB) * 100)
+	if c.txrx.totalSizeKB > 0 {
+		c.txrx.percentTxRx = float32(float64(c.txrx.passedKB) / float64(c.txrx.totalSizeKB) * 100.0)
 	} else {
 		c.txrx.percentTxRx = 0
 	}

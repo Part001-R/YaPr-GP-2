@@ -133,7 +133,7 @@ func Run(conf *udt.Configuration) error {
 		}
 	}
 
-	// обработка индикаторов на формах.
+	// Обновление внешнего вида индикаторов.
 	go func() {
 		for {
 			g.Update(func(g *gocui.Gui) error {

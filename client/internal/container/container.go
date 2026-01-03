@@ -137,16 +137,19 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte) error {
 		return err
 	}
 
-	// Проверка на колизии имён файлов.
+	// Выделение имени файла и его тип из полного пути.
+	fileN := getFileNameAndExtension(fileName)
+
+	// Проверка на присутствие такого файла в контейнере.
 	for _, file := range container.Files {
-		if file.Name == fileName {
-			return fmt.Errorf("файл %s уже существует в контейнере", fileName)
+		if file.Name == fileN {
+			return fmt.Errorf("файл <%s> уже существует в контейнере", fileN)
 		}
 	}
 
 	// Добавление файла в контейнер.
 	container.Files = append(container.Files, FileEntry{
-		Name:    fileName,
+		Name:    fileN,
 		Content: content,
 	})
 

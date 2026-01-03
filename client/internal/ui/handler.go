@@ -133,13 +133,15 @@ type indexes struct {
 type mutex struct {
 	restoreBackup sync.Mutex // для резервного копирования и восстановления.
 	processTxRx   sync.Mutex // для данных процесса Tx Rx файлов.
+	statusBackUp  sync.Mutex // для статуса процесса передачи.
+	statusRestore sync.Mutex // для статуса процесса приёма.
 }
 
 // Отправка-приём файлов.
 type txrx struct {
 	percentTxRx float32 // Процент выполнения процесса передачи файлов.
-	totalSizeB  int64   // Передаваемый размер (Байт).
-	passedB     int64   // обработано данных (Байт).
+	totalSizeKB int64   // Передаваемый размер (Байт).
+	passedKB    int64   // обработано данных (Байт).
 }
 
 // Общий тип для CLI UI.
@@ -181,6 +183,8 @@ func new(conf *udt.Configuration) *handlerUI {
 			mutex: mutex{
 				restoreBackup: sync.Mutex{},
 				processTxRx:   sync.Mutex{},
+				statusBackUp:  sync.Mutex{},
+				statusRestore: sync.Mutex{},
 			},
 			txrx: txrx{},
 		}
@@ -2160,7 +2164,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	//
 
 	// процент выполнения.
-	if v, err := g.SetView("indicatorPercent", 50, 20, inputWidth+1, inputHeight+1+19); err != nil {
+	if v, err := g.SetView("indicatorPercent", 56, 20, inputWidth+7, inputHeight+1+19); err != nil {
 		if err != gocui.ErrUnknownView {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
@@ -3518,50 +3522,65 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 // Передача данных клиента, на сервер.
 func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 
-	// Запрет активности при активности процессов передачи файлов.
-	if c.status.backUp == stageActive || c.status.restore == stageActive {
+	// Запрет отработки, если уже есть активный процесс.
+	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
 		return nil
 	}
 
 	// Логика работает только из окна выбора типа.
 	if c.view.activeView == viewSelectType {
 
-		c.mutex.restoreBackup.Lock()
-		defer c.mutex.restoreBackup.Unlock()
+		// Установка признака, что запущен процесс передачи файлов на сервер.
+		c.updateStatusBackUp(stageActive)
 
-		c.status.backUp = stageActive // Установка признака, что запущен процесс передачи файлов на сервер.
+		// Сброс данных.
+		c.txrx.passedKB = 0
+		c.txrx.percentTxRx = 0
+		c.txrx.totalSizeKB = 0
 
 		// Логика процесса.
 		//
-
-		fileNameDB := "manager.db"
-		fileNameContainer := "container.data"
+		files := []string{"manager.db", "container.data"}
 
 		// Определение общего размера файлов.
-		c.txrx.totalSizeB, err = totalFileSize(fileNameDB, fileNameContainer)
+		c.txrx.totalSizeKB, err = totalFileSize(files)
 		if err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
-			c.status.backUp = stageFault
+			c.updateStatusBackUp(stageFault)
 			return nil
 		}
 
-		// БД.
-		if err := backUpDB(c, fileNameDB); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция backUpDB, вернула ошибку: <%v>", err))
-			c.status.backUp = stageFault
-			return nil
-		}
-		c.conf.PtrLoggerFile.Write("Info: Резервное копирование БД, выполнено")
+		// Передача файлов.
+		go func(filesList []string, c *handlerUI) {
 
-		// Контейнер.
-		if err := backUpContainer(c, fileNameContainer); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция backUpContainer, вернула ошибку: <%v>", err))
-			c.status.backUp = stageFault
-			return nil
-		}
+			// Подключение к серверу.
+			client, conn, err := connectSrv(c)
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
+				return
+			}
+			defer func() {
+				if err := conn.Close(); err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+				}
+			}()
 
-		c.conf.PtrLoggerFile.Write("Info: Резервное копирование контейнера, выполнено")
-		c.status.backUp = stageOk
+			// Передача файлов.
+			for _, f := range filesList {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запуск процесса резервного копирования <%s>", f))
+
+				if err := backUp(c, f, client); err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка backUp: <%v>, при передаче: <%s> ", err, f))
+					c.updateStatusBackUp(stageFault)
+					return
+				}
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Резервное копирование <%s>, выполнено", f))
+
+			}
+
+			// Установка признака, что процесс выполнен.
+			c.updateStatusBackUp(stageOk)
+		}(files, c)
 
 	}
 	return nil
@@ -3570,34 +3589,98 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 // Получение данных клиента, от сервер.
 func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 
-	// Запрет активности при активности процессов передачи файлов.
-	if c.status.backUp == stageActive || c.status.restore == stageActive {
+	// Запрет отработки, если уже есть активный процесс.
+	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
 		return nil
 	}
 
 	// Логика работает только из окна выбора типа.
 	if c.view.activeView == viewSelectType {
 
-		c.mutex.restoreBackup.Lock()
-		defer c.mutex.restoreBackup.Unlock()
+		// Установка признака, что запущен процесс приёма файлов от сервера.
+		c.updateStatusRestore(stageActive)
 
-		c.status.restore = stageActive // Установка признака, что запущен процесс приёма файлов от сервера.
+		// Сброс данных.
+		c.txrx.passedKB = 0
+		c.txrx.percentTxRx = 0
+		c.txrx.totalSizeKB = 0
 
-		if err := restoreDB(c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция restoreDB, вернула ошибку: <%v>", err))
-			c.status.restore = stageFault // Установка признака ошибки процесса получения резервной копии.
-			return nil
-		}
-		c.conf.PtrLoggerFile.Write("Info: Восстановление БД, выполнено")
+		// Логика процесса.
+		//
+		files := []string{"manager.db", "container.data"}
 
-		if err := restoreContainer(c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция restoreContainer, вернула ошибку: <%v>", err))
-			c.status.restore = stageFault // Установка признака ошибки процесса получения резервной копии.
-			return nil
-		}
+		go func(filesList []string, c *handlerUI) {
 
-		c.conf.PtrLoggerFile.Write("Info: Восстановление контейнера, выполнено")
-		c.status.restore = stageOk // Установка признака, что восстановление выполнено.
+			// Подключение к серверу.
+			client, conn, err := connectSrv(c)
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
+				return
+			}
+			defer func() {
+				if err := conn.Close(); err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+				}
+			}()
+
+			// Получение файлов.
+			for _, f := range filesList {
+				if err := restore(c, f, client); err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка restore: <%v>, при приёме: <%s> ", err, f))
+					c.updateStatusRestore(stageFault) // Установка признака ошибки.
+					return
+				}
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Восстановление файла <%s>, выполнено", f))
+			}
+
+			// Установка признака, что восстановление выполнено.
+			c.updateStatusRestore(stageOk)
+		}(files, c)
 	}
 	return nil
+}
+
+// Обновление статуса процесса передачи.
+func (c *handlerUI) updateStatusBackUp(st int) {
+
+	c.mutex.statusBackUp.Lock()
+	defer c.mutex.statusBackUp.Unlock()
+
+	c.status.backUp = st
+}
+
+// Получение текущего статуса процесса передачи.
+func (c *handlerUI) getStatusBackUp() int {
+
+	c.mutex.statusBackUp.Lock()
+	defer c.mutex.statusBackUp.Unlock()
+
+	return c.status.backUp
+}
+
+// Обновление статуса процесса передачи.
+func (c *handlerUI) updateStatusRestore(st int) {
+
+	c.mutex.statusRestore.Lock()
+	defer c.mutex.statusRestore.Unlock()
+
+	c.status.restore = st
+}
+
+// Получение текущего статуса процесса передачи.
+func (c *handlerUI) getStatusRestore() int {
+
+	c.mutex.statusRestore.Lock()
+	defer c.mutex.statusRestore.Unlock()
+
+	return c.status.restore
+}
+
+// Получение процента выполения TxRx.
+func (c *handlerUI) getPercentTxRx() float32 {
+
+	c.mutex.processTxRx.Lock()
+	defer c.mutex.processTxRx.Unlock()
+
+	return c.txrx.percentTxRx
 }

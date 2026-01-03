@@ -110,7 +110,7 @@ func layerRequestPingContext(ctx context.Context, txMD metadata.MD, client proto
 //
 
 // Передача файла на сервер.
-func layerTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) (*pb.UploadResponse, error) {
+func layerBackUpTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) (*pb.UploadResponse, error) {
 
 	// Инициация стрима для загрузки файла
 	stream, err := client.BackupFile(context.Background())
@@ -152,7 +152,7 @@ func layerTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) 
 		}
 
 		// Обновление статистики процесса.
-		updateDataProcess(c, 1024)
+		updateDataBackUpRestoreProcess(c, n)
 	}
 
 	// Закрытие потока передачи и ожидание ответа от сервера.
@@ -166,7 +166,7 @@ func layerTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) 
 }
 
 // Проверка ответа от сервера.
-func layerCheckResultBackUp(resp *proto.UploadResponse, fileName string) error {
+func layerBackUpCheckResult(resp *proto.UploadResponse, fileName string) error {
 
 	// проверка аргументов.
 	if fileName == "" {
@@ -208,7 +208,7 @@ func layerRx(client proto.PasswordManagerClient, fileName string, c *handlerUI) 
 			return nil, fmt.Errorf("Приняты данные для другого файла: <%s>", res.Filename)
 		}
 		// Обновление статистики процесса.
-		updateDataProcess(c, int64(len(res.Content)))
+		updateDataBackUpRestoreProcess(c, len(res.Content))
 
 		content = append(content, res.Content...)
 	}
