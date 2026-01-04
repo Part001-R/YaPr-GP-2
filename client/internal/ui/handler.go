@@ -3531,6 +3531,7 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 	if c.view.activeView == viewSelectType {
 
 		// Установка признака, что запущен процесс передачи файлов на сервер.
+		c.updateStatusRestore(stageNotActive) // Сброс состояния, чтобы убрать подсветку.
 		c.updateStatusBackUp(stageActive)
 
 		// Сброс данных.
@@ -3551,37 +3552,7 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 		}
 
 		// Передача файлов.
-		go func(filesList []string, c *handlerUI) {
-
-			// Подключение к серверу.
-			client, conn, err := connectSrv(c)
-			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
-				return
-			}
-			defer func() {
-				if err := conn.Close(); err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-				}
-			}()
-
-			// Передача файлов.
-			for _, f := range filesList {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запуск процесса резервного копирования <%s>", f))
-
-				if err := backUp(c, f, client); err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка backUp: <%v>, при передаче: <%s> ", err, f))
-					c.updateStatusBackUp(stageFault)
-					return
-				}
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Резервное копирование <%s>, выполнено", f))
-
-			}
-
-			// Установка признака, что процесс выполнен.
-			c.updateStatusBackUp(stageOk)
-		}(files, c)
-
+		go doBackupProcess(files, c)
 	}
 	return nil
 }
@@ -3598,6 +3569,7 @@ func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 	if c.view.activeView == viewSelectType {
 
 		// Установка признака, что запущен процесс приёма файлов от сервера.
+		c.updateStatusBackUp(stageNotActive) // сброс признака, чтобы убрать подсветку.
 		c.updateStatusRestore(stageActive)
 
 		// Сброс данных.
@@ -3605,37 +3577,9 @@ func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 		c.txrx.percentTxRx = 0
 		c.txrx.totalSizeKB = 0
 
-		// Логика процесса.
-		//
+		// Приём файлов.
 		files := []string{"manager.db", "container.data"}
-
-		go func(filesList []string, c *handlerUI) {
-
-			// Подключение к серверу.
-			client, conn, err := connectSrv(c)
-			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
-				return
-			}
-			defer func() {
-				if err := conn.Close(); err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-				}
-			}()
-
-			// Получение файлов.
-			for _, f := range filesList {
-				if err := restore(c, f, client); err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка restore: <%v>, при приёме: <%s> ", err, f))
-					c.updateStatusRestore(stageFault) // Установка признака ошибки.
-					return
-				}
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Восстановление файла <%s>, выполнено", f))
-			}
-
-			// Установка признака, что восстановление выполнено.
-			c.updateStatusRestore(stageOk)
-		}(files, c)
+		go doRestoreProcess(files, c)
 	}
 	return nil
 }

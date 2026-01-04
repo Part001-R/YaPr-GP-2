@@ -2,11 +2,13 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"sync"
 
+	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -131,4 +133,35 @@ func (s *PasswordManager) RestoreFile(req *pb.DownloadRequest, stream pb.Passwor
 	s.ptrLogger.Info("Клиенту отправлен файл", zap.String("имя", req.Filename))
 
 	return nil
+}
+
+// Предоставление информации о файлах.
+func (s *PasswordManager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.FilesInfoResponse, error) {
+
+	s.ptrLogger.Debug("Принят FilesInfo запрос")
+
+	// Подготовка.
+	fileInfos := &pb.FilesInfoResponse{}
+	files := []string{"manager.db", "container.data"}
+
+	// Сбор информации по файлам.
+	for _, f := range files {
+		var el pb.FileInfo
+
+		size, err := sizeFile(f)
+		if err != nil {
+			if errors.Is(err, NotFound) { // Если файл не найден - обработка следующего файла.
+				continue
+			}
+			return nil, status.Error(codes.Internal, fmt.Sprintf("Ошибка:<%v>, при обработке файла:<%s>", err, f))
+		}
+
+		el.FileName = f
+		el.Size = size
+
+		fileInfos.FileInfo = append(fileInfos.FileInfo, &el)
+	}
+
+	// Результат.
+	return fileInfos, nil
 }

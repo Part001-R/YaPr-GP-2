@@ -77,13 +77,13 @@ func (c Container) readContainer(key [32]byte) (*Container, error) {
 		if os.IsNotExist(err) {
 			return &Container{}, nil // пустой контейнер
 		}
-		return nil, err
+		return nil, fmt.Errorf("Функция os.ReadFile, вернула ошибку:<%w>, при чтении файла:<%s>", err, c.name)
 	}
 
 	var container Container
 	err = json.Unmarshal(data, &container)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Функция json.Unmarshal, вернула ошибку:<%w>, при обработке данных файла:<%s>", err, c.name)
 	}
 
 	// Дешифруем содержимое каждого файла
@@ -185,7 +185,7 @@ func (c Container) ListFilesInContainer(key [32]byte) (files []string, err error
 	// чтение контейнера.
 	container, err := c.readContainer(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("функция c.readContainer, вернула ошибку:<%w>", err)
 	}
 	// Формирование списка из имён файлов.
 	for _, file := range container.Files {

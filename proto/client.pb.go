@@ -214,6 +214,102 @@ func (x *DownloadResponse) GetContent() []byte {
 	return nil
 }
 
+type FileInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
+	Size          int64                  `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FileInfo) Reset() {
+	*x = FileInfo{}
+	mi := &file_proto_client_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FileInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileInfo) ProtoMessage() {}
+
+func (x *FileInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileInfo.ProtoReflect.Descriptor instead.
+func (*FileInfo) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FileInfo) GetFileName() string {
+	if x != nil {
+		return x.FileName
+	}
+	return ""
+}
+
+func (x *FileInfo) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type FilesInfoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileInfo      []*FileInfo            `protobuf:"bytes,1,rep,name=fileInfo,proto3" json:"fileInfo,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesInfoResponse) Reset() {
+	*x = FilesInfoResponse{}
+	mi := &file_proto_client_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesInfoResponse) ProtoMessage() {}
+
+func (x *FilesInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesInfoResponse.ProtoReflect.Descriptor instead.
+func (*FilesInfoResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *FilesInfoResponse) GetFileInfo() []*FileInfo {
+	if x != nil {
+		return x.FileInfo
+	}
+	return nil
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
@@ -228,12 +324,18 @@ const file_proto_client_proto_rawDesc = "" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\"H\n" +
 	"\x10DownloadResponse\x12\x1a\n" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\fR\acontent2\xd0\x01\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\":\n" +
+	"\bFileInfo\x12\x1a\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x12\n" +
+	"\x04size\x18\x02 \x01(\x03R\x04size\"B\n" +
+	"\x11FilesInfoResponse\x12-\n" +
+	"\bfileInfo\x18\x01 \x03(\v2\x11.manager.FileInfoR\bfileInfo2\x91\x02\n" +
 	"\x0fPasswordManager\x126\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
 	"\n" +
 	"BackupFile\x12\x16.manager.UploadRequest\x1a\x17.manager.UploadResponse(\x01\x12D\n" +
-	"\vRestoreFile\x12\x18.manager.DownloadRequest\x1a\x19.manager.DownloadResponse0\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\vRestoreFile\x12\x18.manager.DownloadRequest\x1a\x19.manager.DownloadResponse0\x01\x12?\n" +
+	"\tFilesInfo\x12\x16.google.protobuf.Empty\x1a\x1a.manager.FilesInfoResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -247,26 +349,31 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proto_client_proto_goTypes = []any{
-	(*UploadRequest)(nil),    // 0: manager.UploadRequest
-	(*UploadResponse)(nil),   // 1: manager.UploadResponse
-	(*DownloadRequest)(nil),  // 2: manager.DownloadRequest
-	(*DownloadResponse)(nil), // 3: manager.DownloadResponse
-	(*emptypb.Empty)(nil),    // 4: google.protobuf.Empty
+	(*UploadRequest)(nil),     // 0: manager.UploadRequest
+	(*UploadResponse)(nil),    // 1: manager.UploadResponse
+	(*DownloadRequest)(nil),   // 2: manager.DownloadRequest
+	(*DownloadResponse)(nil),  // 3: manager.DownloadResponse
+	(*FileInfo)(nil),          // 4: manager.FileInfo
+	(*FilesInfoResponse)(nil), // 5: manager.FilesInfoResponse
+	(*emptypb.Empty)(nil),     // 6: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
-	4, // 0: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
-	0, // 1: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
-	2, // 2: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
-	4, // 3: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1, // 4: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
-	3, // 5: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: manager.FilesInfoResponse.fileInfo:type_name -> manager.FileInfo
+	6, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	0, // 2: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
+	2, // 3: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
+	6, // 4: manager.PasswordManager.FilesInfo:input_type -> google.protobuf.Empty
+	6, // 5: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1, // 6: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
+	3, // 7: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
+	5, // 8: manager.PasswordManager.FilesInfo:output_type -> manager.FilesInfoResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_client_proto_init() }
@@ -280,7 +387,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

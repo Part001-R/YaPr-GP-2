@@ -1671,10 +1671,10 @@ func updateDataBackUpRestoreProcess(c *handlerUI, b int) {
 	defer c.mutex.processTxRx.Unlock()
 
 	// Получение КБайт из Байт.
-	sendVolume := b / 1024
+	volumeKB := b / 1024
 
 	// Обновление данных накопителя.
-	c.txrx.passedKB += int64(sendVolume)
+	c.txrx.passedKB += int64(volumeKB)
 
 	// Вычисление процентов.
 	if c.txrx.totalSizeKB > 0 {
@@ -1682,4 +1682,95 @@ func updateDataBackUpRestoreProcess(c *handlerUI, b int) {
 	} else {
 		c.txrx.percentTxRx = 0
 	}
+}
+
+// Запрос информации о файлах.
+func requestFilesInfo(client proto.PasswordManagerClient, c *handlerUI) error {
+
+	// Запрос информации по файлам у сервера.
+	filesInfo, err := layerFilesInfoRequest(client)
+	if err != nil {
+		return fmt.Errorf("Функция layerFilesInfoRequest, вернула ошибку: <%w>", err)
+	}
+
+	// Проверка результата запроса.
+	if len(filesInfo) == 0 {
+		return EmptyData
+	}
+
+	// Заполнение данных по результатам запроса.
+	if err := layerFilesInfoFillData(filesInfo, c); err != nil {
+		return fmt.Errorf("Функция layerFilesInfoFillData, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Процесс backUp.
+func doBackupProcess(filesList []string, c *handlerUI) {
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		c.updateStatusRestore(stageFault)
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
+		return
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+		}
+	}()
+
+	// Передача файлов.
+	for _, f := range filesList {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запуск процесса резервного копирования <%s>", f))
+
+		if err := backUp(c, f, client); err != nil {
+			c.updateStatusBackUp(stageFault)
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка backUp: <%v>, при передаче: <%s> ", err, f))
+			return
+		}
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Резервное копирование <%s>, выполнено", f))
+
+	}
+
+	// Установка признака, что процесс выполнен.
+	c.updateStatusBackUp(stageOk)
+}
+
+func doRestoreProcess(filesList []string, c *handlerUI) {
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
+		c.updateStatusRestore(stageFault)
+		return
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+		}
+	}()
+
+	// Запрос у сервера информации по файлам (имя, размер), которые будут приняты.
+	if err := requestFilesInfo(client, c); err != nil {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция requestFilesInfo, вернула ошибку: <%v>", err))
+		c.updateStatusRestore(stageFault)
+		return
+	}
+
+	// Получение файлов.
+	for _, f := range filesList {
+		if err := restore(c, f, client); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка restore: <%v>, при приёме: <%s> ", err, f))
+			c.updateStatusRestore(stageFault)
+			return
+		}
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Восстановление файла <%s>, выполнено", f))
+	}
+
+	// Установка признака, что восстановление выполнено.
+	c.updateStatusRestore(stageOk)
 }

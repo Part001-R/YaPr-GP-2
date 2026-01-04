@@ -53,4 +53,7 @@ var (
 
 	// Нет содержимого
 	EmptyData = errors.New("нет содержимого")
+
+	// Некорректные данные.
+	IncorrectData = errors.New("некорретные данные")
 )

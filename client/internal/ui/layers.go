@@ -226,3 +226,48 @@ func saveFile(content []byte, fileName string) error {
 
 	return nil
 }
+
+//
+// --- FilesInfo ---
+//
+
+func layerFilesInfoRequest(client proto.PasswordManagerClient) (files []infoByFiles, err error) {
+
+	// Запрос у сервера информации по файлам.
+	emptyRequest := &emptypb.Empty{}
+
+	infoResp, err := client.FilesInfo(context.Background(), emptyRequest)
+	if err != nil {
+		return nil, fmt.Errorf("Функция client.FilesInfo, вернула ошибку: <%v>", err)
+	}
+
+	// Обработка результата запроса.
+	for _, f := range infoResp.FileInfo {
+
+		var el infoByFiles
+
+		el.name = f.FileName
+		el.volume = f.Size
+
+		files = append(files, el)
+	}
+
+	// Результат.
+	return files, nil
+}
+
+// Заполнение данных по ожидаемому объёму приема.
+func layerFilesInfoFillData(files []infoByFiles, c *handlerUI) error {
+
+	// Обновление данных.
+	for _, f := range files {
+
+		if f.volume < 0 {
+			return IncorrectData
+		}
+
+		c.txrx.totalSizeKB += f.volume / 1024
+	}
+
+	return nil
+}

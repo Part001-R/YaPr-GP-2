@@ -4,26 +4,20 @@ import "google/protobuf/empty.proto";
 
 package manager;
 
-option go_package = "github.com/Part001-R/YaPr-GP-2/proto";  
-
-//
-// Обработчики
-//
+option go_package = "github.com/Part001-R/YaPr-GP-2/proto";
 
 service PasswordManager {
-    rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
     rpc BackupFile(stream UploadRequest) returns (UploadResponse);
     rpc RestoreFile(DownloadRequest) returns (stream DownloadResponse);
+    rpc FilesInfo(google.protobuf.Empty) returns (FilesInfoResponse);
 }
-
-//
-// Сообщения
-//
 
 message UploadRequest {
     string filename = 1;
     bytes content = 2;
 }
+
 message UploadResponse {
     string message = 1;
 }
@@ -31,7 +25,17 @@ message UploadResponse {
 message DownloadRequest {
     string filename = 1;
 }
+
 message DownloadResponse {
     string filename = 1;
     bytes content = 2;
+}
+
+message FileInfo {
+    string fileName = 1;
+    int64 size = 2;
+}
+
+message FilesInfoResponse {
+    repeated FileInfo fileInfo = 1;
 }

@@ -23,6 +23,7 @@ const (
 	PasswordManager_Ping_FullMethodName        = "/manager.PasswordManager/Ping"
 	PasswordManager_BackupFile_FullMethodName  = "/manager.PasswordManager/BackupFile"
 	PasswordManager_RestoreFile_FullMethodName = "/manager.PasswordManager/RestoreFile"
+	PasswordManager_FilesInfo_FullMethodName   = "/manager.PasswordManager/FilesInfo"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -32,6 +33,7 @@ type PasswordManagerClient interface {
 	Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	BackupFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error)
 	RestoreFile(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadResponse], error)
+	FilesInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FilesInfoResponse, error)
 }
 
 type passwordManagerClient struct {
@@ -84,6 +86,16 @@ func (c *passwordManagerClient) RestoreFile(ctx context.Context, in *DownloadReq
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PasswordManager_RestoreFileClient = grpc.ServerStreamingClient[DownloadResponse]
 
+func (c *passwordManagerClient) FilesInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FilesInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FilesInfoResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_FilesInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -91,6 +103,7 @@ type PasswordManagerServer interface {
 	Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	BackupFile(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error
 	RestoreFile(*DownloadRequest, grpc.ServerStreamingServer[DownloadResponse]) error
+	FilesInfo(context.Context, *emptypb.Empty) (*FilesInfoResponse, error)
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -109,6 +122,9 @@ func (UnimplementedPasswordManagerServer) BackupFile(grpc.ClientStreamingServer[
 }
 func (UnimplementedPasswordManagerServer) RestoreFile(*DownloadRequest, grpc.ServerStreamingServer[DownloadResponse]) error {
 	return status.Error(codes.Unimplemented, "method RestoreFile not implemented")
+}
+func (UnimplementedPasswordManagerServer) FilesInfo(context.Context, *emptypb.Empty) (*FilesInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FilesInfo not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -167,6 +183,24 @@ func _PasswordManager_RestoreFile_Handler(srv interface{}, stream grpc.ServerStr
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PasswordManager_RestoreFileServer = grpc.ServerStreamingServer[DownloadResponse]
 
+func _PasswordManager_FilesInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).FilesInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_FilesInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).FilesInfo(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -177,6 +211,10 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ping",
 			Handler:    _PasswordManager_Ping_Handler,
+		},
+		{
+			MethodName: "FilesInfo",
+			Handler:    _PasswordManager_FilesInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
