@@ -2083,7 +2083,11 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	layoutInitialized = false
 	c.view.currentFocus = "selectLoginPassword" // Установка фокуса
 
-	// Создание контейнера запроса ввода дополнительного секретного ключа.
+	//
+	// --- Поля ввода ---
+	//
+
+	// Для дополнительного секретного ключа.
 	view, err := g.SetView(viewSelectType, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
@@ -2981,7 +2985,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 		}
 		v.Editable = true
 		v.Editable = true
-		v.Wrap = true
+		v.Wrap = false
 		v.Frame = true
 		v.BgColor = gocui.ColorBlack
 		v.SelBgColor = gocui.ColorCyan
@@ -2998,7 +3002,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 		}
 		v.Editable = true
 		v.Editable = true
-		v.Wrap = true
+		v.Wrap = false
 		v.Frame = true
 		v.BgColor = gocui.ColorBlack
 		v.SelBgColor = gocui.ColorCyan

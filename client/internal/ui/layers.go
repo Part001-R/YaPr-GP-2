@@ -110,18 +110,25 @@ func layerRequestPingContext(ctx context.Context, txMD metadata.MD, client proto
 //
 
 // Передача файла на сервер.
-func layerBackUpTx(client proto.PasswordManagerClient, fileName string, c *handlerUI) (*pb.UploadResponse, error) {
+func layerBackUpTx(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (resp *pb.UploadResponse, rxHash, rxToken string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", token)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	// Инициация стрима для загрузки файла
-	stream, err := client.BackupFile(context.Background())
+	stream, err := client.BackupFile(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания stream, для передачи данных: <%w>", err)
+		return nil, "", "", fmt.Errorf("ошибка создания stream, для передачи данных: <%w>", err)
 	}
 
 	// Открытие файла для отправки
 	file, err := os.Open(fileName)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка открытия файла передачи: <%w>", err)
+		return nil, "", "", fmt.Errorf("ошибка открытия файла передачи: <%w>", err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -137,18 +144,18 @@ func layerBackUpTx(client proto.PasswordManagerClient, fileName string, c *handl
 		n, err := reader.Read(buf)
 		if err != nil {
 			if err != io.EOF {
-				return nil, fmt.Errorf("ошибка при чтении файла: <%w>", err)
+				return nil, "", "", fmt.Errorf("ошибка при чтении файла: <%w>", err)
 			}
 			break
 		}
 
 		req := &pb.UploadRequest{
-			Filename: fileName,
+			FileName: fileName,
 			Content:  buf[:n],
 		}
 
 		if err := stream.Send(req); err != nil {
-			return nil, fmt.Errorf("ошибка отправки данных файла: <%w>", err)
+			return nil, "", "", fmt.Errorf("ошибка отправки данных файла: <%w>", err)
 		}
 
 		// Обновление статистики процесса.
@@ -156,17 +163,31 @@ func layerBackUpTx(client proto.PasswordManagerClient, fileName string, c *handl
 	}
 
 	// Закрытие потока передачи и ожидание ответа от сервера.
-	resp, err := stream.CloseAndRecv()
+	resp, err = stream.CloseAndRecv()
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения ответа от сервера: <%w>", err)
+		return nil, "", "", fmt.Errorf("ошибка получения ответа от сервера: <%w>", err)
+	}
+
+	// Получение трейлера хэша
+	rxTrailer := stream.Trailer()
+	if hash, ok := rxTrailer["hash"]; ok {
+		rxHash = hash[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", fileName)
+	}
+
+	if token, ok := rxTrailer["token"]; ok {
+		rxToken = token[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными токена, для файла: <%s>", fileName)
 	}
 
 	// Результат.
-	return resp, nil
+	return resp, rxHash, rxToken, nil
 }
 
 // Проверка ответа от сервера.
-func layerBackUpCheckResult(resp *proto.UploadResponse, fileName string) error {
+func layerBackUpCheckResult(resp *proto.UploadResponse, fileName, fileHash, rxFileHash, token, rxToken string) error {
 
 	// проверка аргументов.
 	if fileName == "" {
@@ -174,8 +195,16 @@ func layerBackUpCheckResult(resp *proto.UploadResponse, fileName string) error {
 	}
 
 	// Проверка содержимого ответа сервера.
-	if fileName != resp.Message {
-		return NotConfirm
+	respFileName := resp.FileName
+
+	if fileName != respFileName {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s>. Ожидалось имя:<%s>, а принято:<%s>", fileName, fileName, respFileName)
+	}
+	if fileHash != rxFileHash {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s> Ожидался хэш:<%s>, а принято:<%s>", fileName, fileHash, rxFileHash)
+	}
+	if token != rxToken {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s>, нет соответствия токенов", fileName)
 	}
 
 	return nil
@@ -186,13 +215,20 @@ func layerBackUpCheckResult(resp *proto.UploadResponse, fileName string) error {
 //
 
 // Приём файла.
-func layerRx(client proto.PasswordManagerClient, fileName string, c *handlerUI) (content []byte, err error) {
+func layerRx(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (content []byte, rxFileHash, rxToken string, err error) {
 
-	// Запрос.
-	req := &pb.DownloadRequest{Filename: fileName}
-	stream, err := client.RestoreFile(context.Background(), req)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", token)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.DownloadRequest{FileName: fileName}
+	stream, err := client.RestoreFile(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("Функция client.Download, вернула ошибку: <%w>", err)
+		return nil, "", "", fmt.Errorf("Функция client.RestoreFile, вернула ошибку: <%w>", err)
 	}
 
 	// Чтение потоком.
@@ -202,19 +238,33 @@ func layerRx(client proto.PasswordManagerClient, fileName string, c *handlerUI) 
 			if err == io.EOF {
 				break
 			}
-			return nil, fmt.Errorf("Функция stream.Recv, вернула ошибку: <%w>", err)
+			return nil, "", "", fmt.Errorf("Функция stream.Recv, вернула ошибку: <%w>", err)
 		}
-		if res.Filename != fileName {
-			return nil, fmt.Errorf("Приняты данные для другого файла: <%s>", res.Filename)
+		if res.FileName != fileName {
+			return nil, "", "", fmt.Errorf("Приняты данные для другого файла: <%s>", res.FileName)
 		}
+
 		// Обновление статистики процесса.
 		updateDataBackUpRestoreProcess(c, len(res.Content))
 
 		content = append(content, res.Content...)
 	}
 
-	// Результат.
-	return content, nil
+	// Получение трейлера после завершения потока
+	rxTrailer := stream.Trailer()
+	if hash, ok := rxTrailer["hash"]; ok {
+		rxFileHash = hash[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", fileName)
+	}
+	if token, ok := rxTrailer["token"]; ok {
+		rxToken = token[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными токена, для файла: <%s>", fileName)
+	}
+
+	// Результат
+	return content, rxFileHash, rxToken, nil
 }
 
 // Сохранение файла.
@@ -227,23 +277,60 @@ func saveFile(content []byte, fileName string) error {
 	return nil
 }
 
+// Проверка ответа от сервера.
+func layerRestoreCheckResult(fileName, fileHash, rxFileHash, token, rxToken string) error {
+
+	// Анализ данных ответа от сервера.
+	fileHash, err := hashFile(fileName)
+	if err != nil {
+		return fmt.Errorf("Функция hashFile, вернула ошибку:<%w>", err)
+	}
+	if rxFileHash != fileHash {
+		return fmt.Errorf("Для файла:<%s>, нет соответствия хэша. Ожидался:<%s>, а принято:<%s>", fileName, rxFileHash, fileHash)
+	}
+	if token != rxToken {
+		return fmt.Errorf("Для файла:<%s>, нет соответствия токенов", fileName)
+	}
+
+	return nil
+}
+
 //
 // --- FilesInfo ---
 //
 
-func layerFilesInfoRequest(client proto.PasswordManagerClient) (files []infoByFiles, err error) {
+func layerFilesInfoRequest(client proto.PasswordManagerClient, token string) (files []infoByFiles, rxToken string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", token)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	var trailer metadata.MD
 
 	// Запрос у сервера информации по файлам.
 	emptyRequest := &emptypb.Empty{}
-
-	infoResp, err := client.FilesInfo(context.Background(), emptyRequest)
+	infoResp, err := client.FilesInfo(
+		ctx,
+		emptyRequest,
+		grpc.Trailer(&trailer),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("Функция client.FilesInfo, вернула ошибку: <%v>", err)
+		return nil, "", fmt.Errorf("Функция client.FilesInfo, вернула ошибку: <%v>", err)
+	}
+
+	// Получение трейлера
+	if trailer != nil {
+		val, ok := trailer["token"]
+		if !ok {
+			return nil, "", ErrMetadata
+		}
+		rxToken = val[0]
 	}
 
 	// Обработка результата запроса.
 	for _, f := range infoResp.FileInfo {
-
 		var el infoByFiles
 
 		el.name = f.FileName
@@ -253,7 +340,7 @@ func layerFilesInfoRequest(client proto.PasswordManagerClient) (files []infoByFi
 	}
 
 	// Результат.
-	return files, nil
+	return files, rxToken, nil
 }
 
 // Заполнение данных по ожидаемому объёму приема.

@@ -8,7 +8,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"strconv"
@@ -134,14 +136,22 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 // Создание резервной копии файла БД, на сервере.
 func backUp(c *handlerUI, fileName string, client proto.PasswordManagerClient) error {
 
+	token := "123" //-------------------------------
+
 	// Передача файла на сервер.
-	resp, err := layerBackUpTx(client, fileName, c)
+	resp, rxHash, rxToken, err := layerBackUpTx(client, fileName, token, c)
 	if err != nil {
 		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
 	}
 
+	// Вычисление хэша переданного файла.
+	fileHash, err := hashFile(fileName)
+	if err != nil {
+		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
+	}
+
 	// Анализ данных ответа от сервера.
-	if err := layerBackUpCheckResult(resp, fileName); err != nil {
+	if err := layerBackUpCheckResult(resp, fileName, fileHash, rxHash, token, rxToken); err != nil {
 		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
 	}
 
@@ -151,10 +161,19 @@ func backUp(c *handlerUI, fileName string, client proto.PasswordManagerClient) e
 // Восстановление из резервной копии файла БД.
 func restore(c *handlerUI, fileName string, client proto.PasswordManagerClient) error {
 
+	token := "123" //-------------------------------
+
 	// Запрос файла у сервера.
-	content, err := layerRx(client, fileName, c)
+	content, rxFileHash, rxToken, err := layerRx(client, fileName, token, c)
 	if err != nil {
 		return fmt.Errorf("Функция layerRx, вернула ошибку: <%w>", err)
+	}
+
+	// Предварительное удаление файла.
+	if isFileExists(fileName) {
+		if err := os.Remove(fileName); err != nil {
+			return fmt.Errorf("ошибка:<%w> предварительного удаления файла:<%s>", err, fileName)
+		}
 	}
 
 	// Сохранение файла.
@@ -162,8 +181,21 @@ func restore(c *handlerUI, fileName string, client proto.PasswordManagerClient) 
 		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
 	}
 
-	// Анализ данных ответа от сервера.
-	// ...
+	// Вычисление хэша переданного файла.
+	fileHash, err := hashFile(fileName)
+	if err != nil {
+		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
+	}
+
+	// Проверка результата.
+	if err := layerRestoreCheckResult(fileName, fileHash, rxFileHash, token, rxToken); err != nil {
+
+		// Удаление файла, если проверка не пройдена.
+		if errRemove := os.Remove(fileName); errRemove != nil {
+			return fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, fileName, err)
+		}
+		return fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, fileName)
+	}
 
 	return nil
 }
@@ -1687,8 +1719,10 @@ func updateDataBackUpRestoreProcess(c *handlerUI, b int) {
 // Запрос информации о файлах.
 func requestFilesInfo(client proto.PasswordManagerClient, c *handlerUI) error {
 
+	token := "123" //-----------------------------------------------------------
+
 	// Запрос информации по файлам у сервера.
-	filesInfo, err := layerFilesInfoRequest(client)
+	filesInfo, rxToken, err := layerFilesInfoRequest(client, token)
 	if err != nil {
 		return fmt.Errorf("Функция layerFilesInfoRequest, вернула ошибку: <%w>", err)
 	}
@@ -1696,6 +1730,9 @@ func requestFilesInfo(client proto.PasswordManagerClient, c *handlerUI) error {
 	// Проверка результата запроса.
 	if len(filesInfo) == 0 {
 		return EmptyData
+	}
+	if token != rxToken {
+		return NotEqualTokens
 	}
 
 	// Заполнение данных по результатам запроса.
@@ -1728,7 +1765,7 @@ func doBackupProcess(filesList []string, c *handlerUI) {
 
 		if err := backUp(c, f, client); err != nil {
 			c.updateStatusBackUp(stageFault)
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка backUp: <%v>, при передаче: <%s> ", err, f))
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка backUp:<%v>, файла:<%s> ", err, f))
 			return
 		}
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Резервное копирование <%s>, выполнено", f))
@@ -1773,4 +1810,31 @@ func doRestoreProcess(filesList []string, c *handlerUI) {
 
 	// Установка признака, что восстановление выполнено.
 	c.updateStatusRestore(stageOk)
+}
+
+// Вычисление хэша у файла.
+func hashFile(fileName string) (string, error) {
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return "", fmt.Errorf("ошибка при открытии файла: %w", err)
+	}
+	defer file.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", fmt.Errorf("ошибка при вычислении хэша: %w", err)
+	}
+
+	hash := hasher.Sum(nil)
+	return hex.EncodeToString(hash), nil
+}
+
+// Проверка существования файла.
+func isFileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		return false // Файл не существует
+	}
+	return err == nil // Файл существует
 }

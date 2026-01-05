@@ -1,22 +1,12 @@
 package grpc
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 )
-
-// Добавление порции принятых данных к файлу. Возвращается ошибка.
-func appendToFile(filename string, content []byte) error {
-
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = f.Write(content)
-	return err
-}
 
 // Определение размера файла в байтах. Возвращается размер в байтах и ошибка.
 func sizeFile(fileName string) (int64, error) {
@@ -33,4 +23,31 @@ func sizeFile(fileName string) (int64, error) {
 	}
 
 	return fileInfo.Size(), nil
+}
+
+// Вычисление хэша у файла.
+func hashFile(fileName string) (string, error) {
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return "", fmt.Errorf("ошибка при открытии файла: %w", err)
+	}
+	defer file.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", fmt.Errorf("ошибка при вычислении хэша: %w", err)
+	}
+
+	hash := hasher.Sum(nil)
+	return hex.EncodeToString(hash), nil
+}
+
+// Проверка существования файла.
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		return false // Файл не существует
+	}
+	return err == nil // Файл существует
 }

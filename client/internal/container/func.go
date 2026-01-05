@@ -43,7 +43,8 @@ func getFileNameAndExtension(fullPath string) string {
 
 	fileName := filepath.Base(fullPath)
 
-	fileName = strings.ReplaceAll(fileName, "`", "")
+	//fileName = strings.ReplaceAll(fileName, "`", "")  // Удаление кавычек
+	//fileName = strings.ReplaceAll(fileName, " ", "-") // Замена пробелов
 
 	fileType := filepath.Ext(fileName)
 

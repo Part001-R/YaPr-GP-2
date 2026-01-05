@@ -73,7 +73,7 @@ func Run(conf *udt.Configuration) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlU, gocui.ModNone, instUI.showSelectType); err != nil {
 		return fmt.Errorf("Error: Ошибка Ctrl+U: <%w>", err)
 	}
-	// Сохранение логин/пароль в БД.
+	// Сохранение.
 	if err := g.SetKeybinding("", gocui.KeyCtrlF, gocui.ModNone, instUI.doStore); err != nil {
 		return fmt.Errorf("Error: Ошибка Ctrl+F: <%w>", err)
 	}

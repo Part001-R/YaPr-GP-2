@@ -14,20 +14,20 @@ service PasswordManager {
 }
 
 message UploadRequest {
-    string filename = 1;
+    string fileName = 1;
     bytes content = 2;
 }
 
 message UploadResponse {
-    string message = 1;
+    string fileName = 1;
 }
 
 message DownloadRequest {
-    string filename = 1;
+    string fileName = 1;
 }
 
 message DownloadResponse {
-    string filename = 1;
+    string fileName = 1;
     bytes content = 2;
 }
 

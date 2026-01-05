@@ -24,7 +24,7 @@ const (
 
 type UploadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -60,9 +60,9 @@ func (*UploadRequest) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *UploadRequest) GetFilename() string {
+func (x *UploadRequest) GetFileName() string {
 	if x != nil {
-		return x.Filename
+		return x.FileName
 	}
 	return ""
 }
@@ -76,7 +76,7 @@ func (x *UploadRequest) GetContent() []byte {
 
 type UploadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -111,16 +111,16 @@ func (*UploadResponse) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *UploadResponse) GetMessage() string {
+func (x *UploadResponse) GetFileName() string {
 	if x != nil {
-		return x.Message
+		return x.FileName
 	}
 	return ""
 }
 
 type DownloadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -155,16 +155,16 @@ func (*DownloadRequest) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *DownloadRequest) GetFilename() string {
+func (x *DownloadRequest) GetFileName() string {
 	if x != nil {
-		return x.Filename
+		return x.FileName
 	}
 	return ""
 }
 
 type DownloadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -200,9 +200,9 @@ func (*DownloadResponse) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *DownloadResponse) GetFilename() string {
+func (x *DownloadResponse) GetFileName() string {
 	if x != nil {
-		return x.Filename
+		return x.FileName
 	}
 	return ""
 }
@@ -316,14 +316,14 @@ const file_proto_client_proto_rawDesc = "" +
 	"\n" +
 	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"E\n" +
 	"\rUploadRequest\x12\x1a\n" +
-	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\fR\acontent\"*\n" +
-	"\x0eUploadResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"-\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\",\n" +
+	"\x0eUploadResponse\x12\x1a\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\"-\n" +
 	"\x0fDownloadRequest\x12\x1a\n" +
-	"\bfilename\x18\x01 \x01(\tR\bfilename\"H\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\"H\n" +
 	"\x10DownloadResponse\x12\x1a\n" +
-	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\fR\acontent\":\n" +
 	"\bFileInfo\x12\x1a\n" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x12\n" +
