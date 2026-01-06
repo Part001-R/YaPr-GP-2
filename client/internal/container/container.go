@@ -3,6 +3,7 @@ package container
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync"
@@ -29,8 +30,8 @@ type Container struct {
 
 // Интерфейс.
 type Actions interface {
-	AddFileToContainer(fileName string, key [32]byte) error
-	GetFileFromContainer(fileName string, key [32]byte) ([]byte, error)
+	AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chOk chan<- struct{})
+	GetFileFromContainer(fileName string, key [32]byte, txChPercent chan<- float64, txChErr chan<- error, txChDone chan<- struct{}, txChData chan<- []byte, rxChBreak <-chan struct{})
 	ListFilesInContainer(key [32]byte) (files []string, err error)
 	RemoveFileFromContainer(fileName string, key [32]byte) error
 }
@@ -72,6 +73,7 @@ func New(name string, key [32]byte) Actions {
 
 // Чтение контейнера из файла.
 func (c Container) readContainer(key [32]byte) (*Container, error) {
+
 	data, err := os.ReadFile(c.name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -124,59 +126,135 @@ func (c *Container) writeContainer(container *Container, key [32]byte) error {
 }
 
 // Добавление файла в контейнер.
-func (c *Container) AddFileToContainer(fileName string, key [32]byte) error {
+func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chOk chan<- struct{}) {
+	defer func() {
+		close(chProcess)
+		close(chError)
+		close(chOk)
+	}()
 
-	// Чтение содиржимого файла.
-	content, err := os.ReadFile(fileName)
+	fileInfo, err := os.Stat(fileName)
 	if err != nil {
-		return fmt.Errorf("ошибка: <%v>, при чтении файла: <%s>", err, fileName)
+		chError <- fmt.Errorf("ошибка: <%v>, при чтении файла: <%s>", err, fileName)
+		return
 	}
+	fileSize := fileInfo.Size()
 
+	file, err := os.Open(fileName)
+	if err != nil {
+		chError <- fmt.Errorf("ошибка: <%v>, при открытии файла: <%s>", err, fileName)
+		return
+	}
+	defer file.Close()
+
+	var totalRead int64
+	buffer := make([]byte, 1024) // Буфер 1КБ
+
+	// Чтение контейнера.
 	container, err := c.readContainer(key)
 	if err != nil {
-		return err
+		chError <- fmt.Errorf("функция c.readContainer, вернула ошибку: <%v>", err)
+		return
 	}
 
 	// Выделение имени файла и его тип из полного пути.
 	fileN := getFileNameAndExtension(fileName)
 
-	// Проверка на присутствие такого файла в контейнере.
+	// Проверка наличия такого имени файла в контейнере.
 	for _, file := range container.Files {
 		if file.Name == fileN {
-			return fmt.Errorf("файл <%s> уже существует в контейнере", fileN)
+			chError <- fmt.Errorf("файл <%s> уже существует в контейнере", fileN)
+			return
 		}
 	}
 
-	// Добавление файла в контейнер.
-	container.Files = append(container.Files, FileEntry{
-		Name:    fileN,
-		Content: content,
-	})
+	// Создание нового файла для контейнера
+	newFileEntry := FileEntry{Name: fileN, Content: make([]byte, 0, fileSize)}
 
-	if err := c.writeContainer(container, key); err != nil {
-		return fmt.Errorf("функция writeContainer, вернула ошибку: <%w>", err)
+	for {
+		n, err := file.Read(buffer)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			chError <- fmt.Errorf("ошибка при чтении файла: <%v>", err)
+			return
+		}
+		totalRead += int64(n)
+
+		// Добавляем данные сразу в новый файл, чтобы избежать лишнего использования памяти
+		newFileEntry.Content = append(newFileEntry.Content, buffer[:n]...)
+
+		// Процент процесса
+		progress := (float64(totalRead) / float64(fileSize)) * 100.0
+		chProcess <- progress
 	}
 
-	return nil
+	// Добавление файла в контейнер
+	container.Files = append(container.Files, newFileEntry)
+
+	if err := c.writeContainer(container, key); err != nil {
+		chError <- fmt.Errorf("функция writeContainer, вернула ошибку: <%w>", err)
+		return
+	}
+
+	// Установка признака успешного завершения процесса
+	chOk <- struct{}{}
 }
 
 // Получение файла из контейнера по имени
-func (c Container) GetFileFromContainer(fileName string, key [32]byte) ([]byte, error) {
+func (c Container) GetFileFromContainer(fileName string, key [32]byte, txChPercent chan<- float64, txChErr chan<- error, txChDone chan<- struct{}, txChData chan<- []byte, rxChBreak <-chan struct{}) {
+	defer func() {
+		close(txChPercent)
+		close(txChErr)
+		close(txChDone)
+		close(txChData)
+	}()
 
 	// Чтение контейнера
 	container, err := c.readContainer(key)
 	if err != nil {
-		return nil, err
+		txChErr <- err
+		return
 	}
 
-	// Поиск файла
+	// Поиск файла.
 	for _, file := range container.Files {
+
+		// Порционная передача файла.
 		if file.Name == fileName {
-			return file.Content, nil
+
+			fileSize := len(file.Content)
+
+			for start := 0; start < fileSize; start += 1024 {
+
+				select {
+				case <-rxChBreak: // Ожидание сигнала - прекратить обработку.
+					txChErr <- ExternalErr
+					return
+
+				default:
+					end := start + 1024
+					if end > fileSize {
+						end = fileSize
+					}
+					txChData <- file.Content[start:end]
+
+					progressPercent := float64(start+1024) / float64(fileSize) * 100
+					if progressPercent > 100 {
+						progressPercent = 100
+					}
+					txChPercent <- progressPercent
+				}
+			}
+			txChPercent <- 100.0
+			txChDone <- struct{}{} // Передача сигнала - обработка завершена.
+			return
 		}
 	}
 
-	return nil, fmt.Errorf("файл <%s>, не найден в контейнере", fileName)
+	// Если файл не найден
+	txChErr <- fmt.Errorf("файл:<%s>, в контейнере, не найден", fileName)
 }
 
 // Получение списка файлов в контейнере.

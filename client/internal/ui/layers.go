@@ -52,25 +52,27 @@ func connectSrv(c *handlerUI) (pb.PasswordManagerClient, *grpc.ClientConn, error
 //
 
 // Додготовка данных для запроса.
-func layerPrepareDataPingContext(c *handlerUI) (txMD metadata.MD, nameToken string, secretKey string, err error) {
+func layerDataPingContextPrepare(c *handlerUI) (txMD metadata.MD, nameToken string, secretKey string, err error) {
 
 	// Проверка аргументов.
 	if c == nil {
 		return nil, "", "", NilPtrArgumentC
 	}
 
-	// Подготовка данных.
+	// Создание ключа.
 	secretKey, err = generateRandomString(50)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
 	}
 
+	// Создание токена.
 	timeValidToken := time.Duration(5 * time.Second)
 	txToken, err := createToken("clientManager", secretKey, timeValidToken)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
 	}
 
+	// Заполнение метаданных.
 	nameToken = "token"
 	txMD = metadata.Pairs(nameToken, txToken)
 
@@ -79,11 +81,12 @@ func layerPrepareDataPingContext(c *handlerUI) (txMD metadata.MD, nameToken stri
 }
 
 // Запрос.
-func layerRequestPingContext(ctx context.Context, txMD metadata.MD, client proto.PasswordManagerClient, nameToken string, secretKey string) error {
+func layerPingContextRequest(ctx context.Context, txMD metadata.MD, client proto.PasswordManagerClient, nameToken string, secretKey string) error {
 
 	emptyRequest := &emptypb.Empty{}
 	var header metadata.MD
 
+	// Запрос.
 	ctx = metadata.NewOutgoingContext(ctx, txMD) // добавление метаданных к контексту.
 	_, err := client.Ping(ctx, emptyRequest, grpc.Header(&header))
 	if err != nil {
@@ -97,7 +100,7 @@ func layerRequestPingContext(ctx context.Context, txMD metadata.MD, client proto
 	}
 	rxToken := token[0]
 
-	// Проверка метаданных ответа.
+	// Проверка токена.
 	if err := checkToken(rxToken, secretKey); err != nil {
 		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
 	}
@@ -109,8 +112,28 @@ func layerRequestPingContext(ctx context.Context, txMD metadata.MD, client proto
 // --- backUp ---
 //
 
+// Создание токена.
+func layerBackUpCreateToken() (secretKey, token string, err error) {
+
+	// Создание ключа.
+	secretKey, err = generateRandomString(50)
+	if err != nil {
+		return "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+	}
+
+	// Создание токена.
+	timeValidToken := time.Duration(72 * time.Hour)
+	token, err = createToken("clientManager", secretKey, timeValidToken)
+	if err != nil {
+		return "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return secretKey, token, nil
+}
+
 // Передача файла на сервер.
-func layerBackUpTx(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (resp *pb.UploadResponse, rxHash, rxToken string, err error) {
+func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (resp *pb.UploadResponse, rxHash, rxToken string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -186,25 +209,42 @@ func layerBackUpTx(client proto.PasswordManagerClient, fileName, token string, c
 	return resp, rxHash, rxToken, nil
 }
 
-// Проверка ответа от сервера.
-func layerBackUpCheckResult(resp *proto.UploadResponse, fileName, fileHash, rxFileHash, token, rxToken string) error {
+// Проверка результата.
+func layerBackUpCheckResult(resp *proto.UploadResponse, txFileName, txFileHash, rxFileHash, rxToken, secretKey string) error {
 
-	// проверка аргументов.
-	if fileName == "" {
-		return EmptyDataArgumentFileName
+	// Проверка аргументов.
+	if resp == nil {
+		return NilPtrArgumentResp
+	}
+	if txFileName == "" {
+		return EmptyDataArgumentTxFileName
+	}
+	if txFileHash == "" {
+		return EmptyDataArgumentTxFileHash
+	}
+	if rxFileHash == "" {
+		return EmptyDataArgumentRxFileHash
+	}
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
 	}
 
 	// Проверка содержимого ответа сервера.
 	respFileName := resp.FileName
 
-	if fileName != respFileName {
-		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s>. Ожидалось имя:<%s>, а принято:<%s>", fileName, fileName, respFileName)
+	if txFileName != respFileName {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s>. Ожидалось имя:<%s>, а принято:<%s>", txFileName, txFileName, respFileName)
 	}
-	if fileHash != rxFileHash {
-		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s> Ожидался хэш:<%s>, а принято:<%s>", fileName, fileHash, rxFileHash)
+	if txFileHash != rxFileHash {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s> Ожидался хэш:<%s>, а принято:<%s>", txFileName, txFileHash, rxFileHash)
 	}
-	if token != rxToken {
-		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s>, нет соответствия токенов", fileName)
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
 	}
 
 	return nil
@@ -214,8 +254,28 @@ func layerBackUpCheckResult(resp *proto.UploadResponse, fileName, fileHash, rxFi
 // --- restore ---
 //
 
+// Создание токена.
+func layerRestoreCreateToken() (secretKey, token string, err error) {
+
+	// Создание ключа.
+	secretKey, err = generateRandomString(50)
+	if err != nil {
+		return "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+	}
+
+	// Создание токена.
+	timeValidToken := time.Duration(72 * time.Hour)
+	token, err = createToken("clientManager", secretKey, timeValidToken)
+	if err != nil {
+		return "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return secretKey, token, nil
+}
+
 // Приём файла.
-func layerRx(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (content []byte, rxFileHash, rxToken string, err error) {
+func layerRestoreRxFile(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (content []byte, rxFileHash, rxToken string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -268,7 +328,7 @@ func layerRx(client proto.PasswordManagerClient, fileName, token string, c *hand
 }
 
 // Сохранение файла.
-func saveFile(content []byte, fileName string) error {
+func layerRestoreSaveFile(content []byte, fileName string) error {
 
 	if err := os.WriteFile(fileName, content, 0644); err != nil {
 		return fmt.Errorf("Функция os.WriteFile, вернула ошибку: <%v>", err)
@@ -278,18 +338,37 @@ func saveFile(content []byte, fileName string) error {
 }
 
 // Проверка ответа от сервера.
-func layerRestoreCheckResult(fileName, fileHash, rxFileHash, token, rxToken string) error {
+func layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretKey string) error {
+
+	// Проверка аргументов.
+	if fileName == "" {
+		return EmptyDataArgumentFileName
+	}
+	if rxFileHash == "" {
+		return EmptyDataArgumentRxFileHash
+	}
+	if srcFileHash == "" {
+		return EmptyDataArgumentSrcFileHash
+	}
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
+	}
 
 	// Анализ данных ответа от сервера.
-	fileHash, err := hashFile(fileName)
+	rxFileHash, err := hashFile(fileName)
 	if err != nil {
 		return fmt.Errorf("Функция hashFile, вернула ошибку:<%w>", err)
 	}
-	if rxFileHash != fileHash {
-		return fmt.Errorf("Для файла:<%s>, нет соответствия хэша. Ожидался:<%s>, а принято:<%s>", fileName, rxFileHash, fileHash)
+	if srcFileHash != rxFileHash {
+		return fmt.Errorf("Для файла:<%s>, нет соответствия хэша. Ожидался:<%s>, а принято:<%s>", fileName, srcFileHash, rxFileHash)
 	}
-	if token != rxToken {
-		return fmt.Errorf("Для файла:<%s>, нет соответствия токенов", fileName)
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
 	}
 
 	return nil

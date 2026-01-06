@@ -15,8 +15,32 @@ var (
 	// В аргументе subjectName, нет данных.
 	EmptyDataArgumentSubjectName = errors.New("в аргументе <subjectName>, нет данных")
 
+	// В аргументе <resp>, нет указателя
+	NilPtrArgumentResp = errors.New("в аргументе <resp>, нет указателя")
+
+	// В аргументе txFileName, нет данных.
+	EmptyDataArgumentTxFileName = errors.New("в аргументе <txFileName>, нет данных")
+
+	// В аргументе txFileHash, нет данных.
+	EmptyDataArgumentTxFileHash = errors.New("в аргументе <txFileHash>, нет данных")
+
+	// В аргументе rxFileHash, нет данных.
+	EmptyDataArgumentRxFileHash = errors.New("в аргументе <rxFileHash>, нет данных")
+
+	// В аргументе srcFileHash, нет данных.
+	EmptyDataArgumentSrcFileHash = errors.New("в аргументе <srcFileHash>, нет данных")
+
+	// В аргументе rxToken, нет данных.
+	EmptyDataArgumentRxToken = errors.New("в аргументе <rxToken>, нет данных")
+
+	// В аргументе secretKey, нет данных.
+	EmptyDataArgumentSecretKey = errors.New("в аргументе <secretKey>, нет данных")
+
 	// В аргументе fileName, нет данных.
 	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
+
+	// В аргументе txToken, нет данных.
+	EmptyDataArgumentTxToken = errors.New("в аргументе <txToken>, нет данных")
 
 	// Длинна ключа не соответутсвует 32-м.
 	LenSecretKey = errors.New("длина <secretKey> должна быть не менее 32 символов")

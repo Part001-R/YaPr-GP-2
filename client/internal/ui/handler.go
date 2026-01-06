@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -77,6 +76,8 @@ type status struct {
 	extractFilePassed        bool // Признак, что процедура извлечения файла, пройдена.
 	restore                  int  // Статус процесса воостановления из резервной копии.
 	backUp                   int  // Статус процесса создания резервной копии.
+	pushContainer            int  // Статус процесса передачи в контейнер.
+	popContainer             int  // Статус процесса извлечения из контейнера.
 }
 
 // Для навигации по экранам.
@@ -131,10 +132,12 @@ type indexes struct {
 
 // Мьютексы.
 type mutex struct {
-	restoreBackup sync.Mutex // для резервного копирования и восстановления.
-	processTxRx   sync.Mutex // для данных процесса Tx Rx файлов.
-	statusBackUp  sync.Mutex // для статуса процесса передачи.
-	statusRestore sync.Mutex // для статуса процесса приёма.
+	restoreBackup       sync.Mutex // для резервного копирования и восстановления.
+	processTxRx         sync.Mutex // для данных процесса Tx Rx файлов.
+	statusBackUp        sync.Mutex // для статуса процесса передачи.
+	statusRestore       sync.Mutex // для статуса процесса приёма.
+	statusPushContainer sync.Mutex // для статуса процесса передачи в контейнер.
+	statusPopContainer  sync.Mutex // для статуса процесса извлечения из контейнера.
 }
 
 // Отправка-приём файлов.
@@ -181,10 +184,12 @@ func new(conf *udt.Configuration) *handlerUI {
 				loginPassword: 0,
 			},
 			mutex: mutex{
-				restoreBackup: sync.Mutex{},
-				processTxRx:   sync.Mutex{},
-				statusBackUp:  sync.Mutex{},
-				statusRestore: sync.Mutex{},
+				restoreBackup:       sync.Mutex{},
+				processTxRx:         sync.Mutex{},
+				statusBackUp:        sync.Mutex{},
+				statusRestore:       sync.Mutex{},
+				statusPushContainer: sync.Mutex{},
+				statusPopContainer:  sync.Mutex{},
 			},
 			txrx: txrx{},
 		}
@@ -1263,8 +1268,6 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 
 	case viewTextData: // если окно - текст.
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Debug: Добавляются данные For:<%s> Text:<%s>", c.typed.dataFor, c.typed.dataText)) //====================
-
 		c.status.addTextPassed = true
 		c.status.addTextSUCCESS = false
 
@@ -1359,21 +1362,43 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 
 	case viewBinaryData: // Окно для работы с файлами.
 
-		c.status.addFilePassed = true
-		c.status.addFileSUCCESS = false
+		if (c.getStatusPopContainer() == stageNotActive || c.getStatusPopContainer() == stageFault) &&
+			(c.getStatusPushContainer() == stageNotActive || c.getStatusPushContainer() == stageFault) {
 
-		if err := c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка при добавлении файла <%s>, в контейнер", c.typed.dataPathSrc))
-			return nil
+			c.updateStatusPushContainer(stageActive)
+			c.updateStatusPopContainer(stageActive)
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
+
+			// Сброс
+			c.txrx.passedKB = 0
+			c.txrx.percentTxRx = 0
+
+			// Определение размера файла.
+			var err error
+			files := []string{c.typed.dataPathSrc}
+
+			c.txrx.totalSizeKB, err = totalFileSize(files)
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
+				c.updateStatusBackUp(stageFault)
+				return nil
+			}
+
+			chProcess := make(chan float64)
+			chErr := make(chan error)
+			chOk := make(chan struct{})
+
+			// Запуск процесса передачи вайла в контейнер.
+			go c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey, chProcess, chErr, chOk)
+
+			// Буфер между каналами и экземпляром.
+			go bufferProcessTx(c, chProcess, chErr, chOk)
 		}
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: файл <%s>, добавлен в контейнер", c.typed.dataPathSrc))
-		c.status.addFileSUCCESS = true
 
 	default:
 	}
 
 	return nil
-
 }
 
 // Отображение слудующего элемента.
@@ -1558,27 +1583,34 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 
 	case viewBinaryData: // Взаимодействие с файлами
 
-		if len(c.data.files) == 0 {
-			return nil
+		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
+
+			c.updateStatusPopContainer(stageNotActive)
+			c.updateStatusPushContainer(stageNotActive)
+
+			if len(c.data.files) == 0 {
+				return nil
+			}
+
+			el := fileByIndex(c) // получение записи по индексу
+			incrIndexFile(c)     // увеличение значения индекса
+
+			// отображение содержимого поля Код.
+			fieldCode, err := gui.View("fieldShowFor")
+			if err != nil || fieldCode == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				return nil
+			}
+			if el != "" {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(el))
+
+			} else {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(""))
+			}
 		}
 
-		el := fileByIndex(c) // получение записи по индексу
-		incrIndexFile(c)     // увеличение значения индекса
-
-		// отображение содержимого поля Код.
-		fieldCode, err := gui.View("fieldShowFor")
-		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
-		}
-		if el != "" {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(el))
-
-		} else {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(""))
-		}
 	default:
 	}
 
@@ -1755,22 +1787,28 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 
 	case viewBinaryData: // Взаимодействие с файлами.
 
-		decrIndexFile(c)     // уменьшение значения индекса
-		el := fileByIndex(c) // получение записи по индексу
+		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
 
-		// отображение содержимого.
-		fieldCode, err := gui.View("fieldShowFor")
-		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
-		}
-		if el != "" {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(el))
+			c.updateStatusPopContainer(stageNotActive)
+			c.updateStatusPushContainer(stageNotActive)
 
-		} else {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(""))
+			decrIndexFile(c)     // уменьшение значения индекса
+			el := fileByIndex(c) // получение записи по индексу
+
+			// отображение содержимого.
+			fieldCode, err := gui.View("fieldShowFor")
+			if err != nil || fieldCode == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				return nil
+			}
+			if el != "" {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(el))
+
+			} else {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(""))
+			}
 		}
 
 	default:
@@ -1878,24 +1916,30 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
 	case viewBinaryData: // Окно работы с файлами.
 
-		c.status.delFilePassed = true
-		c.status.delFileSUCCESS = false
+		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
 
-		// Чтение буфера.
-		v, err := gui.View("fieldShowFor")
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
-			return nil
-		}
-		name := v.ViewBuffer()
-		name = strings.ReplaceAll(name, "\n", "") // удаление символа
+			c.updateStatusPopContainer(stageNotActive)
+			c.updateStatusPushContainer(stageNotActive)
 
-		// Удаление файла.
-		if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
-			return nil
+			c.status.delFilePassed = true
+			c.status.delFileSUCCESS = false
+
+			// Чтение буфера.
+			v, err := gui.View("fieldShowFor")
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+				return nil
+			}
+			name := v.ViewBuffer()
+			name = strings.ReplaceAll(name, "\n", "") // удаление символа
+
+			// Удаление файла.
+			if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
+				return nil
+			}
+			c.status.delFileSUCCESS = true
 		}
-		c.status.delFileSUCCESS = true
 
 	default:
 	}
@@ -1909,34 +1953,36 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 	switch c.view.activeView {
 	case viewBinaryData: // Окно работы с файлами
 
-		c.status.extractFilePassed = true
-		c.status.extractFileSUCCESS = false
+		if c.getStatusPopContainer() == stageNotActive && c.getStatusPushContainer() == stageNotActive {
 
-		// Чтение буфера.
-		v, err := gui.View("fieldShowFor")
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
-			return nil
+			c.updateStatusPopContainer(stageActive)
+
+			c.txrx.passedKB = 0
+			c.txrx.percentTxRx = 0
+			c.txrx.totalSizeKB = 0
+
+			// Чтение буфера.
+			v, err := gui.View("fieldShowFor")
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+				return nil
+			}
+			nameFile := v.ViewBuffer()
+			nameFile = strings.ReplaceAll(nameFile, "\n", "")
+
+			// Получение файла из хранилища.
+			chErr := make(chan error)
+			chDone := make(chan struct{})
+			chData := make(chan []byte)
+			chPercent := make(chan float64)
+			chBreak := make(chan struct{})
+
+			// Чтение файла.
+			go c.conf.Container.GetFileFromContainer(nameFile, c.secret.secretKey, chPercent, chErr, chDone, chData, chBreak)
+
+			// Приём данных и сборка файла.
+			go bufferProcessPopContainer(nameFile, c, chPercent, chErr, chDone, chData, chBreak)
 		}
-		name := v.ViewBuffer()
-		name = strings.ReplaceAll(name, "\n", "") // удаления символа
-
-		// Получение файла из хранилища.
-		contentFile, err := c.conf.Container.GetFileFromContainer(name, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения файла: <%s> их контейнера: <%v>", name, err))
-			return nil
-		}
-
-		// Сохранение файла.
-		path := c.typed.dataPathTrg + name
-
-		err = os.WriteFile(path, contentFile, 0644)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения файла: <%s> из контейнера: <%v>", c.typed.dataPathTrg, err))
-			return nil
-		}
-		c.status.extractFileSUCCESS = true
 	}
 	return nil
 }
@@ -2186,6 +2232,9 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	//
 	fmt.Fprintf(view, "%s", strings.Repeat("\n", 15))
 	fmt.Fprintf(view, "%sВыберите нужный раздел через Tab и нажмите Enter.\n", strings.Repeat(" ", 40))
+
+	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
+	fmt.Fprintf(view, "%sПроцесс, может быть продолжительным. Дождитесь открытия окна.\n", strings.Repeat(" ", 35))
 
 	//
 	// --- Нижняя часть экрана ---
@@ -2890,8 +2939,8 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	c.view.activeView = "" // Сброс
 	c.index.file = 0
 
-	c.status.addFilePassed = false
-	c.status.addFileSUCCESS = false
+	c.updateStatusPopContainer(stageNotActive)
+	c.updateStatusPushContainer(stageNotActive)
 
 	c.status.readFilePassed = false
 	c.status.readFileSUCCESS = false
@@ -2953,6 +3002,20 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	vRead.Frame = false
 	vRead.BgColor = gocui.ColorDefault
 	vRead.FgColor = gocui.ColorDefault
+
+	// Процент выполнения.
+	if v, err := g.SetView("indicatorPercent", 56, 20, inputWidth+7, inputHeight+1+19); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = false
+		v.Frame = false
+		v.BgColor = gocui.ColorDefault
+		v.SelBgColor = gocui.ColorDefault
+		v.SelFgColor = gocui.ColorDefault
+	}
 
 	//
 	// --- Поля вывода ---
@@ -3631,4 +3694,49 @@ func (c *handlerUI) getPercentTxRx() float32 {
 	defer c.mutex.processTxRx.Unlock()
 
 	return c.txrx.percentTxRx
+}
+
+// Установка процента выполения TxRx.
+func (c *handlerUI) setPercentTxRx(percent float32) {
+
+	c.mutex.processTxRx.Lock()
+	defer c.mutex.processTxRx.Unlock()
+
+	c.txrx.percentTxRx = percent
+}
+
+// Обновление статуса процесса передачи.
+func (c *handlerUI) updateStatusPushContainer(st int) {
+
+	c.mutex.statusPushContainer.Lock()
+	defer c.mutex.statusPushContainer.Unlock()
+
+	c.status.pushContainer = st
+}
+
+// Получение текущего статуса процесса передачи.
+func (c *handlerUI) getStatusPushContainer() int {
+
+	c.mutex.statusPushContainer.Lock()
+	defer c.mutex.statusPushContainer.Unlock()
+
+	return c.status.pushContainer
+}
+
+// Обновление статуса процесса передачи.
+func (c *handlerUI) updateStatusPopContainer(st int) {
+
+	c.mutex.statusPopContainer.Lock()
+	defer c.mutex.statusPopContainer.Unlock()
+
+	c.status.popContainer = st
+}
+
+// Получение текущего статуса процесса передачи.
+func (c *handlerUI) getStatusPopContainer() int {
+
+	c.mutex.statusPopContainer.Lock()
+	defer c.mutex.statusPopContainer.Unlock()
+
+	return c.status.popContainer
 }

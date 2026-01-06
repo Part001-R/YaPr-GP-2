@@ -13,6 +13,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -119,13 +120,13 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 	}()
 
 	// Подготовка данных к запросу.
-	txMD, nameToken, secretKey, err := layerPrepareDataPingContext(c)
+	txMD, nameToken, secretKey, err := layerDataPingContextPrepare(c)
 	if err != nil {
 		return false, fmt.Errorf("Функция layerPrepareDataPingContext, вернула ошибку: <%w>", err)
 	}
 
 	// Запрос.
-	if err := layerRequestPingContext(ctx, txMD, client, nameToken, secretKey); err != nil {
+	if err := layerPingContextRequest(ctx, txMD, client, nameToken, secretKey); err != nil {
 		return false, fmt.Errorf("функция layerRequestPingContext, вернула ошибку: <%w>", err)
 	}
 
@@ -134,24 +135,28 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 }
 
 // Создание резервной копии файла БД, на сервере.
-func backUp(c *handlerUI, fileName string, client proto.PasswordManagerClient) error {
+func backUp(c *handlerUI, txFileName string, client proto.PasswordManagerClient) error {
 
-	token := "123" //-------------------------------
+	// Создание токена.
+	secretKey, txToken, err := layerBackUpCreateToken()
+	if err != nil {
+		return fmt.Errorf("функция layerBackUpCreateToken, вернула ошибку:<%w>", err)
+	}
 
 	// Передача файла на сервер.
-	resp, rxHash, rxToken, err := layerBackUpTx(client, fileName, token, c)
+	resp, rxFileHash, rxToken, err := layerBackUpTxFile(client, txFileName, txToken, c)
 	if err != nil {
 		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
 	}
 
 	// Вычисление хэша переданного файла.
-	fileHash, err := hashFile(fileName)
+	txFileHash, err := hashFile(txFileName)
 	if err != nil {
 		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
 	}
 
-	// Анализ данных ответа от сервера.
-	if err := layerBackUpCheckResult(resp, fileName, fileHash, rxHash, token, rxToken); err != nil {
+	// Проверка результата.
+	if err := layerBackUpCheckResult(resp, txFileName, txFileHash, rxFileHash, rxToken, secretKey); err != nil {
 		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
 	}
 
@@ -159,42 +164,66 @@ func backUp(c *handlerUI, fileName string, client proto.PasswordManagerClient) e
 }
 
 // Восстановление из резервной копии файла БД.
-func restore(c *handlerUI, fileName string, client proto.PasswordManagerClient) error {
+func restore(c *handlerUI, fileName string, client proto.PasswordManagerClient) (err error) {
 
-	token := "123" //-------------------------------
+	needRestoreState := false // Признак необходимости воостановления состояния, при ошибке.
+	var tempFileName string   // Имя временного файла.
+
+	// Обработка перед выходом.
+	defer func(needRestoreState bool, fileName, tempFileName string, errProcess error) {
+		if errRestore := deferProcessRestoreByError(needRestoreState, fileName, tempFileName, errProcess); errRestore != nil {
+			err = fmt.Errorf("функция deferProcessRestoreByError, вернула ошибку:<%w>, при ошибку процесса:<%w>", errRestore, errProcess)
+		}
+	}(needRestoreState, fileName, tempFileName, err)
+
+	// Создание токена.
+	secretKey, txToken, err := layerRestoreCreateToken()
+	if err != nil {
+		return fmt.Errorf("Функция layerRestoreCreateToken, вернула ошибку: <%w>", err)
+	}
 
 	// Запрос файла у сервера.
-	content, rxFileHash, rxToken, err := layerRx(client, fileName, token, c)
+	content, srcFileHash, rxToken, err := layerRestoreRxFile(client, fileName, txToken, c)
 	if err != nil {
 		return fmt.Errorf("Функция layerRx, вернула ошибку: <%w>", err)
 	}
 
-	// Предварительное удаление файла.
+	// Изменение имени существующего файла, чтобы в случае ошибки, не потерять данные.
 	if isFileExists(fileName) {
-		if err := os.Remove(fileName); err != nil {
-			return fmt.Errorf("ошибка:<%w> предварительного удаления файла:<%s>", err, fileName)
+		tempFileName, err = changeFileName(fileName, "-temp")
+		if err != nil {
+			return fmt.Errorf("функция changeFileName, вернула ошибку:<%w>", err)
 		}
+		needRestoreState = true
 	}
 
-	// Сохранение файла.
-	if err := saveFile(content, fileName); err != nil {
+	// Сохранение принятых данных в файл.
+	if err := layerRestoreSaveFile(content, fileName); err != nil {
 		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
 	}
 
-	// Вычисление хэша переданного файла.
-	fileHash, err := hashFile(fileName)
+	// Вычисление хэша принятого файла.
+	rxFileHash, err := hashFile(fileName)
 	if err != nil {
 		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
 	}
 
 	// Проверка результата.
-	if err := layerRestoreCheckResult(fileName, fileHash, rxFileHash, token, rxToken); err != nil {
+	if err := layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretKey); err != nil {
 
 		// Удаление файла, если проверка не пройдена.
 		if errRemove := os.Remove(fileName); errRemove != nil {
 			return fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, fileName, err)
 		}
 		return fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, fileName)
+	}
+
+	// Файл успешно принят.
+	// Удаление резервного файла, если он существует.
+	if isFileExists(tempFileName) {
+		if err := os.Remove(tempFileName); err != nil {
+			return fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>, при успешном приёме", err, fileName)
+		}
 	}
 
 	return nil
@@ -1475,46 +1504,46 @@ func indicatorViewBankCardData(g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 
-	// Есть установлен признак отработки добавления файла в контейнер.
-	if c.status.addFilePassed {
-		name := "Save"
-
-		element, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if element == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-
-		if c.status.addFileSUCCESS {
-			element.FgColor = gocui.ColorGreen
-		} else {
-			element.FgColor = gocui.ColorRed
-		}
-
-		c.status.addFilePassed = false
+	// Добавление файла в контейнер.
+	name := "Save"
+	btnSave, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if btnSave == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 	}
 
-	// Есть установлен признак извлечения файла из контейнера.
-	if c.status.extractFilePassed {
-		name := "Extraction"
+	switch c.getStatusPushContainer() {
+	case stageNotActive:
+		btnSave.FgColor = gocui.ColorWhite
+	case stageActive:
+		btnSave.FgColor = gocui.ColorYellow
+	case stageOk:
+		btnSave.FgColor = gocui.ColorGreen
+	case stageFault:
+		btnSave.FgColor = gocui.ColorRed
+	}
 
-		element, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if element == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
+	// Извлечения файла из контейнера.
+	name = "Extraction"
+	btnExtration, err := g.View(name)
+	if err != nil {
+		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+	}
+	if btnExtration == nil {
+		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+	}
 
-		if c.status.extractFileSUCCESS {
-			element.FgColor = gocui.ColorGreen
-		} else {
-			element.FgColor = gocui.ColorRed
-		}
-
-		c.status.extractFilePassed = false
+	switch c.getStatusPopContainer() {
+	case stageNotActive:
+		btnExtration.FgColor = gocui.ColorWhite
+	case stageActive:
+		btnExtration.FgColor = gocui.ColorYellow
+	case stageOk:
+		btnExtration.FgColor = gocui.ColorGreen
+	case stageFault:
+		btnExtration.FgColor = gocui.ColorRed
 	}
 
 	// Есть установлен признак удаления файла из контейнера.
@@ -1566,6 +1595,29 @@ func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 
 		c.status.readFilePassed = false  // Для разовой отработки при открытии экрана.
 		c.status.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
+	}
+
+	//
+	// --- Индикатор процентов ---
+	//
+
+	statusPush := c.getStatusPushContainer()
+	statusPop := c.getStatusPopContainer()
+
+	if statusPush == stageActive || statusPush == stageOk ||
+		statusPop == stageActive || statusPop == stageOk {
+
+		name := "indicatorPercent"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		indicator.Clear()
+		indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
 	}
 
 	return nil
@@ -1837,4 +1889,208 @@ func isFileExists(filePath string) bool {
 		return false // Файл не существует
 	}
 	return err == nil // Файл существует
+}
+
+// Добавление превикса к имени имени файла. Возвращается новое имя и ошибка.
+func changeFileName(fileName string, suffix string) (newFileName string, err error) {
+
+	// Проверка, существует ли файл.
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		return "", fmt.Errorf("файл с именем:<%s>, не найден", fileName)
+	}
+
+	// Исходные данные.
+	ext := filepath.Ext(fileName)
+	name := strings.TrimSuffix(fileName, ext)
+
+	// Новое имя.
+	newFileName = fmt.Sprintf("%s%s%s", name, suffix, ext)
+
+	// Проверка существование файла по новому имени.
+	// Если есть - удаляется.
+	_, err = os.Stat(newFileName)
+	if err == nil {
+		if err := os.Remove(newFileName); err != nil {
+			return "", fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>", err, newFileName)
+		}
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("ошибка:<%w> при проверке существования файла:<%s>", err, newFileName)
+	}
+
+	// Переименование файла.
+	err = os.Rename(fileName, newFileName)
+	if err != nil {
+		return "", fmt.Errorf("ошибка:<%w> переименования файла:<%s>", err, fileName)
+	}
+
+	return newFileName, nil
+}
+
+// Воссстановление имени файла. Возвращается ошибка.
+func restoreFileName(fileName string, suffix string) (err error) {
+
+	// Проверка, существует ли файл.
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		return fmt.Errorf("файл с именем:<%s>, не найден", fileName)
+	}
+
+	// Исходные данные.
+	ext := filepath.Ext(fileName)
+	name := strings.TrimSuffix(fileName, ext)
+
+	// Восстановление
+	name = strings.TrimSuffix(name, suffix)
+
+	// Формирование нового имени.
+	newFileName := fmt.Sprintf("%s%s", name, ext)
+
+	// Переименование файла.
+	err = os.Rename(fileName, newFileName)
+	if err != nil {
+		return fmt.Errorf("ошибка:<%w> переименования файла:<%s>", err, fileName)
+	}
+
+	return nil
+}
+
+// Воостановление состояния файлов процесса restore, при ошибке в последовательности. Возвращается ошибка.
+func deferProcessRestoreByError(dooRestore bool, fileName, tempFileName string, errProcess error) error {
+
+	if errProcess != nil {
+		// Удаление принятого файла.
+		if isFileExists(fileName) && dooRestore {
+			if err := os.Remove(fileName); err != nil {
+				return fmt.Errorf("Error: ошибка:<%v>, при удалении файла:<%s> по ошибке процесса:<%v>", err, fileName, err)
+			}
+		}
+		// Восстановление имени у исходного файла.
+		if isFileExists(tempFileName) && dooRestore {
+			if err := restoreFileName(tempFileName, "-temp"); err != nil {
+				return fmt.Errorf("Error: ошибка:<%v>, при восстановлении файла:<%s> по ошибке процесса:<%v>", err, tempFileName, err)
+			}
+		}
+	}
+	return nil
+}
+
+// Функция принимает данные по каналам и транслирует их в экземпляр.
+func bufferProcessTx(c *handlerUI, rxChProcess <-chan float64, rxChErr <-chan error, rxChOk <-chan struct{}) {
+
+	defer func() {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Завершён процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
+	}()
+
+	for {
+		select {
+		case percent, ok := <-rxChProcess:
+			if !ok {
+				c.updateStatusPushContainer(stageNotActive)
+				return
+			}
+			c.setPercentTxRx(float32(percent))
+
+		case err, ok := <-rxChErr:
+			if !ok {
+				c.updateStatusPushContainer(stageNotActive)
+				return
+			}
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса добавления файла в контейнер:<%v>", err))
+			c.updateStatusPushContainer(stageFault)
+			return
+
+		case <-rxChOk:
+			c.updateStatusPushContainer(stageOk)
+			return
+		}
+	}
+}
+
+// Приём данных и сборка файла.
+func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan float64, rxChErr <-chan error, rxChDone <-chan struct{}, rxChData <-chan []byte, txChBreak chan<- struct{}) {
+
+	var outFile *os.File
+	var err error
+	fileExists := false
+	fullNameFile := c.typed.dataPathTrg + nameFile
+
+	defer func(fileName, fullNameFile string, file *os.File, fileExist bool) {
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Завершён процесс извлечения из контейнера файла:<%s>", fileName))
+		close(txChBreak)
+
+		// Закрытие подключения к файлу
+		if fileExist {
+			if err := file.Close(); err != nil {
+				c.updateStatusPopContainer(stageFault)
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка:<%v>, при закрытии подключения к файлу:<%s>", err, fullNameFile))
+				return
+			}
+		}
+
+	}(nameFile, fullNameFile, outFile, fileExists)
+
+	// Проверка существования файла.
+	if isFileExists(fullNameFile) {
+		c.updateStatusPopContainer(stageFault)
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Warn: Файл:<%s>, уже существует", fullNameFile))
+		fileExists = true
+
+		txChBreak <- struct{}{} // Передача сигнала - прекратить процесс.
+	}
+
+	// Создание файла.
+	if !fileExists {
+		outFile, err = os.Create(fullNameFile)
+		if err != nil {
+			c.updateStatusPopContainer(stageFault)
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Не удалось создать файл:<%s>, ошибка:<%v>", fullNameFile, err))
+			return
+		}
+	}
+
+	// Обработка каналов.
+	for {
+		select {
+		case percent, ok := <-rxChProcess:
+			if !ok {
+				c.updateStatusPopContainer(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChProcess")
+				return
+			}
+			c.setPercentTxRx(float32(percent))
+
+		case err, ok := <-rxChErr:
+			if !ok {
+				c.updateStatusPopContainer(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChErr")
+				return
+			}
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса извлечения файла из контейнера:<%v>", err))
+			c.updateStatusPopContainer(stageFault)
+			return
+
+		case _, ok := <-rxChDone:
+			if !ok {
+				c.updateStatusPopContainer(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChDone")
+				return
+			}
+			c.updateStatusPopContainer(stageOk)
+			return
+
+		// Сборка файла.
+		case data, ok := <-rxChData:
+			if !ok {
+				c.updateStatusPopContainer(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChData")
+				return
+			}
+			if !fileExists {
+				if _, err := outFile.Write(data); err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Не удалось записать данные в файл:<%s>, ошибка:<%v>", fullNameFile, err))
+					c.updateStatusPopContainer(stageFault)
+					return
+				}
+			}
+		}
+	}
 }
