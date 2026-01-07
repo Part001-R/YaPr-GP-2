@@ -223,6 +223,8 @@ func layout(g *gocui.Gui) error {
 // Главное окно.
 func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+H")
+
 	// Запрет активности при активности процессов передачи файлов.
 	if c.status.backUp == stageActive || c.status.restore == stageActive {
 		return nil
@@ -252,6 +254,8 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 
 // Регистрация.
 func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+A")
 
 	// Ограничение вызова окна.
 	if c.view.activeView == viewAutentification ||
@@ -461,6 +465,8 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 // Аутентификация.
 func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+B")
+
 	// Ограничение вызова окна.
 	if c.view.activeView == viewAutentification ||
 		c.view.activeView == viewBankCardData ||
@@ -637,6 +643,8 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 // Настройки.
 func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+D")
+
 	// Ограничение вызова окна.
 	if c.view.activeView == viewAutentification ||
 		c.view.activeView == viewBankCardData ||
@@ -803,9 +811,11 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 // Перевод фокуса.
 func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажат Tab")
+
 	// Перевод фокуса
 	switch c.view.activeView {
-	case viewRegistration: // Если вызывается из окна регистрации.
+	case viewRegistration: // Окно регистрации.
 		switch c.view.currentFocus {
 		case "Login":
 			c.view.currentFocus = "Password-1"
@@ -816,7 +826,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewAutentification: //Если вызывается из окна аутентификации.
+	case viewAutentification: // Окно аутентификации.
 		switch c.view.currentFocus {
 		case "Login":
 			c.view.currentFocus = "Password-1"
@@ -825,7 +835,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewSettings: //Если вызывается из окна настроек.
+	case viewSettings: // Окно настроек.
 		switch c.view.currentFocus {
 		case "IP":
 			c.view.currentFocus = "Port"
@@ -834,7 +844,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewSelectType: //Если вызывается из окна выбора типа данных.
+	case viewSelectType: // Окно выбора типа данных.
 		switch c.view.currentFocus {
 		case "selectLoginPassword":
 			c.view.currentFocus = "selectText"
@@ -847,7 +857,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewLoginPasswordData: // Если окно для взаимодействия с логин/пароль.
+	case viewLoginPasswordData: // Окно  логин/пароль.
 		switch c.view.currentFocus {
 		case "fieldAddFor":
 			c.view.currentFocus = "fieldAddLogin"
@@ -858,7 +868,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewTextData: // Если окно для взаимодействия с текстом.
+	case viewTextData: // Окно текст.
 		switch c.view.currentFocus {
 		case "fieldAddFor":
 			c.view.currentFocus = "fieldAddText"
@@ -867,7 +877,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewBankCardData: // Если окно для взаимодействия с банковскими картами.
+	case viewBankCardData: // Окно банковских карт.
 		switch c.view.currentFocus {
 		case "fieldAddFor":
 			c.view.currentFocus = "fieldAddOwner"
@@ -882,7 +892,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		default:
 		}
 
-	case viewBinaryData: // Если окно для взаимодействия с файлами.
+	case viewBinaryData: // Окно файлов.
 		switch c.view.currentFocus {
 		case "fieldPathSource":
 			c.view.currentFocus = "fieldPathTarget"
@@ -901,7 +911,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 		return fmt.Errorf("Ошибка в функции SetCurrentView: <%w>", err)
 	}
 
-	// Обновляем стили всех полей
+	// Обновление
 	var fields []string
 	if c.view.activeView == viewRegistration {
 		fields = []string{"Login", "Password-1", "Password-2"}
@@ -956,11 +966,27 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 
 // Выход.
 func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+C")
+
+	// Ожидание завершения активных процессов.
+	for {
+		if c.getStatusBackUp() != stageActive &&
+			c.getStatusRestore() != stageActive &&
+			c.getStatusPopContainer() != stageActive &&
+			c.getStatusPushContainer() != stageActive {
+			break
+		}
+		time.Sleep(100 * time.Millisecond) // Ограничить использование ЦПУ.
+	}
+
 	return gocui.ErrQuit
 }
 
 // Обработка нажатия Enter.
 func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажат Enter")
 
 	// Запрет активности при активности процессов передачи файлов.
 	if c.status.backUp == stageActive || c.status.restore == stageActive {
@@ -1100,6 +1126,8 @@ func (c *handlerUI) indicators(g *gocui.Gui) error {
 // Проверка связи с сервером.
 func (c *handlerUI) testConnect(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+N")
+
 	// Запуск проверки связи с сервером.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1141,6 +1169,8 @@ func (c *handlerUI) setFocusStyle(v *gocui.View, name string) {
 
 // Запуск процесса регистрации нового пользователя.
 func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+W")
 
 	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
 	c.status.addUserPassed = false  // сброс признака, что процедура регистрации быд запущена.
@@ -1188,6 +1218,8 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 // Запуск процесса аутентификации пользователя.
 func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+L")
+
 	// Если окно аутентификации.
 	if c.view.activeView == viewAutentification {
 		userName := c.typed.login
@@ -1221,178 +1253,31 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 // Запуск процесса сохранения данных.
 func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Debug: запущена функция doStoreLoginPasswordDB")
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+F")
 
 	switch c.view.activeView {
-	case viewLoginPasswordData: // Если окно - логин/пароль
-
-		c.status.addLoginPaaswordPassed = true
-		c.status.addLoginPaaswordSUCCESS = false
-
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-
-		// Шифрование данных
-		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
-			return nil
-		}
-		encrLogin, err := encrypt(c.typed.dataLogin, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
-			return nil
-		}
-		encrPassword, err := encrypt(c.typed.dataPassword, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
-			return nil
-		}
-		tn := time.Now().UTC()
-		strT := tn.Format(time.RFC3339)
-		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+	case viewLoginPasswordData: // Окно - логин/пароль
+		if err := doStoreViewLoginPasswordData(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DataBase.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
+	case viewTextData: // Окно - текст.
+		if err := doStoreViewTextData(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Debug: пара логин/пароль добавлена в БД")
-		c.status.addLoginPaaswordSUCCESS = true
-		return nil
-
-	case viewTextData: // если окно - текст.
-
-		c.status.addTextPassed = true
-		c.status.addTextSUCCESS = false
-
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		// Шифрование данных
-		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
-			return nil
-		}
-		encrText, err := encrypt(c.typed.dataText, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataText: <%v>", err))
-			return nil
-		}
-		tn := time.Now().UTC()
-		strT := tn.Format(time.RFC3339)
-		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
-			return nil
-		}
-		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DataBase.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
+	case viewBankCardData: // Окно - банковские карты.
+		if err := doStoreViewBankCardData(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Debug: текст добавлен в БД")
-		c.status.addTextSUCCESS = true
-		return nil
-
-	case viewBankCardData: // если окно - банковские карты.
-
-		c.status.addBankCardPassed = true
-		c.status.addBankCardSUCCESS = false
-
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		// Шифрование данных
-		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+	case viewBinaryData: // Окно - файлы.
+		if err := doStoreViewBinaryData(c); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
-		}
-		encrOwner, err := encrypt(c.typed.dataOwner, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataOwner: <%v>", err))
-			return nil
-		}
-		encrNumb, err := encrypt(c.typed.dataNumb, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataNumb: <%v>", err))
-			return nil
-		}
-		encrValid, err := encrypt(c.typed.dataValidDate, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataValidDate: <%v>", err))
-			return nil
-		}
-		encrCode, err := encrypt(c.typed.dataCode, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataCode: <%v>", err))
-			return nil
-		}
-		tn := time.Now().UTC()
-		strT := tn.Format(time.RFC3339)
-		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
-			return nil
-		}
-
-		// Проверка номера банковской карты на валидность.
-		if !checkCardNumber(c.typed.dataNumb) {
-			c.conf.PtrLoggerFile.Write("Error: номер карты, не прошел проверку")
-			return nil
-		}
-
-		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DataBase.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
-			return nil
-		}
-
-		c.conf.PtrLoggerFile.Write("Debug: карта добавлена в БД")
-		c.status.addBankCardSUCCESS = true
-		return nil
-
-	case viewBinaryData: // Окно для работы с файлами.
-
-		if (c.getStatusPopContainer() == stageNotActive || c.getStatusPopContainer() == stageFault) &&
-			(c.getStatusPushContainer() == stageNotActive || c.getStatusPushContainer() == stageFault) {
-
-			c.updateStatusPushContainer(stageActive)
-			c.updateStatusPopContainer(stageActive)
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
-
-			// Сброс
-			c.txrx.passedKB = 0
-			c.txrx.percentTxRx = 0
-
-			// Определение размера файла.
-			var err error
-			files := []string{c.typed.dataPathSrc}
-
-			c.txrx.totalSizeKB, err = totalFileSize(files)
-			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
-				c.updateStatusBackUp(stageFault)
-				return nil
-			}
-
-			chProcess := make(chan float64)
-			chErr := make(chan error)
-			chOk := make(chan struct{})
-
-			// Запуск процесса передачи вайла в контейнер.
-			go c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey, chProcess, chErr, chOk)
-
-			// Буфер между каналами и экземпляром.
-			go bufferProcessTx(c, chProcess, chErr, chOk)
 		}
 
 	default:
@@ -1404,211 +1289,31 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 // Отображение слудующего элемента.
 func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+E")
+
 	switch c.view.activeView {
-	case viewLoginPasswordData: // Взаимодействие с логин/пароль
-
-		if len(c.data.loginPassword) == 0 {
+	case viewLoginPasswordData: // Окно логин/пароль
+		if err := doShowNextElementViewLoginPasswordData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		el := loginPasswordByIndex(c) // получение записи по индексу
-		incrIndexloginPassword(c)     // увеличение значения индекса
-
-		// отображение содержимого поля For.
-		fieldName, err := gui.View("fieldShowFor")
-		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
-		}
-		if el.name != "" {
-			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
-
-		} else {
-			fieldName.Clear()
-			fieldName.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Login.
-		fieldLogin, err := gui.View("fieldShowLogin")
-		if err != nil || fieldLogin == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
-			return nil
-		}
-		if el.login != "" {
-			fieldLogin.Clear()
-			fieldLogin.Write([]byte(el.login))
-
-		} else {
-			fieldLogin.Clear()
-			fieldLogin.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Password.
-		fieldPassword, err := gui.View("fieldShowPassword")
-		if err != nil || fieldPassword == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
-			return nil
-		}
-		if el.password != "" {
-			fieldPassword.Clear()
-			fieldPassword.Write([]byte(el.password))
-
-		} else {
-			fieldPassword.Clear()
-			fieldPassword.Write([]byte(""))
-		}
-
-	case viewTextData: // Взаимодействие с текстом
-
-		if len(c.data.textData) == 0 {
+	case viewTextData: // Окно текста
+		if err := doShowNextElementViewTextData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		el := textByIndex(c) // получение записи по индексу
-		incrIndexText(c)     // увеличение значения индекса
-
-		// отображение содержимого поля For.
-		fieldName, err := gui.View("fieldShowFor")
-		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
-		}
-		if el.name != "" {
-			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
-
-		} else {
-			fieldName.Clear()
-			fieldName.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Login.
-		fieldText, err := gui.View("fieldShowText")
-		if err != nil || fieldText == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
-			return nil
-		}
-		if el.text != "" {
-			fieldText.Clear()
-			fieldText.Write([]byte(el.text))
-
-		} else {
-			fieldText.Clear()
-			fieldText.Write([]byte(""))
-		}
-	case viewBankCardData: // Взаимодействие с банковскими картами
-
-		if len(c.data.bankCard) == 0 {
+	case viewBankCardData: // Окно банковских карт
+		if err := doShowNextElementViewBankCardData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		el := bankCardByIndex(c) // получение записи по индексу
-		incrIndexBankCard(c)     // увеличение значения индекса
-
-		// отображение содержимого поля Для.
-		fieldName, err := gui.View("fieldShowFor")
-		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+	case viewBinaryData: // Окно файлов
+		if err := doShowNextElementViewBinaryData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
-		}
-		if el.name != "" {
-			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
-
-		} else {
-			fieldName.Clear()
-			fieldName.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Владелец.
-		fieldOwner, err := gui.View("fieldShowOwner")
-		if err != nil || fieldOwner == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
-			return nil
-		}
-		if el.owner != "" {
-			fieldOwner.Clear()
-			fieldOwner.Write([]byte(el.owner))
-
-		} else {
-			fieldOwner.Clear()
-			fieldOwner.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Номер.
-		fieldNumb, err := gui.View("fieldShowNumber")
-		if err != nil || fieldNumb == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
-			return nil
-		}
-		if el.numb != "" {
-			fieldNumb.Clear()
-			fieldNumb.Write([]byte(el.numb))
-
-		} else {
-			fieldNumb.Clear()
-			fieldNumb.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Валидность.
-		fieldValid, err := gui.View("fieldShowValid")
-		if err != nil || fieldValid == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
-			return nil
-		}
-		if el.valid != "" {
-			fieldValid.Clear()
-			fieldValid.Write([]byte(el.valid))
-
-		} else {
-			fieldValid.Clear()
-			fieldValid.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Код.
-		fieldCode, err := gui.View("fieldShowCode")
-		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
-			return nil
-		}
-		if el.code != "" {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(el.code))
-
-		} else {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(""))
-		}
-
-	case viewBinaryData: // Взаимодействие с файлами
-
-		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
-
-			c.updateStatusPopContainer(stageNotActive)
-			c.updateStatusPushContainer(stageNotActive)
-
-			if len(c.data.files) == 0 {
-				return nil
-			}
-
-			el := fileByIndex(c) // получение записи по индексу
-			incrIndexFile(c)     // увеличение значения индекса
-
-			// отображение содержимого поля Код.
-			fieldCode, err := gui.View("fieldShowFor")
-			if err != nil || fieldCode == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-				return nil
-			}
-			if el != "" {
-				fieldCode.Clear()
-				fieldCode.Write([]byte(el))
-
-			} else {
-				fieldCode.Clear()
-				fieldCode.Write([]byte(""))
-			}
 		}
 
 	default:
@@ -1620,195 +1325,31 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 // Отображение предыдущего элемента.
 func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+G")
+
 	switch c.view.activeView {
-	case viewLoginPasswordData: // Взаимодействие с логин/пароль
-
-		decrIndexloginPassword(c)     // уменьшение значения индекса
-		el := loginPasswordByIndex(c) // получение записи по индексу
-
-		// отображение содержимого поля For.
-		fieldName, err := gui.View("fieldShowFor")
-		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+	case viewLoginPasswordData: // Окно логин/пароль.
+		if err := doShowPrevElementViewLoginPasswordData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
-			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
 
-		} else {
-			fieldName.Clear()
-			fieldName.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Login.
-		fieldLogin, err := gui.View("fieldShowLogin")
-		if err != nil || fieldLogin == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+	case viewTextData: // Окно текста.
+		if err := doShowPrevElementViewTextData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
-		if el.login != "" {
-			fieldLogin.Clear()
-			fieldLogin.Write([]byte(el.login))
 
-		} else {
-			fieldLogin.Clear()
-			fieldLogin.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Password.
-		fieldPassword, err := gui.View("fieldShowPassword")
-		if err != nil || fieldPassword == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+	case viewBankCardData: // Окно банковских карт.
+		if err := doShowPrevElementViewBankCardData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
-		if el.password != "" {
-			fieldPassword.Clear()
-			fieldPassword.Write([]byte(el.password))
 
-		} else {
-			fieldPassword.Clear()
-			fieldPassword.Write([]byte(""))
-		}
-
-	case viewTextData: // Взаимодействие с текст
-
-		decrIndexText(c)     // уменьшение значения индекса
-		el := textByIndex(c) // получение записи по индексу
-
-		// отображение содержимого поля For.
-		fieldName, err := gui.View("fieldShowFor")
-		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+	case viewBinaryData: // Окно файлов.
+		if err := doShowPrevElementViewBinaryData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
-		}
-		if el.name != "" {
-			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
-
-		} else {
-			fieldName.Clear()
-			fieldName.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Login.
-		fieldText, err := gui.View("fieldShowText")
-		if err != nil || fieldText == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
-			return nil
-		}
-		if el.text != "" {
-			fieldText.Clear()
-			fieldText.Write([]byte(el.text))
-
-		} else {
-			fieldText.Clear()
-			fieldText.Write([]byte(""))
-		}
-	case viewBankCardData: // Взаимодействие с банковскими картами
-
-		decrIndexBankCard(c)     // уменьшение значения индекса
-		el := bankCardByIndex(c) // получение записи по индексу
-
-		// отображение содержимого поля For.
-		fieldName, err := gui.View("fieldShowFor")
-		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
-		}
-		if el.name != "" {
-			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
-
-		} else {
-			fieldName.Clear()
-			fieldName.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Владелец.
-		fieldOwner, err := gui.View("fieldShowOwner")
-		if err != nil || fieldOwner == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
-			return nil
-		}
-		if el.owner != "" {
-			fieldOwner.Clear()
-			fieldOwner.Write([]byte(el.owner))
-
-		} else {
-			fieldOwner.Clear()
-			fieldOwner.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Номер.
-		fieldNumb, err := gui.View("fieldShowNumber")
-		if err != nil || fieldNumb == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
-			return nil
-		}
-		if el.numb != "" {
-			fieldNumb.Clear()
-			fieldNumb.Write([]byte(el.numb))
-
-		} else {
-			fieldNumb.Clear()
-			fieldNumb.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Валидность.
-		fieldValid, err := gui.View("fieldShowValid")
-		if err != nil || fieldValid == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
-			return nil
-		}
-		if el.valid != "" {
-			fieldValid.Clear()
-			fieldValid.Write([]byte(el.valid))
-
-		} else {
-			fieldValid.Clear()
-			fieldValid.Write([]byte(""))
-		}
-
-		// отображение содержимого поля Код.
-		fieldCode, err := gui.View("fieldShowCode")
-		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
-			return nil
-		}
-		if el.code != "" {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(el.code))
-
-		} else {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(""))
-		}
-
-	case viewBinaryData: // Взаимодействие с файлами.
-
-		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
-
-			c.updateStatusPopContainer(stageNotActive)
-			c.updateStatusPushContainer(stageNotActive)
-
-			decrIndexFile(c)     // уменьшение значения индекса
-			el := fileByIndex(c) // получение записи по индексу
-
-			// отображение содержимого.
-			fieldCode, err := gui.View("fieldShowFor")
-			if err != nil || fieldCode == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-				return nil
-			}
-			if el != "" {
-				fieldCode.Clear()
-				fieldCode.Write([]byte(el))
-
-			} else {
-				fieldCode.Clear()
-				fieldCode.Write([]byte(""))
-			}
 		}
 
 	default:
@@ -1820,125 +1361,31 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 // Удаление записи.
 func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+J")
+
 	switch c.view.activeView {
-	case viewLoginPasswordData: // Взаимодействие с логин/пароль
-
-		c.status.delLoginPaaswordPassed = true
-		c.status.delLoginPaaswordSUCCESS = false
-
-		v, err := gui.View("fieldShowFor")
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
-			return nil
-		}
-		textEl := v.Buffer() // Получаем содержимое поля ввода
-		textEl = strings.ReplaceAll(textEl, "\n", "")
-
-		textEl, err = encrypt(textEl, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+	case viewLoginPasswordData: // Окно логин/пароль
+		if err := doDeleteElementViewLoginPasswordData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		// Удаление записи в БД.
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-
-		if err := c.conf.DataBase.DelDataLoginPasswordContext(ctx, textEl); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
+	case viewTextData: // Окно текста
+		if err := doDeleteElementViewTextData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		c.status.delLoginPaaswordSUCCESS = true
-		c.conf.PtrLoggerFile.Write(("Debug: данные логин/пароль, успешно удалены"))
-
-	case viewTextData: // Взаимодействие с текстом
-
-		c.status.delTextPassed = true
-		c.status.delTextSUCCESS = false
-
-		v, err := gui.View("fieldShowFor")
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
-			return nil
-		}
-		textEl := v.Buffer() // Получаем содержимое поля ввода
-		textEl = strings.ReplaceAll(textEl, "\n", "")
-
-		textEl, err = encrypt(textEl, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+	case viewBankCardData: // Окно банковских карт
+		if err := doDeleteElementViewBankCardData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		// Удаление записи в БД.
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		if err := c.conf.DataBase.DelTextContext(ctx, textEl); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
+	case viewBinaryData: // Окно файлов.
+		if err := doDeleteElementViewBinaryData(c, gui); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
-		}
-
-		c.status.delTextSUCCESS = true
-		c.conf.PtrLoggerFile.Write(("Debug: данные текста, успешно удалены"))
-
-	case viewBankCardData: // Взаимодействие с банковскими картами
-
-		c.status.delBankCardPassed = true
-		c.status.delBankCardSUCCESS = false
-
-		v, err := gui.View("fieldShowFor")
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
-			return nil
-		}
-		textEl := v.Buffer() // Получаем содержимое поля ввода
-		textEl = strings.ReplaceAll(textEl, "\n", "")
-
-		textEl, err = encrypt(textEl, c.secret.secretKey)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
-			return nil
-		}
-
-		// Удаление записи в БД.
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		if err := c.conf.DataBase.DelBankCardContext(ctx, textEl); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
-			return nil
-		}
-
-		c.status.delBankCardSUCCESS = true
-		c.conf.PtrLoggerFile.Write(("Debug: данные карты, успешно удалены"))
-
-	case viewBinaryData: // Окно работы с файлами.
-
-		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
-
-			c.updateStatusPopContainer(stageNotActive)
-			c.updateStatusPushContainer(stageNotActive)
-
-			c.status.delFilePassed = true
-			c.status.delFileSUCCESS = false
-
-			// Чтение буфера.
-			v, err := gui.View("fieldShowFor")
-			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
-				return nil
-			}
-			name := v.ViewBuffer()
-			name = strings.ReplaceAll(name, "\n", "") // удаление символа
-
-			// Удаление файла.
-			if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
-				return nil
-			}
-			c.status.delFileSUCCESS = true
 		}
 
 	default:
@@ -1949,6 +1396,8 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
 // Извлечение.
 func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+K")
 
 	switch c.view.activeView {
 	case viewBinaryData: // Окно работы с файлами
@@ -2091,6 +1540,8 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 
 // Окно с выбором типа записей.
 func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+U")
 
 	// Ограничение.
 	if c.view.activeView != viewLoginPasswordData &&
@@ -3589,6 +3040,8 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 // Передача данных клиента, на сервер.
 func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+O")
+
 	// Запрет отработки, если уже есть активный процесс.
 	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
 		return nil
@@ -3626,6 +3079,8 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 
 // Получение данных клиента, от сервер.
 func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+P")
 
 	// Запрет отработки, если уже есть активный процесс.
 	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {

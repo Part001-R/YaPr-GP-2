@@ -274,6 +274,25 @@ func layerRestoreCreateToken() (secretKey, token string, err error) {
 	return secretKey, token, nil
 }
 
+// Проверка ответа от сервера.
+func layerReqFilesCheckResult(rxToken, secretKey string) error {
+
+	// Проверка аргументов.
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
 // Приём файла.
 func layerRestoreRxFile(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (content []byte, rxFileHash, rxToken string, err error) {
 

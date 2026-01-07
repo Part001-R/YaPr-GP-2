@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -18,10 +19,22 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const (
+	stageNotActive = 0
+	stageActive    = 1
+)
+
+// Статусы процессов.
+type statusSrv struct {
+	isBackUp  int32 // Признак Активности процесса BackUp (клиент передаёт данные).
+	isRestore int32 // Признак Активности процесса Restore (клиент принимает данные).
+}
+
 // grpc
 type PasswordManager struct {
 	pb.UnimplementedPasswordManagerServer
-	ptrLogger *zap.Logger
+	logger *zap.Logger // Логгер.
+	status statusSrv   // Статусы.
 }
 
 var once sync.Once        // единоразовая инициализация экземпляра
@@ -32,21 +45,29 @@ func New(l *zap.Logger) *PasswordManager {
 	once.Do(func() {
 		inst = &PasswordManager{
 			UnimplementedPasswordManagerServer: pb.UnimplementedPasswordManagerServer{},
-			ptrLogger:                          l,
+			logger:                             l,
+			status: statusSrv{
+				isBackUp:  0,
+				isRestore: 0,
+			},
 		}
 	})
 	return inst
 }
 
+//
+// Обработчики.
+//
+
 // Обработчик проверки связи.
 func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
 
-	s.ptrLogger.Debug("Принят Ping запрос")
+	s.logger.Debug("Принят Ping запрос")
 
 	// Считывание заголовков
 	rxMD, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		s.ptrLogger.Warn("В принятом Ping запросе, отсутствуют метаданные")
+		s.logger.Warn("В принятом Ping запросе, отсутствуют метаданные")
 		return nil, status.Error(codes.NotFound, "отсутствуют метаданные")
 	}
 
@@ -55,7 +76,7 @@ func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*empt
 	// Извлечение метаданных.
 	tokens := rxMD[nameToken]
 	if len(tokens) == 0 || tokens[0] == "" {
-		s.ptrLogger.Warn("В метаданных, принятого Ping запросе, нет токена ")
+		s.logger.Warn("В метаданных, принятого Ping запросе, нет токена ")
 		return nil, status.Error(codes.InvalidArgument, "в метаданных нет токена")
 	}
 
@@ -63,7 +84,7 @@ func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*empt
 	txMD := metadata.Pairs(nameToken, tokens[0]) // возврат принятого токена
 
 	if err := grpc.SendHeader(ctx, txMD); err != nil {
-		s.ptrLogger.Warn("В принятом Ping запросе, ошибка при отправке заголовков ")
+		s.logger.Warn("В принятом Ping запросе, ошибка при отправке заголовков ")
 		return nil, status.Error(codes.Internal, "ошибка при отправке заголовков")
 	}
 
@@ -72,6 +93,16 @@ func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*empt
 
 // Обработчик приёма файла.
 func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer) (errReturn error) {
+
+	// Проверка, что процесс уже активный.
+	if s.GetStatusBackUp() == stageActive || s.GetStatusRestore() == stageActive {
+		return status.Error(codes.PermissionDenied, "Есть активный процесс")
+	}
+
+	// Установка статуса.
+	if err := s.UpdateStatusBackUp(stageActive); err != nil {
+		return status.Error(codes.Internal, "Ошибка обновления статуса")
+	}
 
 	// Извлечение метаданных из контекста
 	md, ok := metadata.FromIncomingContext(stream.Context())
@@ -98,7 +129,7 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 	defer func(doRemove bool, fileName string) {
 		if fileExists(fileName) && doRemove {
 			if errRemove := os.Remove(fileName); errRemove != nil {
-				s.ptrLogger.Error("ошибка при удалении файла",
+				s.logger.Error("ошибка при удалении файла",
 					zap.String("файл", fileName),
 					zap.String("ошибка", errRemove.Error()),
 					zap.String("причина удаления", errReturn.Error()))
@@ -115,7 +146,7 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 			break
 		}
 		if err != nil {
-			s.ptrLogger.Error("ошибка stream.Recv", zap.String("ошибка", err.Error()))
+			s.logger.Error("ошибка stream.Recv", zap.String("ошибка", err.Error()))
 			break
 		}
 
@@ -138,13 +169,13 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 			// Новая версия файла.
 			file, err = os.OpenFile(rxFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 			if err != nil {
-				s.ptrLogger.Error("ошибка при открытии файла", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+				s.logger.Error("ошибка при открытии файла", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
 				errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, открытия файла:<%s>", err, rxFileName))
 				return errReturn
 			}
 			defer func() {
 				if err := file.Close(); err != nil {
-					s.ptrLogger.Error("ошибка закрытия подключения к файлу", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+					s.logger.Error("ошибка закрытия подключения к файлу", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
 				}
 			}()
 		}
@@ -152,7 +183,7 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 		// Сохранение принятых данных потока, в файл.
 		_, err = file.Write(req.GetContent())
 		if err != nil {
-			s.ptrLogger.Error("ошибка при добавлении данных файла", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+			s.logger.Error("ошибка при добавлении данных файла", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
 			doDeferRemoveFile = true
 			errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, добавления данных в файл:<%s>", err, rxFileName))
 			return errReturn
@@ -162,19 +193,24 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 	// Вычисление хэша файла.
 	fileHash, err := hashFile(rxFileName)
 	if err != nil {
-		s.ptrLogger.Error("ошибка при вычислении эеша для файла", zap.String("файл", rxFileName))
+		s.logger.Error("ошибка при вычислении эеша для файла", zap.String("файл", rxFileName))
 		doDeferRemoveFile = true
 		errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, при вычислении хэша для файла:<%s>", err, rxFileName))
 		return errReturn
 	}
 
-	s.ptrLogger.Info("От клиента принят файл", zap.String("имя", rxFileName), zap.String("хэш", fileHash))
+	s.logger.Info("От клиента принят файл", zap.String("имя", rxFileName), zap.String("хэш", fileHash))
 
 	// Установка трейлера с хэшем файла
 	mdTrailer := metadata.Pairs("hash", fileHash, "token", token[0])
 	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
-		s.ptrLogger.Error("ошибка установки трейлера", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+		s.logger.Error("ошибка установки трейлера", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
 		return status.Error(codes.Internal, "ошибка установки трейлера")
+	}
+
+	// Сброс статуса.
+	if err := s.UpdateStatusBackUp(stageNotActive); err != nil {
+		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
 	// Финальное сообщение сервера.
@@ -185,6 +221,15 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 
 // Обработчик передачи файлов.
 func (s *PasswordManager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager_RestoreFileServer) error {
+
+	// Получение статуса isBackUp
+	if s.GetStatusBackUp() == stageActive {
+		return status.Error(codes.PermissionDenied, "Идёт процесс BackUp")
+	}
+
+	if err := s.UpdateStatusRestore(stageActive); err != nil {
+		return status.Error(codes.PermissionDenied, "ошибка обновления статуса")
+	}
 
 	// Извлечение метаданных из контекста
 	md, ok := metadata.FromIncomingContext(stream.Context())
@@ -233,11 +278,16 @@ func (s *PasswordManager) RestoreFile(req *pb.DownloadRequest, stream pb.Passwor
 	// Добавление метаданных Trailer
 	mdTrailer := metadata.Pairs("hash", fileHash, "token", token[0])
 	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
-		s.ptrLogger.Info("ошибка установки трейлера, для файла", zap.String("имя", reqFileName))
+		s.logger.Info("ошибка установки трейлера, для файла", zap.String("имя", reqFileName))
 		return status.Error(codes.Aborted, fmt.Sprintf("ошибка установки трейлера, для файла:<%s>", reqFileName))
 	}
 
-	s.ptrLogger.Info("Клиенту отправлен файл", zap.String("имя", reqFileName), zap.String("хэш", fileHash))
+	s.logger.Info("Клиенту отправлен файл", zap.String("имя", reqFileName), zap.String("хэш", fileHash))
+
+	// Сброс статуса.
+	if err := s.UpdateStatusRestore(stageNotActive); err != nil {
+		return status.Error(codes.Internal, "Ошибка обновления статуса")
+	}
 
 	return nil
 }
@@ -257,7 +307,7 @@ func (s *PasswordManager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*p
 		return nil, status.Error(codes.Unauthenticated, "токен не передан")
 	}
 
-	s.ptrLogger.Debug("Принят FilesInfo запрос")
+	s.logger.Debug("Принят FilesInfo запрос")
 
 	// Подготовка.
 	fileInfos := &pb.FilesInfoResponse{}
@@ -284,10 +334,90 @@ func (s *PasswordManager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*p
 	// Установка трейлера
 	mdTrailer := metadata.Pairs("token", token[0])
 	if err := grpc.SetTrailer(ctx, mdTrailer); err != nil {
-		s.ptrLogger.Error("ошибка установки трейлера", zap.String("ошибка", err.Error()))
+		s.logger.Error("ошибка установки трейлера", zap.String("ошибка", err.Error()))
 		return nil, status.Error(codes.Internal, "ошибка установки трейлера")
 	}
 
 	// Результат.
 	return fileInfos, nil
+}
+
+//
+// Интерцепторы.
+//
+
+// Unar интерцептор.
+func (s *PasswordManager) AuthInterceptorUnar(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+	// metadata из контекста
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "в запросе, отсутствуют метаданные")
+	}
+
+	// Проверка присутствия токена
+	tokens, exists := md["token"]
+	if !exists || len(tokens) == 0 {
+		return nil, status.Error(codes.Unauthenticated, "нет данных токена")
+	}
+
+	// Токен есть, передача управления.
+	return handler(ctx, req)
+}
+
+// Stream интерцептор.
+func (s *PasswordManager) AuthInterceptorStream(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+
+	// metadata из контекста.
+	md, ok := metadata.FromIncomingContext(ss.Context())
+	if !ok {
+		return status.Error(codes.Unauthenticated, "в запросе, отсутствуют метаданные")
+	}
+
+	// Проверка наличия токена.
+	tokens, exists := md["token"]
+	if !exists || len(tokens) == 0 {
+		return status.Error(codes.Unauthenticated, "нет данных токена")
+	}
+
+	// Токен есть, передача управления.
+	return handler(srv, ss)
+}
+
+//
+// Статусы.
+//
+
+// Получение значения статуса isBackUp. Возвращается текущее значение статуса.
+func (s *PasswordManager) GetStatusBackUp() int32 {
+	return atomic.LoadInt32(&s.status.isBackUp)
+}
+
+// Обновление значения статуса isBackUp. Возвращается ошибка.
+func (s *PasswordManager) UpdateStatusBackUp(stage int32) error {
+
+	if s.status.isBackUp != stageActive && s.status.isBackUp != stageNotActive {
+		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	}
+
+	atomic.StoreInt32(&s.status.isBackUp, stage)
+
+	return nil
+}
+
+// Получение значения статуса isRestore. Возвращается текущее значение статуса.
+func (s *PasswordManager) GetStatusRestore() int32 {
+	return atomic.LoadInt32(&s.status.isRestore)
+}
+
+// Обновление значения статуса isRestore. Возвращается ошибка.
+func (s *PasswordManager) UpdateStatusRestore(stage int32) error {
+
+	if s.status.isRestore != stageActive && s.status.isRestore != stageNotActive {
+		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	}
+
+	atomic.StoreInt32(&s.status.isRestore, stage)
+
+	return nil
 }

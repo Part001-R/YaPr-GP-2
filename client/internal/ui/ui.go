@@ -69,7 +69,7 @@ func Run(conf *udt.Configuration) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlL, gocui.ModNone, instUI.doAuthenticationUser); err != nil {
 		return fmt.Errorf("Error: Ошибка Ctrl+L: <%w>", err)
 	}
-	// Возврат на предыдущее окно.
+	// Показать окно выбора типа данных.
 	if err := g.SetKeybinding("", gocui.KeyCtrlU, gocui.ModNone, instUI.showSelectType); err != nil {
 		return fmt.Errorf("Error: Ошибка Ctrl+U: <%w>", err)
 	}

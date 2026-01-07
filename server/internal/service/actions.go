@@ -13,6 +13,7 @@ import (
 
 // Функция содержит действия сервиса. Возвращается ошибка.
 func actions(c *udt.Configuration) error {
+
 	port := ":50100" // ============================================================= временно!
 
 	// Проверка аргументов
@@ -41,7 +42,11 @@ func actions(c *udt.Configuration) error {
 	}
 
 	// Создание gRPC сервера с TLS
-	s := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)))
+	s := grpc.NewServer(
+		grpc.Creds(credentials.NewTLS(tlsConfig)),
+		grpc.UnaryInterceptor(c.PtrGRPC.AuthInterceptorUnar),
+		grpc.StreamInterceptor(c.PtrGRPC.AuthInterceptorStream),
+	)
 
 	pb.RegisterPasswordManagerServer(s, c.PtrGRPC)
 
