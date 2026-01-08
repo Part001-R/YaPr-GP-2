@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Part001-R/YaPr-GP-2/internal/utils/logger"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/server/internal/grpc"
 	"github.com/Part001-R/YaPr-GP-2/server/internal/service/udt"
 )
@@ -13,21 +14,28 @@ import (
 func prepare() (*udt.Configuration, error) {
 
 	// Создание логгера.
-	ptrLgr, err := logger.New("debug")
+	lgr, err := logger.New("debug")
 	if err != nil {
 		return nil, fmt.Errorf("функция logger.NewLogger, вернула ошибку: <%w>", err)
 	}
+
+	// БД.
+	storage, err := domain.NewStorage("file:remote.db?cache=shared&foreign_keys=on&mode=rwc")
+	if err != nil {
+		return nil, fmt.Errorf("функция domain.NewStorage, вернула ошибку: <%w>", err)
+	}
+
 	// Создание grpc.
-	ptrGRPC := grpc.New(ptrLgr)
+	srvGRPC := grpc.New(lgr, storage)
 
 	// Пути к TLS файлам.
 	pathTLSsert := "tls/server.crt"
 	pathTLSPriv := "tls/server.key"
 
 	// Создание сводной конфигурации сервиса.
-	conf := udt.New(ptrLgr, ptrGRPC, pathTLSsert, pathTLSPriv)
+	conf := udt.New(lgr, srvGRPC, pathTLSsert, pathTLSPriv, storage)
 
 	// Завершение.
-	ptrLgr.Debug("подготовка пройдена")
+	lgr.Debug("подготовка пройдена")
 	return conf, nil
 }

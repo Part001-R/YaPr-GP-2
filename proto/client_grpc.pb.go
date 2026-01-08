@@ -20,10 +20,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PasswordManager_Ping_FullMethodName        = "/manager.PasswordManager/Ping"
-	PasswordManager_BackupFile_FullMethodName  = "/manager.PasswordManager/BackupFile"
-	PasswordManager_RestoreFile_FullMethodName = "/manager.PasswordManager/RestoreFile"
-	PasswordManager_FilesInfo_FullMethodName   = "/manager.PasswordManager/FilesInfo"
+	PasswordManager_Ping_FullMethodName           = "/manager.PasswordManager/Ping"
+	PasswordManager_BackupFile_FullMethodName     = "/manager.PasswordManager/BackupFile"
+	PasswordManager_RestoreFile_FullMethodName    = "/manager.PasswordManager/RestoreFile"
+	PasswordManager_FilesInfo_FullMethodName      = "/manager.PasswordManager/FilesInfo"
+	PasswordManager_Registration_FullMethodName   = "/manager.PasswordManager/Registration"
+	PasswordManager_Authentication_FullMethodName = "/manager.PasswordManager/Authentication"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -34,6 +36,8 @@ type PasswordManagerClient interface {
 	BackupFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error)
 	RestoreFile(ctx context.Context, in *DownloadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DownloadResponse], error)
 	FilesInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FilesInfoResponse, error)
+	Registration(ctx context.Context, in *RegistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Authentication(ctx context.Context, in *AuthenticationRequest, opts ...grpc.CallOption) (*AuthenticationResponse, error)
 }
 
 type passwordManagerClient struct {
@@ -96,6 +100,26 @@ func (c *passwordManagerClient) FilesInfo(ctx context.Context, in *emptypb.Empty
 	return out, nil
 }
 
+func (c *passwordManagerClient) Registration(ctx context.Context, in *RegistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_Registration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) Authentication(ctx context.Context, in *AuthenticationRequest, opts ...grpc.CallOption) (*AuthenticationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AuthenticationResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_Authentication_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -104,6 +128,8 @@ type PasswordManagerServer interface {
 	BackupFile(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error
 	RestoreFile(*DownloadRequest, grpc.ServerStreamingServer[DownloadResponse]) error
 	FilesInfo(context.Context, *emptypb.Empty) (*FilesInfoResponse, error)
+	Registration(context.Context, *RegistrationRequest) (*emptypb.Empty, error)
+	Authentication(context.Context, *AuthenticationRequest) (*AuthenticationResponse, error)
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -125,6 +151,12 @@ func (UnimplementedPasswordManagerServer) RestoreFile(*DownloadRequest, grpc.Ser
 }
 func (UnimplementedPasswordManagerServer) FilesInfo(context.Context, *emptypb.Empty) (*FilesInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FilesInfo not implemented")
+}
+func (UnimplementedPasswordManagerServer) Registration(context.Context, *RegistrationRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method Registration not implemented")
+}
+func (UnimplementedPasswordManagerServer) Authentication(context.Context, *AuthenticationRequest) (*AuthenticationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Authentication not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -201,6 +233,42 @@ func _PasswordManager_FilesInfo_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PasswordManager_Registration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegistrationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).Registration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_Registration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).Registration(ctx, req.(*RegistrationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_Authentication_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuthenticationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).Authentication(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_Authentication_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).Authentication(ctx, req.(*AuthenticationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -215,6 +283,14 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FilesInfo",
 			Handler:    _PasswordManager_FilesInfo_Handler,
+		},
+		{
+			MethodName: "Registration",
+			Handler:    _PasswordManager_Registration_Handler,
+		},
+		{
+			MethodName: "Authentication",
+			Handler:    _PasswordManager_Authentication_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

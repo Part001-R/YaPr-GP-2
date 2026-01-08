@@ -8,9 +8,13 @@ option go_package = "github.com/Part001-R/YaPr-GP-2/proto";
 
 service PasswordManager {
     rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
+
     rpc BackupFile(stream UploadRequest) returns (UploadResponse);
     rpc RestoreFile(DownloadRequest) returns (stream DownloadResponse);
     rpc FilesInfo(google.protobuf.Empty) returns (FilesInfoResponse);
+
+    rpc Registration(RegistrationRequest) returns (google.protobuf.Empty);
+    rpc Authentication(AuthenticationRequest) returns (AuthenticationResponse);
 }
 
 message UploadRequest {
@@ -38,4 +42,19 @@ message FileInfo {
 
 message FilesInfoResponse {
     repeated FileInfo fileInfo = 1;
+}
+
+message RegistrationRequest {
+    string userName = 1;
+    string userPwd = 2;
+    string userPwdRepeat = 3;
+}
+
+message AuthenticationRequest {
+    string userName = 1;
+    string userPwd = 2;
+}
+
+message AuthenticationResponse {
+    string token = 1;
 }

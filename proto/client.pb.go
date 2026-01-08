@@ -310,6 +310,162 @@ func (x *FilesInfoResponse) GetFileInfo() []*FileInfo {
 	return nil
 }
 
+type RegistrationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserName      string                 `protobuf:"bytes,1,opt,name=userName,proto3" json:"userName,omitempty"`
+	UserPwd       string                 `protobuf:"bytes,2,opt,name=userPwd,proto3" json:"userPwd,omitempty"`
+	UserPwdRepeat string                 `protobuf:"bytes,3,opt,name=userPwdRepeat,proto3" json:"userPwdRepeat,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegistrationRequest) Reset() {
+	*x = RegistrationRequest{}
+	mi := &file_proto_client_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegistrationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegistrationRequest) ProtoMessage() {}
+
+func (x *RegistrationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegistrationRequest.ProtoReflect.Descriptor instead.
+func (*RegistrationRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RegistrationRequest) GetUserName() string {
+	if x != nil {
+		return x.UserName
+	}
+	return ""
+}
+
+func (x *RegistrationRequest) GetUserPwd() string {
+	if x != nil {
+		return x.UserPwd
+	}
+	return ""
+}
+
+func (x *RegistrationRequest) GetUserPwdRepeat() string {
+	if x != nil {
+		return x.UserPwdRepeat
+	}
+	return ""
+}
+
+type AuthenticationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserName      string                 `protobuf:"bytes,1,opt,name=userName,proto3" json:"userName,omitempty"`
+	UserPwd       string                 `protobuf:"bytes,2,opt,name=userPwd,proto3" json:"userPwd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthenticationRequest) Reset() {
+	*x = AuthenticationRequest{}
+	mi := &file_proto_client_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthenticationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthenticationRequest) ProtoMessage() {}
+
+func (x *AuthenticationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthenticationRequest.ProtoReflect.Descriptor instead.
+func (*AuthenticationRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *AuthenticationRequest) GetUserName() string {
+	if x != nil {
+		return x.UserName
+	}
+	return ""
+}
+
+func (x *AuthenticationRequest) GetUserPwd() string {
+	if x != nil {
+		return x.UserPwd
+	}
+	return ""
+}
+
+type AuthenticationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthenticationResponse) Reset() {
+	*x = AuthenticationResponse{}
+	mi := &file_proto_client_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthenticationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthenticationResponse) ProtoMessage() {}
+
+func (x *AuthenticationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthenticationResponse.ProtoReflect.Descriptor instead.
+func (*AuthenticationResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *AuthenticationResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
@@ -329,13 +485,24 @@ const file_proto_client_proto_rawDesc = "" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x03R\x04size\"B\n" +
 	"\x11FilesInfoResponse\x12-\n" +
-	"\bfileInfo\x18\x01 \x03(\v2\x11.manager.FileInfoR\bfileInfo2\x91\x02\n" +
+	"\bfileInfo\x18\x01 \x03(\v2\x11.manager.FileInfoR\bfileInfo\"q\n" +
+	"\x13RegistrationRequest\x12\x1a\n" +
+	"\buserName\x18\x01 \x01(\tR\buserName\x12\x18\n" +
+	"\auserPwd\x18\x02 \x01(\tR\auserPwd\x12$\n" +
+	"\ruserPwdRepeat\x18\x03 \x01(\tR\ruserPwdRepeat\"M\n" +
+	"\x15AuthenticationRequest\x12\x1a\n" +
+	"\buserName\x18\x01 \x01(\tR\buserName\x12\x18\n" +
+	"\auserPwd\x18\x02 \x01(\tR\auserPwd\".\n" +
+	"\x16AuthenticationResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token2\xaa\x03\n" +
 	"\x0fPasswordManager\x126\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
 	"\n" +
 	"BackupFile\x12\x16.manager.UploadRequest\x1a\x17.manager.UploadResponse(\x01\x12D\n" +
 	"\vRestoreFile\x12\x18.manager.DownloadRequest\x1a\x19.manager.DownloadResponse0\x01\x12?\n" +
-	"\tFilesInfo\x12\x16.google.protobuf.Empty\x1a\x1a.manager.FilesInfoResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\tFilesInfo\x12\x16.google.protobuf.Empty\x1a\x1a.manager.FilesInfoResponse\x12D\n" +
+	"\fRegistration\x12\x1c.manager.RegistrationRequest\x1a\x16.google.protobuf.Empty\x12Q\n" +
+	"\x0eAuthentication\x12\x1e.manager.AuthenticationRequest\x1a\x1f.manager.AuthenticationResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -349,28 +516,35 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_client_proto_goTypes = []any{
-	(*UploadRequest)(nil),     // 0: manager.UploadRequest
-	(*UploadResponse)(nil),    // 1: manager.UploadResponse
-	(*DownloadRequest)(nil),   // 2: manager.DownloadRequest
-	(*DownloadResponse)(nil),  // 3: manager.DownloadResponse
-	(*FileInfo)(nil),          // 4: manager.FileInfo
-	(*FilesInfoResponse)(nil), // 5: manager.FilesInfoResponse
-	(*emptypb.Empty)(nil),     // 6: google.protobuf.Empty
+	(*UploadRequest)(nil),          // 0: manager.UploadRequest
+	(*UploadResponse)(nil),         // 1: manager.UploadResponse
+	(*DownloadRequest)(nil),        // 2: manager.DownloadRequest
+	(*DownloadResponse)(nil),       // 3: manager.DownloadResponse
+	(*FileInfo)(nil),               // 4: manager.FileInfo
+	(*FilesInfoResponse)(nil),      // 5: manager.FilesInfoResponse
+	(*RegistrationRequest)(nil),    // 6: manager.RegistrationRequest
+	(*AuthenticationRequest)(nil),  // 7: manager.AuthenticationRequest
+	(*AuthenticationResponse)(nil), // 8: manager.AuthenticationResponse
+	(*emptypb.Empty)(nil),          // 9: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
 	4, // 0: manager.FilesInfoResponse.fileInfo:type_name -> manager.FileInfo
-	6, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	9, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
 	0, // 2: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
 	2, // 3: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
-	6, // 4: manager.PasswordManager.FilesInfo:input_type -> google.protobuf.Empty
-	6, // 5: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1, // 6: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
-	3, // 7: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
-	5, // 8: manager.PasswordManager.FilesInfo:output_type -> manager.FilesInfoResponse
-	5, // [5:9] is the sub-list for method output_type
-	1, // [1:5] is the sub-list for method input_type
+	9, // 4: manager.PasswordManager.FilesInfo:input_type -> google.protobuf.Empty
+	6, // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
+	7, // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
+	9, // 7: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1, // 8: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
+	3, // 9: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
+	5, // 10: manager.PasswordManager.FilesInfo:output_type -> manager.FilesInfoResponse
+	9, // 11: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
+	8, // 12: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
+	7, // [7:13] is the sub-list for method output_type
+	1, // [1:7] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -387,7 +561,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

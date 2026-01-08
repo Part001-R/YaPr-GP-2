@@ -13,7 +13,7 @@ func sizeFile(fileName string) (int64, error) {
 
 	// Проверка существования файла.
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return 0, NotFound
+		return 0, ErrNotFound
 	}
 
 	// Информация по файлу.

@@ -21,6 +21,8 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jroimartin/gocui"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -2842,4 +2844,147 @@ func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 	}
 
 	return nil
+}
+
+// Регистрации пользователя в режиме - Локальный.
+func doRegistrationUserLocal(c *handlerUI) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+W")
+
+	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
+	c.status.addUserPassed = false  // сброс признака, что процедура регистрации быд запущена.
+	c.status.addUserRegBusy = false // сброс признака, что в системе уже есть зарегистрированный пользователь.
+
+	userName := c.typed.login
+	userPwd1 := c.typed.password1
+	userPwd2 := c.typed.password2
+
+	// Проверка корректности введённых пользователем данных
+	if err := checkDataRegistration(userName, userPwd1, userPwd2); err != nil {
+		return fmt.Errorf("функция checkDataRegistration, вернула ошибку: <%w>", err)
+	}
+
+	// Контекст для запроса.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// Проверка, что в БД уже есть регистрация пользователя.
+	busy, err := c.conf.DataBase.UserExistContext(ctx)
+	if err != nil {
+		return fmt.Errorf("Error: функция UserExistContext, вернуля ошибку: <%v>", err)
+	}
+
+	if busy {
+		c.status.addUserRegBusy = true // установка признака, что в системе уже есть зарегистрированный пользоатель.
+		return nil
+	}
+
+	// Добавление пользователя в БД.
+	if err := c.conf.DataBase.AddUserContext(ctx, userName, userPwd1); err != nil {
+		return fmt.Errorf("Error: функция AddUserContext, вернуля ошибку: <%v>", err)
+	}
+
+	c.status.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
+	c.status.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
+
+	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: выполнена регистрация пользователя с именем: <%s>", userName))
+
+	return nil
+}
+
+// Регистрации пользователя в режиме - Удалённый.
+func doRegistrationUserRemote(c *handlerUI) error {
+
+	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+W")
+
+	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
+	c.status.addUserPassed = false  // сброс признака, что процедура регистрации была запущена.
+	c.status.addUserRegBusy = false // сброс признака, что в системе уже есть зарегистрированный пользователь.
+
+	c.conf.PtrLoggerFile.Write("Запущен процесс регистрации пользователя. Режим -удалённый.")
+
+	// Проверка аргументов
+	if c == nil {
+		return NilPtrArgumentC
+	}
+
+	// Подключение к серверу.
+	client, conn, err := connectSrv(c)
+	if err != nil {
+		return fmt.Errorf("функция layerConnectSrv, вернула ошибку: <%w>", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения: <%v>", err))
+		}
+	}()
+
+	// Создание метаданных с токеном.
+	txMD, secretKey, nameToken, err := createTokenForRegistration()
+	if err != nil {
+		return fmt.Errorf("функция createTokenForRegistration, вернула ошибку: <%w>", err)
+	}
+
+	// Подготовка запроса.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+	req := &proto.RegistrationRequest{
+		UserName:      c.typed.login,
+		UserPwd:       c.typed.password1,
+		UserPwdRepeat: c.typed.password2,
+	}
+
+	var header metadata.MD
+
+	// Запрос регистрации пользователя.
+	_, err = client.Registration(ctx, req, grpc.Header(&header))
+	if err != nil {
+		c.status.addUserRegBusy = true
+		return fmt.Errorf("функция client.Registration, вернула ошибку: <%w>", err)
+	}
+
+	// Получение токена из метаданных ответа.
+	token := header[nameToken]
+	if len(token) == 0 || token[0] == "" {
+		return MissingTokenData
+	}
+	rxToken := token[0]
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
+	}
+
+	c.status.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
+	c.status.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
+
+	c.conf.PtrLoggerFile.Write("Регистрация пользователя на удалённом сервере, выполнена. Режим - удалённый.")
+
+	return nil
+}
+
+// Создание токена для регистрации пользователя в режиме  - удалённый.
+func createTokenForRegistration() (txMD metadata.MD, secretKey, nameToken string, err error) {
+
+	// Создание ключа.
+	secretKey, err = generateRandomString(50)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+	}
+
+	// Создание токена.
+	timeValidToken := time.Duration(5 * time.Second)
+	txToken, err := createToken("clientManager", secretKey, timeValidToken)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+	}
+
+	// Заполнение метаданных.
+	nameToken = "token"
+	txMD = metadata.Pairs(nameToken, txToken)
+
+	return txMD, secretKey, nameToken, nil
 }

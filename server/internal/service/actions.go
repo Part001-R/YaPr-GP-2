@@ -27,7 +27,7 @@ func actions(c *udt.Configuration) error {
 	// Подключение к порту.
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
-		c.PtrLogger.Error("Ошибка подключения к порту",
+		c.Lgr.Error("Ошибка подключения к порту",
 			zap.String("ошибка", err.Error()),
 			zap.String("порт", port))
 		return fmt.Errorf("ошибка подключения к порту: <%w>", err)
@@ -36,7 +36,7 @@ func actions(c *udt.Configuration) error {
 	// Создание конфигурации для TLS
 	tlsConfig, err := createTLSConfig(c)
 	if err != nil {
-		c.PtrLogger.Error("Ошибка создания TLS конфигурации",
+		c.Lgr.Error("Ошибка создания TLS конфигурации",
 			zap.String("ошибка", err.Error()))
 		return fmt.Errorf("ошибка создания TLS конфигурации: <%w>", err)
 	}
@@ -44,18 +44,18 @@ func actions(c *udt.Configuration) error {
 	// Создание gRPC сервера с TLS
 	s := grpc.NewServer(
 		grpc.Creds(credentials.NewTLS(tlsConfig)),
-		grpc.UnaryInterceptor(c.PtrGRPC.AuthInterceptorUnar),
-		grpc.StreamInterceptor(c.PtrGRPC.AuthInterceptorStream),
+		grpc.UnaryInterceptor(c.Srv.AuthInterceptorUnar),
+		grpc.StreamInterceptor(c.Srv.AuthInterceptorStream),
 	)
 
-	pb.RegisterPasswordManagerServer(s, c.PtrGRPC)
+	pb.RegisterPasswordManagerServer(s, c.Srv)
 
 	// Запуск gRPCS сервера.
-	c.PtrLogger.Info("Запуск gRPCS сервера",
+	c.Lgr.Info("Запуск gRPCS сервера",
 		zap.String("порт", port))
 
 	if err := s.Serve(lis); err != nil {
-		c.PtrLogger.Error("Ошибка в работе gRPC сервера",
+		c.Lgr.Error("Ошибка в работе gRPC сервера",
 			zap.String("ошибка", err.Error()))
 		return fmt.Errorf("ошибка в работе gRPC сервера: <%w>", err)
 	}

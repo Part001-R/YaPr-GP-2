@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/jroimartin/gocui"
 )
 
@@ -29,7 +30,13 @@ func Run(conf *udt.Configuration) error {
 	// Создание экземпляра обработчиков, для передачи параметров сервиса.
 	instUI := new(conf)
 
-	g.SetManagerFunc(layout)
+	// Отображение главного окна.
+	if conf.Flag.Mode == flags.ModeLocal { // Если клиент запускается в режиме - Локальный.
+		g.SetManagerFunc(layoutLocal)
+	}
+	if conf.Flag.Mode == flags.ModeRemote { // Если клиент запускается в режиме - Удалённый.
+		g.SetManagerFunc(layoutRemote)
+	}
 
 	// Привязки.
 	//

@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Part001-R/YaPr-GP-2/client/internal/container"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/container"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/jroimartin/gocui"
 )
 
@@ -197,8 +198,8 @@ func new(conf *udt.Configuration) *handlerUI {
 	return inst
 }
 
-// Главное окно.
-func layout(g *gocui.Gui) error {
+// Главное окно в режиме - локальный. Возвращается ошибка.
+func layoutLocal(g *gocui.Gui) error {
 
 	mainView, err := g.SetView(viewMain, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
@@ -210,7 +211,36 @@ func layout(g *gocui.Gui) error {
 	fmt.Fprintln(mainView, strings.Repeat("\n", 3))
 	fmt.Fprintf(mainView, "%s МЕНЕДЖЕР ПАРОЛЕЙ\n", strings.Repeat(" ", 54))
 
-	fmt.Fprintln(mainView, strings.Repeat("\n", 15))
+	fmt.Fprintln(mainView, strings.Repeat("\n", 2))
+	fmt.Fprintf(mainView, "%s Режим работы - Локальный\n", strings.Repeat(" ", 50))
+
+	fmt.Fprintln(mainView, strings.Repeat("\n", 12))
+	fmt.Fprintf(mainView, "%s Регистрация     (Ctrl+A)\n", strings.Repeat(" ", 50))
+	fmt.Fprintf(mainView, "%s Аутентификация  (Ctrl+B)\n", strings.Repeat(" ", 50))
+	fmt.Fprintf(mainView, "%s Настройки       (Ctrl+D)\n", strings.Repeat(" ", 50))
+	fmt.Fprintln(mainView, "")
+	fmt.Fprintf(mainView, "%s Выход           (Ctrl+C)\n", strings.Repeat(" ", 50))
+
+	return nil
+}
+
+// Главное окно в режиме - удалённый. Возвращается ошибка.
+func layoutRemote(g *gocui.Gui) error {
+
+	mainView, err := g.SetView(viewMain, 0, 0, screenWidth-1, screenHeight-1)
+	if err != nil && err != gocui.ErrUnknownView {
+		return err
+	}
+	mainView.Wrap = true
+	mainView.Clear()
+
+	fmt.Fprintln(mainView, strings.Repeat("\n", 3))
+	fmt.Fprintf(mainView, "%s МЕНЕДЖЕР ПАРОЛЕЙ\n", strings.Repeat(" ", 54))
+
+	fmt.Fprintln(mainView, strings.Repeat("\n", 2))
+	fmt.Fprintf(mainView, "%s Режим работы - Удалённый\n", strings.Repeat(" ", 50))
+
+	fmt.Fprintln(mainView, strings.Repeat("\n", 12))
 	fmt.Fprintf(mainView, "%s Регистрация     (Ctrl+A)\n", strings.Repeat(" ", 50))
 	fmt.Fprintf(mainView, "%s Аутентификация  (Ctrl+B)\n", strings.Repeat(" ", 50))
 	fmt.Fprintf(mainView, "%s Настройки       (Ctrl+D)\n", strings.Repeat(" ", 50))
@@ -243,7 +273,7 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 	c.view.currentFocus = ""
 
 	// Отображение главного меню.
-	err := layout(g)
+	err := layoutLocal(g)
 	if err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция layout вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция layout вернула ошибку: <%w>", err)
@@ -1170,47 +1200,23 @@ func (c *handlerUI) setFocusStyle(v *gocui.View, name string) {
 // Запуск процесса регистрации нового пользователя.
 func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+W")
-
-	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
-	c.status.addUserPassed = false  // сброс признака, что процедура регистрации быд запущена.
-	c.status.addUserRegBusy = false // сброс признака, что в системе уже есть зарегистрированный пользователь.
-
-	userName := c.typed.login
-	userPwd1 := c.typed.password1
-	userPwd2 := c.typed.password2
-
-	// Проверка корректности введённых пользователем данных
-	if err := checkDataRegistration(userName, userPwd1, userPwd2); err != nil {
-		c.conf.PtrLoggerFile.Write("Error: данные регистрации не прошли проверку")
-		return nil
+	// Если режим - Локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		err := doRegistrationUserLocal(c)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doRegistrationUserLocal, вернула ошибку: <%v>", err))
+			return nil
+		}
 	}
 
-	// Контекст для запроса.
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	// Проверка, что в БД уже есть регистрация пользователя.
-	busy, err := c.conf.DataBase.UserExistContext(ctx)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция UserExistContext, вернуля ошибку: <%v>", err))
-		return nil
+	// Если режим - Удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+		err := doRegistrationUserRemote(c)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doRegistrationUserRemote, вернула ошибку: <%v>", err))
+			return nil
+		}
 	}
-
-	if busy {
-		c.status.addUserRegBusy = true // установка признака, что в системе уже есть зарегистрированный пользоатель.
-		return nil
-	}
-
-	// Добавление пользователя в БД.
-	if err := c.conf.DataBase.AddUserContext(ctx, userName, userPwd1); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция AddUserContext, вернуля ошибку: <%v>", err))
-		return nil
-	}
-
-	c.status.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
-	c.status.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: выполнена регистрация пользователя с именем: <%s>", userName))
 
 	return nil
 }

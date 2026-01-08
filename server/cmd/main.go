@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-
 	// Запуск сервиса.
 	if err := service.Run(); err != nil {
 		log.Fatal("сервис завершил работу, по причине: <%w>", err)

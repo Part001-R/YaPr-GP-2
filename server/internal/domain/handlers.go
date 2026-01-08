@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/sqlitestor"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/adapters/sqlitestor"
 )
 
 // Закрытие подключения.

@@ -4,6 +4,7 @@ package udt
 import (
 	"sync"
 
+	"github.com/Part001-R/YaPr-GP-2/server/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/server/internal/grpc"
 	"go.uber.org/zap"
 )
@@ -19,24 +20,26 @@ type TLSdata struct {
 
 // Конфигурация сервиса.
 type Configuration struct {
-	PtrLogger *zap.Logger           // Указатель на логгер.
-	PtrGRPC   *grpc.PasswordManager // Указатель на экземпляр grpc.
-	TLS       TLSdata               // Ключи реалзизации GRPCS.
+	Lgr     *zap.Logger     // Указатель на логгер.
+	Srv     *grpc.Manager   // Указатель на экземпляр grpc.
+	TLS     TLSdata         // Ключи реалзизации GRPCS.
+	Storage domain.StorageI // БД
 }
 
 // Указатель на конфигурацию сервиса.
 var confInst *Configuration
 
-// Создание экземпляра конфигурации сервиса.
-func New(l *zap.Logger, g *grpc.PasswordManager, keyPublic, keyPrivate string) *Configuration {
+// Конструктор.
+func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage domain.StorageI) *Configuration {
 	onceConf.Do(func() {
 		confInst = &Configuration{
-			PtrLogger: l,
-			PtrGRPC:   g,
+			Lgr: l,
+			Srv: g,
 			TLS: TLSdata{
 				Public: keyPublic,
 				Privae: keyPrivate,
 			},
+			Storage: storage,
 		}
 	})
 	return confInst
@@ -45,10 +48,10 @@ func New(l *zap.Logger, g *grpc.PasswordManager, keyPublic, keyPrivate string) *
 // Проверка содержимого конфигурации. Возвращается ошибка.
 func (c Configuration) CheckConf() error {
 
-	if c.PtrLogger == nil {
+	if c.Lgr == nil {
 		return NilPtrArgumentConf
 	}
-	if c.PtrGRPC == nil {
+	if c.Srv == nil {
 
 	}
 	return nil

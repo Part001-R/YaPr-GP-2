@@ -11,6 +11,7 @@ import (
 
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/domain"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -31,25 +32,27 @@ type statusSrv struct {
 }
 
 // grpc
-type PasswordManager struct {
+type Manager struct {
 	pb.UnimplementedPasswordManagerServer
-	logger *zap.Logger // Логгер.
-	status statusSrv   // Статусы.
+	logger  *zap.Logger     // Логгер.
+	status  statusSrv       // Статусы.
+	storage domain.StorageI // База данных.
 }
 
-var once sync.Once        // единоразовая инициализация экземпляра
-var inst *PasswordManager // экземпляр
+var once sync.Once // единоразовая инициализация экземпляра
+var inst *Manager  // экземпляр
 
 // Конструктор.
-func New(l *zap.Logger) *PasswordManager {
+func New(l *zap.Logger, s domain.StorageI) *Manager {
 	once.Do(func() {
-		inst = &PasswordManager{
+		inst = &Manager{
 			UnimplementedPasswordManagerServer: pb.UnimplementedPasswordManagerServer{},
 			logger:                             l,
 			status: statusSrv{
 				isBackUp:  0,
 				isRestore: 0,
 			},
+			storage: s,
 		}
 	})
 	return inst
@@ -60,7 +63,7 @@ func New(l *zap.Logger) *PasswordManager {
 //
 
 // Обработчик проверки связи.
-func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
 
 	s.logger.Debug("Принят Ping запрос")
 
@@ -92,7 +95,7 @@ func (s *PasswordManager) Ping(ctx context.Context, empty *emptypb.Empty) (*empt
 }
 
 // Обработчик приёма файла.
-func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer) (errReturn error) {
+func (s *Manager) BackupFile(stream pb.PasswordManager_BackupFileServer) (errReturn error) {
 
 	// Проверка, что процесс уже активный.
 	if s.GetStatusBackUp() == stageActive || s.GetStatusRestore() == stageActive {
@@ -220,7 +223,7 @@ func (s *PasswordManager) BackupFile(stream pb.PasswordManager_BackupFileServer)
 }
 
 // Обработчик передачи файлов.
-func (s *PasswordManager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager_RestoreFileServer) error {
+func (s *Manager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager_RestoreFileServer) error {
 
 	// Получение статуса isBackUp
 	if s.GetStatusBackUp() == stageActive {
@@ -293,7 +296,7 @@ func (s *PasswordManager) RestoreFile(req *pb.DownloadRequest, stream pb.Passwor
 }
 
 // Предоставление информации о файлах.
-func (s *PasswordManager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.FilesInfoResponse, error) {
+func (s *Manager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.FilesInfoResponse, error) {
 
 	// Извлечение метаданных из контекста
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -319,7 +322,7 @@ func (s *PasswordManager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*p
 
 		size, err := sizeFile(f)
 		if err != nil {
-			if errors.Is(err, NotFound) { // Если файл не найден - обработка следующего файла.
+			if errors.Is(err, ErrNotFound) { // Если файл не найден - обработка следующего файла.
 				continue
 			}
 			return nil, status.Error(codes.Internal, fmt.Sprintf("Ошибка:<%v>, при обработке файла:<%s>", err, f))
@@ -342,12 +345,48 @@ func (s *PasswordManager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*p
 	return fileInfos, nil
 }
 
+// Регистрация пользователя.
+func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос регистрации пользователя")
+
+	// Получение токена клиента.
+	rxToken, err := layerRegistrationGetToken(ctx)
+	if err != nil {
+		s.logger.Error("Ошибка в слое layerRegistrationGetToken", zap.String("ошибка", err.Error()))
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+
+	// Обработка приёма.
+	rxData, err := layerRegistrationRx(req)
+	if err != nil {
+		s.logger.Error("Ошибка в слое layerRegistrationRx", zap.String("ошибка", err.Error()))
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	// Логика обработчика.
+	if err := layerRegistrationLogic(rxData, s.storage); err != nil {
+		s.logger.Error("Ошибка в слое layerRegistrationLogic", zap.String("ошибка", err.Error()))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// Ответ.
+	if err := layerRegistrationTx(ctx, rxToken); err != nil {
+		s.logger.Error("Ошибка в слое layerRegistrationTx", zap.String("ошибка", err.Error()))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	s.logger.Info("Регистрация пользователя пройдена", zap.String("имя", rxData.userName))
+
+	return nil, nil
+}
+
 //
 // Интерцепторы.
 //
 
 // Unar интерцептор.
-func (s *PasswordManager) AuthInterceptorUnar(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (s *Manager) AuthInterceptorUnar(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
 	// metadata из контекста
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -366,7 +405,7 @@ func (s *PasswordManager) AuthInterceptorUnar(ctx context.Context, req interface
 }
 
 // Stream интерцептор.
-func (s *PasswordManager) AuthInterceptorStream(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func (s *Manager) AuthInterceptorStream(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 
 	// metadata из контекста.
 	md, ok := metadata.FromIncomingContext(ss.Context())
@@ -389,12 +428,12 @@ func (s *PasswordManager) AuthInterceptorStream(srv interface{}, ss grpc.ServerS
 //
 
 // Получение значения статуса isBackUp. Возвращается текущее значение статуса.
-func (s *PasswordManager) GetStatusBackUp() int32 {
+func (s *Manager) GetStatusBackUp() int32 {
 	return atomic.LoadInt32(&s.status.isBackUp)
 }
 
 // Обновление значения статуса isBackUp. Возвращается ошибка.
-func (s *PasswordManager) UpdateStatusBackUp(stage int32) error {
+func (s *Manager) UpdateStatusBackUp(stage int32) error {
 
 	if s.status.isBackUp != stageActive && s.status.isBackUp != stageNotActive {
 		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
@@ -406,12 +445,12 @@ func (s *PasswordManager) UpdateStatusBackUp(stage int32) error {
 }
 
 // Получение значения статуса isRestore. Возвращается текущее значение статуса.
-func (s *PasswordManager) GetStatusRestore() int32 {
+func (s *Manager) GetStatusRestore() int32 {
 	return atomic.LoadInt32(&s.status.isRestore)
 }
 
 // Обновление значения статуса isRestore. Возвращается ошибка.
-func (s *PasswordManager) UpdateStatusRestore(stage int32) error {
+func (s *Manager) UpdateStatusRestore(stage int32) error {
 
 	if s.status.isRestore != stageActive && s.status.isRestore != stageNotActive {
 		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
