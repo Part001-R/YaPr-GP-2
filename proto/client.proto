@@ -15,6 +15,8 @@ service PasswordManager {
 
     rpc Registration(RegistrationRequest) returns (google.protobuf.Empty);
     rpc Authentication(AuthenticationRequest) returns (AuthenticationResponse);
+    rpc SendLoginPassword(SendLoginPasswordRequest) returns (google.protobuf.Empty);
+    rpc SendText(SendTextRequest) returns (google.protobuf.Empty);
 }
 
 message UploadRequest {
@@ -57,4 +59,19 @@ message AuthenticationRequest {
 
 message AuthenticationResponse {
     string token = 1;
+}
+
+message SendLoginPasswordRequest {
+    string idClient = 1;
+    string for = 2;
+    string login = 3;
+    string password = 4;
+    string createdAt = 5;
+}
+
+message SendTextRequest {
+    string idClient = 1;
+    string for = 2;
+    string text = 3;
+    string createdAt = 4;
 }

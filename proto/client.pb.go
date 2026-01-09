@@ -466,6 +466,150 @@ func (x *AuthenticationResponse) GetToken() string {
 	return ""
 }
 
+type SendLoginPasswordRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
+	For           string                 `protobuf:"bytes,2,opt,name=for,proto3" json:"for,omitempty"`
+	Login         string                 `protobuf:"bytes,3,opt,name=login,proto3" json:"login,omitempty"`
+	Password      string                 `protobuf:"bytes,4,opt,name=password,proto3" json:"password,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,5,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendLoginPasswordRequest) Reset() {
+	*x = SendLoginPasswordRequest{}
+	mi := &file_proto_client_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendLoginPasswordRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendLoginPasswordRequest) ProtoMessage() {}
+
+func (x *SendLoginPasswordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendLoginPasswordRequest.ProtoReflect.Descriptor instead.
+func (*SendLoginPasswordRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SendLoginPasswordRequest) GetIdClient() string {
+	if x != nil {
+		return x.IdClient
+	}
+	return ""
+}
+
+func (x *SendLoginPasswordRequest) GetFor() string {
+	if x != nil {
+		return x.For
+	}
+	return ""
+}
+
+func (x *SendLoginPasswordRequest) GetLogin() string {
+	if x != nil {
+		return x.Login
+	}
+	return ""
+}
+
+func (x *SendLoginPasswordRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *SendLoginPasswordRequest) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type SendTextRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
+	For           string                 `protobuf:"bytes,2,opt,name=for,proto3" json:"for,omitempty"`
+	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,4,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTextRequest) Reset() {
+	*x = SendTextRequest{}
+	mi := &file_proto_client_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTextRequest) ProtoMessage() {}
+
+func (x *SendTextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTextRequest.ProtoReflect.Descriptor instead.
+func (*SendTextRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SendTextRequest) GetIdClient() string {
+	if x != nil {
+		return x.IdClient
+	}
+	return ""
+}
+
+func (x *SendTextRequest) GetFor() string {
+	if x != nil {
+		return x.For
+	}
+	return ""
+}
+
+func (x *SendTextRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SendTextRequest) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
@@ -494,7 +638,18 @@ const file_proto_client_proto_rawDesc = "" +
 	"\buserName\x18\x01 \x01(\tR\buserName\x12\x18\n" +
 	"\auserPwd\x18\x02 \x01(\tR\auserPwd\".\n" +
 	"\x16AuthenticationResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token2\xaa\x03\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"\x98\x01\n" +
+	"\x18SendLoginPasswordRequest\x12\x1a\n" +
+	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x10\n" +
+	"\x03for\x18\x02 \x01(\tR\x03for\x12\x14\n" +
+	"\x05login\x18\x03 \x01(\tR\x05login\x12\x1a\n" +
+	"\bpassword\x18\x04 \x01(\tR\bpassword\x12\x1c\n" +
+	"\tcreatedAt\x18\x05 \x01(\tR\tcreatedAt\"q\n" +
+	"\x0fSendTextRequest\x12\x1a\n" +
+	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x10\n" +
+	"\x03for\x18\x02 \x01(\tR\x03for\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x1c\n" +
+	"\tcreatedAt\x18\x04 \x01(\tR\tcreatedAt2\xb8\x04\n" +
 	"\x0fPasswordManager\x126\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
 	"\n" +
@@ -502,7 +657,9 @@ const file_proto_client_proto_rawDesc = "" +
 	"\vRestoreFile\x12\x18.manager.DownloadRequest\x1a\x19.manager.DownloadResponse0\x01\x12?\n" +
 	"\tFilesInfo\x12\x16.google.protobuf.Empty\x1a\x1a.manager.FilesInfoResponse\x12D\n" +
 	"\fRegistration\x12\x1c.manager.RegistrationRequest\x1a\x16.google.protobuf.Empty\x12Q\n" +
-	"\x0eAuthentication\x12\x1e.manager.AuthenticationRequest\x1a\x1f.manager.AuthenticationResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\x0eAuthentication\x12\x1e.manager.AuthenticationRequest\x1a\x1f.manager.AuthenticationResponse\x12N\n" +
+	"\x11SendLoginPassword\x12!.manager.SendLoginPasswordRequest\x1a\x16.google.protobuf.Empty\x12<\n" +
+	"\bSendText\x12\x18.manager.SendTextRequest\x1a\x16.google.protobuf.EmptyB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -516,38 +673,44 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_proto_client_proto_goTypes = []any{
-	(*UploadRequest)(nil),          // 0: manager.UploadRequest
-	(*UploadResponse)(nil),         // 1: manager.UploadResponse
-	(*DownloadRequest)(nil),        // 2: manager.DownloadRequest
-	(*DownloadResponse)(nil),       // 3: manager.DownloadResponse
-	(*FileInfo)(nil),               // 4: manager.FileInfo
-	(*FilesInfoResponse)(nil),      // 5: manager.FilesInfoResponse
-	(*RegistrationRequest)(nil),    // 6: manager.RegistrationRequest
-	(*AuthenticationRequest)(nil),  // 7: manager.AuthenticationRequest
-	(*AuthenticationResponse)(nil), // 8: manager.AuthenticationResponse
-	(*emptypb.Empty)(nil),          // 9: google.protobuf.Empty
+	(*UploadRequest)(nil),            // 0: manager.UploadRequest
+	(*UploadResponse)(nil),           // 1: manager.UploadResponse
+	(*DownloadRequest)(nil),          // 2: manager.DownloadRequest
+	(*DownloadResponse)(nil),         // 3: manager.DownloadResponse
+	(*FileInfo)(nil),                 // 4: manager.FileInfo
+	(*FilesInfoResponse)(nil),        // 5: manager.FilesInfoResponse
+	(*RegistrationRequest)(nil),      // 6: manager.RegistrationRequest
+	(*AuthenticationRequest)(nil),    // 7: manager.AuthenticationRequest
+	(*AuthenticationResponse)(nil),   // 8: manager.AuthenticationResponse
+	(*SendLoginPasswordRequest)(nil), // 9: manager.SendLoginPasswordRequest
+	(*SendTextRequest)(nil),          // 10: manager.SendTextRequest
+	(*emptypb.Empty)(nil),            // 11: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
-	4, // 0: manager.FilesInfoResponse.fileInfo:type_name -> manager.FileInfo
-	9, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
-	0, // 2: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
-	2, // 3: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
-	9, // 4: manager.PasswordManager.FilesInfo:input_type -> google.protobuf.Empty
-	6, // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
-	7, // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
-	9, // 7: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1, // 8: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
-	3, // 9: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
-	5, // 10: manager.PasswordManager.FilesInfo:output_type -> manager.FilesInfoResponse
-	9, // 11: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
-	8, // 12: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
-	7, // [7:13] is the sub-list for method output_type
-	1, // [1:7] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	4,  // 0: manager.FilesInfoResponse.fileInfo:type_name -> manager.FileInfo
+	11, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	0,  // 2: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
+	2,  // 3: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
+	11, // 4: manager.PasswordManager.FilesInfo:input_type -> google.protobuf.Empty
+	6,  // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
+	7,  // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
+	9,  // 7: manager.PasswordManager.SendLoginPassword:input_type -> manager.SendLoginPasswordRequest
+	10, // 8: manager.PasswordManager.SendText:input_type -> manager.SendTextRequest
+	11, // 9: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1,  // 10: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
+	3,  // 11: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
+	5,  // 12: manager.PasswordManager.FilesInfo:output_type -> manager.FilesInfoResponse
+	11, // 13: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
+	8,  // 14: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
+	11, // 15: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
+	11, // 16: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
+	9,  // [9:17] is the sub-list for method output_type
+	1,  // [1:9] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_client_proto_init() }
@@ -561,7 +724,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

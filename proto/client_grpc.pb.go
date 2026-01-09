@@ -20,12 +20,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PasswordManager_Ping_FullMethodName           = "/manager.PasswordManager/Ping"
-	PasswordManager_BackupFile_FullMethodName     = "/manager.PasswordManager/BackupFile"
-	PasswordManager_RestoreFile_FullMethodName    = "/manager.PasswordManager/RestoreFile"
-	PasswordManager_FilesInfo_FullMethodName      = "/manager.PasswordManager/FilesInfo"
-	PasswordManager_Registration_FullMethodName   = "/manager.PasswordManager/Registration"
-	PasswordManager_Authentication_FullMethodName = "/manager.PasswordManager/Authentication"
+	PasswordManager_Ping_FullMethodName              = "/manager.PasswordManager/Ping"
+	PasswordManager_BackupFile_FullMethodName        = "/manager.PasswordManager/BackupFile"
+	PasswordManager_RestoreFile_FullMethodName       = "/manager.PasswordManager/RestoreFile"
+	PasswordManager_FilesInfo_FullMethodName         = "/manager.PasswordManager/FilesInfo"
+	PasswordManager_Registration_FullMethodName      = "/manager.PasswordManager/Registration"
+	PasswordManager_Authentication_FullMethodName    = "/manager.PasswordManager/Authentication"
+	PasswordManager_SendLoginPassword_FullMethodName = "/manager.PasswordManager/SendLoginPassword"
+	PasswordManager_SendText_FullMethodName          = "/manager.PasswordManager/SendText"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -38,6 +40,8 @@ type PasswordManagerClient interface {
 	FilesInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FilesInfoResponse, error)
 	Registration(ctx context.Context, in *RegistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Authentication(ctx context.Context, in *AuthenticationRequest, opts ...grpc.CallOption) (*AuthenticationResponse, error)
+	SendLoginPassword(ctx context.Context, in *SendLoginPasswordRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SendText(ctx context.Context, in *SendTextRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type passwordManagerClient struct {
@@ -120,6 +124,26 @@ func (c *passwordManagerClient) Authentication(ctx context.Context, in *Authenti
 	return out, nil
 }
 
+func (c *passwordManagerClient) SendLoginPassword(ctx context.Context, in *SendLoginPasswordRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_SendLoginPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) SendText(ctx context.Context, in *SendTextRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_SendText_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -130,6 +154,8 @@ type PasswordManagerServer interface {
 	FilesInfo(context.Context, *emptypb.Empty) (*FilesInfoResponse, error)
 	Registration(context.Context, *RegistrationRequest) (*emptypb.Empty, error)
 	Authentication(context.Context, *AuthenticationRequest) (*AuthenticationResponse, error)
+	SendLoginPassword(context.Context, *SendLoginPasswordRequest) (*emptypb.Empty, error)
+	SendText(context.Context, *SendTextRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -157,6 +183,12 @@ func (UnimplementedPasswordManagerServer) Registration(context.Context, *Registr
 }
 func (UnimplementedPasswordManagerServer) Authentication(context.Context, *AuthenticationRequest) (*AuthenticationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Authentication not implemented")
+}
+func (UnimplementedPasswordManagerServer) SendLoginPassword(context.Context, *SendLoginPasswordRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendLoginPassword not implemented")
+}
+func (UnimplementedPasswordManagerServer) SendText(context.Context, *SendTextRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendText not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -269,6 +301,42 @@ func _PasswordManager_Authentication_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PasswordManager_SendLoginPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendLoginPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).SendLoginPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_SendLoginPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).SendLoginPassword(ctx, req.(*SendLoginPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_SendText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendTextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).SendText(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_SendText_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).SendText(ctx, req.(*SendTextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -291,6 +359,14 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Authentication",
 			Handler:    _PasswordManager_Authentication_Handler,
+		},
+		{
+			MethodName: "SendLoginPassword",
+			Handler:    _PasswordManager_SendLoginPassword_Handler,
+		},
+		{
+			MethodName: "SendText",
+			Handler:    _PasswordManager_SendText_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

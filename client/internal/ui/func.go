@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
@@ -95,6 +96,7 @@ func deleteViews(g *gocui.Gui) error {
 		"Backup":                 {},
 		"Restore":                {},
 		"indicatorPercent":       {},
+		"indicatorNameClient":    {},
 	} {
 		if err := g.DeleteView(name); err != nil && err != gocui.ErrUnknownView {
 			return err
@@ -1638,7 +1640,8 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 	statusBackUp := c.getStatusBackUp()
 	statusRestore := c.getStatusRestore()
 
-	if c.conf.Flag.Mode == flags.ModeLocal { // Обработка в режиме - локальный.
+	// Обработка в режиме - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
 		//
 		// Обновление вида элемента backUp (---> сервер).
@@ -1717,6 +1720,27 @@ func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 			indicator.Clear()
 			indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
 		}
+
+	}
+
+	// Обработка в режиме - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		//
+		// --- Индикатор имени клиента ---
+		//
+
+		name := "indicatorNameClient"
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		indicator.Clear()
+		indicator.Write([]byte(fmt.Sprintf("ID клиента: %s", c.clientName)))
 	}
 
 	return nil
@@ -2209,35 +2233,70 @@ func doStoreViewTextData(c *handlerUI) error {
 	c.status.addTextPassed = true
 	c.status.addTextSUCCESS = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	// Шифрование данных
-	encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
-		return nil
-	}
-	encrText, err := encrypt(c.typed.dataText, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataText: <%v>", err))
-		return nil
-	}
-	tn := time.Now().UTC()
-	strT := tn.Format(time.RFC3339)
-	encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
-		return nil
-	}
-	// Добавление зашифрованных данных в БД.
-	if err := c.conf.DataBase.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
-		return nil
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		// Шифрование данных
+		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			return nil
+		}
+		encrText, err := encrypt(c.typed.dataText, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataText: <%v>", err))
+			return nil
+		}
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			return nil
+		}
+		// Добавление зашифрованных данных в БД.
+		if err := c.conf.DataBase.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Debug: текст добавлен в БД")
+		c.status.addTextSUCCESS = true
 	}
 
-	c.conf.PtrLoggerFile.Write("Debug: текст добавлен в БД")
-	c.status.addTextSUCCESS = true
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		// Дата создания записи.
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+
+		// Подготовка.
+		txData := server.TxText{
+			TxID:        c.clientName,
+			TxFor:       c.typed.dataFor,
+			TxText:      c.typed.dataText,
+			TxCreatedAt: strT,
+		}
+
+		// Логика.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		token := c.conf.Server.GetTokenAuthentication()
+
+		if err := c.conf.Server.SendText(ctx, txData, token, c.secret.secretKey); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция SendText, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Info: текст, успешно передан на сервер")
+		c.status.addTextSUCCESS = true
+	}
+
 	return nil
 }
 
@@ -2247,41 +2306,76 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 	c.status.addLoginPaaswordPassed = true
 	c.status.addLoginPaaswordSUCCESS = false
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	// Шифрование данных
-	encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
-		return nil
-	}
-	encrLogin, err := encrypt(c.typed.dataLogin, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
-		return nil
-	}
-	encrPassword, err := encrypt(c.typed.dataPassword, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
-		return nil
-	}
-	tn := time.Now().UTC()
-	strT := tn.Format(time.RFC3339)
-	encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
-		return nil
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		// Шифрование данных
+		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			return nil
+		}
+		encrLogin, err := encrypt(c.typed.dataLogin, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
+			return nil
+		}
+		encrPassword, err := encrypt(c.typed.dataPassword, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
+			return nil
+		}
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			return nil
+		}
+
+		// Добавление зашифрованных данных в БД.
+		if err := c.conf.DataBase.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Info: пара логин/пароль добавлена в БД")
+		c.status.addLoginPaaswordSUCCESS = true
 	}
 
-	// Добавление зашифрованных данных в БД.
-	if err := c.conf.DataBase.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
-		return nil
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		// Дата создания записи.
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+
+		// Подготовка.
+		txData := server.TxLoginPassword{
+			TxID:       c.clientName,
+			TxFor:      c.typed.dataFor,
+			TxLogin:    c.typed.dataLogin,
+			TxPassword: strT,
+		}
+
+		// Логика.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		token := c.conf.Server.GetTokenAuthentication()
+
+		if err := c.conf.Server.SendLoginPassword(ctx, txData, token, c.secret.secretKey); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция SendLoginPassword, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Info: пара логин/пароль, успешно передана на сервер")
+		c.status.addLoginPaaswordSUCCESS = true
 	}
 
-	c.conf.PtrLoggerFile.Write("Debug: пара логин/пароль добавлена в БД")
-	c.status.addLoginPaaswordSUCCESS = true
 	return nil
 }
 

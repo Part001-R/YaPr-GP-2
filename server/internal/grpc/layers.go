@@ -124,7 +124,7 @@ func layerAuthenticationGetToken(ctx context.Context) (token tokenData, err erro
 	return token, nil
 }
 
-// Логика аутентификации.
+// Логика.
 func layerAuthenticationLogic(s *Manager, userName, userPwd string) error {
 	// Контекст для запроса.
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -159,4 +159,107 @@ func layerAuthenticationTx(ctx context.Context, rxToken tokenData, srvToken stri
 	}
 
 	return res, nil
+}
+
+//
+// --- SendLoginPassword ---
+//
+
+// Получение данных запроса.
+func layerSendLoginPasswordRx(req *pb.SendLoginPasswordRequest) (rxData RxLoginPassword, err error) {
+
+	rxData.RxID = req.IdClient
+	rxData.RxFor = req.For
+	rxData.RxLogin = req.Login
+	rxData.RxPassword = req.Password
+	rxData.RxCreatedAt = req.CreatedAt
+
+	return rxData, nil
+}
+
+// Получение токена из запроса.
+func layerSendLoginPasswordGetToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Логика.
+func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassword, m *Manager) error {
+
+	if err := m.storage.AddDataLoginPasswordContext(ctx, rxData.RxFor, rxData.RxLogin, rxData.RxPassword, rxData.RxCreatedAt); err != nil {
+		return fmt.Errorf("Функция AddDataLoginPasswordContext, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- SendText ---
+//
+
+// Получение данных запроса.
+func layerSendTextRx(req *pb.SendTextRequest) (rxData RxText, err error) {
+
+	rxData.RxID = req.IdClient
+	rxData.RxFor = req.For
+	rxData.RxText = req.Text
+	rxData.RxCreatedAt = req.CreatedAt
+
+	return rxData, nil
+}
+
+// Получение токена из запроса.
+func layerSendTextGetToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Логика.
+func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error {
+
+	if err := m.storage.AddDataTextContext(ctx, rxData.RxFor, rxData.RxText, rxData.RxCreatedAt); err != nil {
+		return fmt.Errorf("Функция AddDataTextContext, вернула ошибку: <%w>", err)
+	}
+
+	return nil
 }

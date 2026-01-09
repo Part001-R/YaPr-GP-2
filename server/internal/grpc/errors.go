@@ -15,6 +15,9 @@ var (
 	// Отсутствует токен
 	ErrMissingToken = errors.New("Отсутствует токен")
 
+	// В токене нет содержимого"
+	ErrIsEmptyToken = errors.New("В токене нет содержимого")
+
 	// Ошибка отправки заголовков
 	ErrSendHeaders = errors.New("Ошибка отправки заголовков")
 

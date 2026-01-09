@@ -38,4 +38,22 @@ var (
 
 	// Отсутствуют данные токена от сервера.
 	MissingTokenSrvData = errors.New("Отсутствуют данные токена от сервера")
+
+	// В аргументе txID, нет данных.
+	EmptyDataArgumentTxID = errors.New("в аргументе <txID>, нет данных")
+
+	// В аргументе txFor, нет данных.
+	EmptyDataArgumentTxFor = errors.New("в аргументе <txFor>, нет данных")
+
+	// В аргументе txLogin, нет данных.
+	EmptyDataArgumentTxLogin = errors.New("в аргументе <txLogin>, нет данных")
+
+	// В аргументе txText, нет данных.
+	EmptyDataArgumentTxText = errors.New("в аргументе <txText>, нет данных")
+
+	// Некорректная длина зашифрованных данных
+	NotCorrectLenData = errors.New("некорректная длина зашифрованных данных")
+
+	// Некорректное заполнение
+	NotCorrectDataFill = errors.New("некорректное заполнение")
 )

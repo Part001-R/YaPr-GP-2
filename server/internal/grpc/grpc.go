@@ -425,6 +425,78 @@ func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequ
 	return res, nil
 }
 
+// Добавление данных - логин/пароль.
+func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswordRequest) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос добавления логин/пароль")
+
+	// Получение данных запроса.
+	rxData, err := layerSendLoginPasswordRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения отправленных данных", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка получения отправленных данных")
+	}
+
+	// Получение токена запроса.
+	rxToken, err := layerSendLoginPasswordGetToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена запроса", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка получения токена запроса")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Логика.
+	if err := layerSendLoginPasswordLogicContext(ctx, rxData, s); err != nil {
+		s.logger.Error("ошибка добавления записи в БД", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка добавления записи в БД")
+	}
+
+	s.logger.Info("Данные запроса логин/пароль, успешно добавлены")
+
+	return nil, nil
+}
+
+// Добавление данных - текст.
+func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос добавления текста")
+
+	// Получение данных запроса.
+	rxData, err := layerSendTextRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения отправленных данных", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка получения отправленных данных")
+	}
+
+	// Получение токена запроса.
+	rxToken, err := layerSendTextGetToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена запроса", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка получения токена запроса")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Логика.
+	if err := layerSendTextContext(ctx, rxData, s); err != nil {
+		s.logger.Error("ошибка добавления записи в БД", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка добавления записи в БД")
+	}
+
+	s.logger.Info("Данные запроса текста, успешно добавлены")
+
+	return nil, nil
+}
+
 //
 // Интерцепторы.
 //

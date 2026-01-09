@@ -1,7 +1,11 @@
 package server
 
 import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -70,6 +74,8 @@ func createTokenForAuthentication() (txMD metadata.MD, secretKey, nameToken stri
 	return txMD, secretKey, nameToken, nil
 }
 
+// Генерация строки из случайных символов, заданной длинны. Возарвщается строка и ошибка.
+//
 // Параметры:
 //
 //	length - уставка длинны строки.
@@ -179,4 +185,80 @@ func createToken(subjectName, secretKey string, validTime time.Duration) (string
 
 	// Результат.
 	return tokenString, nil
+}
+
+// Шифрование данных. Возвращается результат шифрования и ошибка.
+//
+// Параметры:
+//
+//	data - данные для шифрования.
+//	key - ключ шифрования.
+func encrypt(data string, key [32]byte) (string, error) {
+
+	// Создание AES-256
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return "", err
+	}
+
+	plaintextBytes := []byte(data)
+
+	// PKCS#7 заполнение
+	blockSize := block.BlockSize()
+	padding := blockSize - len(plaintextBytes)%blockSize
+	padText := append(plaintextBytes, bytes.Repeat([]byte{byte(padding)}, padding)...)
+
+	// Вектор инициализации (нулевой — для воспроизводимости)
+	iv := make([]byte, blockSize)
+
+	// Шифрование
+	ciphertext := make([]byte, len(padText))
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext, padText)
+
+	// Кодирование в Base64
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+// Расшифровка данных. Возвращается результат расшифровки и ошибка.
+//
+// Параметры:
+//
+//	data - зашифрованные данные.
+//	key - ключ шифрования.
+func decrypt(data string, key [32]byte) (string, error) {
+
+	// Декодирование из Base64
+	ciphertextBytes, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return "", err
+	}
+
+	// Создание AES-256
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return "", err
+	}
+
+	blockSize := block.BlockSize()
+	if len(ciphertextBytes)%blockSize != 0 {
+		return "", NotCorrectLenData
+	}
+
+	// Вектор инициализации (такой же, как при шифровании)
+	iv := make([]byte, blockSize)
+
+	// Расшифровка
+	plaintextPadded := make([]byte, len(ciphertextBytes))
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(plaintextPadded, ciphertextBytes)
+
+	// Удаление PKCS#7
+	padding := int(plaintextPadded[len(plaintextPadded)-1])
+	if padding > blockSize || padding == 0 {
+		return "", NotCorrectDataFill
+	}
+	plaintext := plaintextPadded[:len(plaintextPadded)-padding]
+
+	return string(plaintext), nil
 }

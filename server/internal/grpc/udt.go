@@ -18,3 +18,20 @@ type tokenData struct {
 	name  string // имя
 	token string // токен
 }
+
+// Принятые данные логин/пароль.
+type RxLoginPassword struct {
+	RxID        string // id клиента
+	RxFor       string // принадлежность логин/пароль
+	RxLogin     string // логин
+	RxPassword  string // пароль
+	RxCreatedAt string // дата создания
+}
+
+// Принятые данные текста.
+type RxText struct {
+	RxID        string // id клиента
+	RxFor       string // принадлежность текста
+	RxText      string // текст
+	RxCreatedAt string // дата создания
+}

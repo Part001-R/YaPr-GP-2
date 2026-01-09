@@ -152,15 +152,16 @@ type txrx struct {
 
 // Общий тип для CLI UI.
 type handlerUI struct {
-	conf   *udt.Configuration // конфигурация сервиса.
-	typed  typeData           // введённые пользователем данные.
-	status status             // признаки сервиса.
-	view   screens            // взаимодействие с окнами.
-	secret encrKey            // секретность.
-	data   data               // данные.
-	index  indexes            // индексы для обхода массивов.
-	mutex  mutex              // мьютексы.
-	txrx   txrx               // данные по Tx-Rx файлов.
+	conf       *udt.Configuration // конфигурация сервиса.
+	typed      typeData           // введённые пользователем данные.
+	status     status             // признаки сервиса.
+	view       screens            // взаимодействие с окнами.
+	secret     encrKey            // секретность.
+	data       data               // данные.
+	index      indexes            // индексы для обхода массивов.
+	mutex      mutex              // мьютексы.
+	txrx       txrx               // данные по Tx-Rx файлов.
+	clientName string             // имя клиента.
 }
 
 var inst *handlerUI
@@ -1589,11 +1590,9 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
 	// Логика обработчика
 	//
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Debug: выполнен переход на окно: <%s>", viewSelectType))
-
 	c.view.activeView = "" // Сброс признака активного окна
 
-	// Удаляем все зависимые виды
+	// Очистка видов.
 	if err := deleteViews(g); err != nil {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
@@ -1687,6 +1686,19 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// --- Индикаторы ---
 	//
 
+	// имя клиента.
+	if v, err := g.SetView("indicatorNameClient", 44, 18, inputWidth+12, inputHeight+1+17); err != nil {
+		if err != gocui.ErrUnknownView {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+		}
+		v.Editable = false
+		v.Wrap = false
+		v.Frame = false
+		v.BgColor = gocui.ColorDefault
+		v.FgColor = gocui.ColorCyan
+	}
+
 	// процент выполнения.
 	if v, err := g.SetView("indicatorPercent", 56, 20, inputWidth+7, inputHeight+1+19); err != nil {
 		if err != gocui.ErrUnknownView {
@@ -1706,8 +1718,6 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	//
 	fmt.Fprintf(view, "%s", strings.Repeat("\n", 15))
 	fmt.Fprintf(view, "%sВыберите нужный раздел через Tab и нажмите Enter.\n", strings.Repeat(" ", 40))
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
 	fmt.Fprintf(view, "%sПроцесс, может быть продолжительным. Дождитесь открытия окна.\n", strings.Repeat(" ", 35))
 
 	//
@@ -1799,6 +1809,19 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
+
+	// Формирование уникального ID клиента.
+	if c.conf.Flag.Mode == flags.ModeRemote && c.clientName == "" {
+		t := time.Now().UTC().Format("20060102150405.000")
+		randStr, err := generateRandomString(10)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция generateRandomString, вернула ошибку: <%v>", err))
+			return fmt.Errorf("ошибка при генерации случайной строки, для ID клиента: <%w>", err)
+		}
+		c.clientName = t + "-" + randStr
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Создан ID клиента: <%s>", c.clientName))
+	}
+
 	layoutInitialized = true
 	c.view.activeView = viewSelectType // Установка признака активного окна
 
@@ -2096,16 +2119,26 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 		v.Write([]byte("Ctrl+U - назад"))
 	}
 
+	// Обработка режима - локальный.
 	// Получение сохранённых значений логин/пароль.
-	c.status.readLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения значений логин/пароль.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		c.status.readLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения значений логин/пароль.
 
-	_, err = showLoginPasswordWorkDB(c)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция funcshowLoginPasswordWorkDB, вернула ошибку: <%v>", err))
-		c.status.readLoginPaaswordSUCCESS = false
-	} else {
-		c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
-		c.status.readLoginPaaswordSUCCESS = true
+		_, err = showLoginPasswordWorkDB(c)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция funcshowLoginPasswordWorkDB, вернула ошибку: <%v>", err))
+			c.status.readLoginPaaswordSUCCESS = false
+		} else {
+			c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
+			c.status.readLoginPaaswordSUCCESS = true
+		}
+	}
+
+	// Обработка режима - локальный.
+	// Получение сохранённых значений логин/пароль.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+		c.status.readLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения значений логин/пароль.
+
 	}
 
 	// Установка фокуса.
@@ -2385,14 +2418,16 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	// Получение сохранённых значений текста.
-	c.status.readTextPassed = true // Установка признака, что был запущен процесс получения значений текста.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		c.status.readTextPassed = true // Установка признака, что был запущен процесс получения значений текста.
 
-	_, err = showTextWorkDB(c)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
-	} else {
-		c.conf.PtrLoggerFile.Write("Debug: текстовые данные успешно прочитаны")
-		c.status.readTextSUCCESS = true
+		_, err = showTextWorkDB(c)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
+		} else {
+			c.conf.PtrLoggerFile.Write("Debug: текстовые данные успешно прочитаны")
+			c.status.readTextSUCCESS = true
+		}
 	}
 
 	// Установка фокуса.

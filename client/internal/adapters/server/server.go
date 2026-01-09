@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -23,6 +24,10 @@ type server struct {
 type ActionsI interface {
 	ConnectClose() error
 	AuthenticationContext(ctx context.Context, userName, userPwd string) error
+	SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error
+	SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error
+	GetTokenAuthentication() string
+	UpdateTokenAuthentication(token string)
 }
 
 // Интерфейс.
@@ -139,4 +144,130 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 	}
 
 	return nil
+}
+
+// Передача логин/пароль.
+func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error {
+
+	// Проверка аргументов.
+	if data.TxFor == "" {
+		return EmptyDataArgumentTxID
+	}
+	if data.TxFor == "" {
+		return EmptyDataArgumentTxFor
+	}
+	if data.TxLogin == "" {
+		return EmptyDataArgumentTxLogin
+	}
+	if s.client == nil {
+		return NilPtrConnect
+	}
+
+	// Шифрование передаваемых данных.
+	txData := TxLoginPassword{
+		TxID:        data.TxID,
+		TxFor:       data.TxFor,
+		TxLogin:     data.TxLogin,
+		TxPassword:  data.TxPassword,
+		TxCreatedAt: data.TxCreatedAt,
+	}
+	eData, err := layerSendLoginPasswordEncode(txData, key)
+	if err != nil {
+		return fmt.Errorf("функция layerSendLoginPasswordEncode, вернула ошибку: <%w>", err)
+	}
+
+	// Подготовка метаданных
+	nameToken := "token"
+	txMD := metadata.Pairs(nameToken, tokenSrv)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+	// Подготовка данных
+	req := &proto.SendLoginPasswordRequest{
+		IdClient:  eData.TxID,
+		For:       eData.TxFor,
+		Login:     eData.TxLogin,
+		Password:  eData.TxPassword,
+		CreatedAt: eData.TxCreatedAt,
+	}
+
+	var header metadata.MD
+
+	// Запрос.
+	_, err = s.client.SendLoginPassword(ctx, req, grpc.Header(&header))
+	if err != nil {
+		return fmt.Errorf("функция client.SendLoginPassword, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Передача текста.
+func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error {
+
+	// Проверка аргументов.
+	if data.TxFor == "" {
+		return EmptyDataArgumentTxID
+	}
+	if data.TxFor == "" {
+		return EmptyDataArgumentTxFor
+	}
+	if data.TxText == "" {
+		return EmptyDataArgumentTxText
+	}
+	if s.client == nil {
+		return NilPtrConnect
+	}
+
+	// Шифрование передаваемых данных.
+	txData := TxText{
+		TxID:        data.TxID,
+		TxFor:       data.TxFor,
+		TxText:      data.TxText,
+		TxCreatedAt: data.TxCreatedAt,
+	}
+	eData, err := layerSendTextEncode(txData, key)
+	if err != nil {
+		return fmt.Errorf("функция layerSendTextEncode, вернула ошибку: <%w>", err)
+	}
+
+	// Подготовка метаданных
+	nameToken := "token"
+	txMD := metadata.Pairs(nameToken, tokenSrv)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+	// Подготовка данных
+	req := &proto.SendTextRequest{
+		IdClient:  eData.TxID,
+		For:       eData.TxFor,
+		Text:      eData.TxText,
+		CreatedAt: eData.TxCreatedAt,
+	}
+
+	var header metadata.MD
+
+	// Запрос.
+	_, err = s.client.SendText(ctx, req, grpc.Header(&header))
+	if err != nil {
+		return fmt.Errorf("функция client.SendText, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Получение токена аутентификации.
+func (s server) GetTokenAuthentication() string {
+	return s.tokenSrv
+}
+
+// Обновление токена аутентификации.
+func (s *server) UpdateTokenAuthentication(token string) {
+	s.tokenSrv = token
 }
