@@ -34,9 +34,11 @@ type statusSrv struct {
 // grpc
 type Manager struct {
 	pb.UnimplementedPasswordManagerServer
-	logger  *zap.Logger     // Логгер.
-	status  statusSrv       // Статусы.
-	storage domain.StorageI // База данных.
+	logger    *zap.Logger     // Логгер.
+	status    statusSrv       // Статусы.
+	storage   domain.StorageI // База данных.
+	token     string          // Выданный токен
+	secretKey string          // Секретный ключ
 }
 
 var once sync.Once // единоразовая инициализация экземпляра
@@ -52,7 +54,9 @@ func New(l *zap.Logger, s domain.StorageI) *Manager {
 				isBackUp:  0,
 				isRestore: 0,
 			},
-			storage: s,
+			storage:   s,
+			token:     "",
+			secretKey: "",
 		}
 	})
 	return inst
@@ -345,7 +349,7 @@ func (s *Manager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.Fil
 	return fileInfos, nil
 }
 
-// Регистрация пользователя.
+// Регистрация.
 func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest) (*emptypb.Empty, error) {
 
 	s.logger.Info("Принят запрос регистрации пользователя")
@@ -379,6 +383,46 @@ func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest)
 	s.logger.Info("Регистрация пользователя пройдена", zap.String("имя", rxData.userName))
 
 	return nil, nil
+}
+
+// Аутентификация.
+func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequest) (*pb.AuthenticationResponse, error) {
+
+	// Данные запроса.
+	rxData, err := layerAuthenticationRx(req)
+	if err != nil {
+		s.logger.Error("Функция layerAuthenticationRx, вернуля ошибку", zap.Error(err))
+		return nil, status.Error(codes.InvalidArgument, "ошибка обработки принятых данных")
+	}
+
+	// Получение токена, переданного клиентом.
+	rxToken, err := layerAuthenticationGetToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция layerAuthenticationGetToken, вернуля ошибку", zap.Error(err))
+		return nil, status.Error(codes.Unavailable, "ошибка получения токена")
+	}
+
+	// Логика аутентификации.
+	if err := layerAuthenticationLogic(s, rxData.userName, rxData.userPwd); err != nil {
+		s.logger.Error("Функция layerAuthenticationLogic, вернуля ошибку", zap.Error(err))
+		return nil, status.Error(codes.Unavailable, "ошибка аутентификации")
+	}
+
+	// Создание токена.
+	s.secretKey, s.token, err = createServerToken()
+	if err != nil {
+		s.logger.Error("Функция createServerToken, вернуля ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка создания токена")
+	}
+
+	// Формирование ответа. Возвращается принятый токен и передаётся токен аутентификации.
+	res, err := layerAuthenticationTx(ctx, rxToken, s.token)
+	if err != nil {
+		s.logger.Error("Функция layerAuthenticationTx, вернуля ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка подготовки ответа")
+	}
+
+	return res, nil
 }
 
 //

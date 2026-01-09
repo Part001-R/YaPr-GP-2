@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/container"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
@@ -20,21 +21,27 @@ type Configuration struct {
 	Container     container.Actions // Интерфейс контейнера.
 	Flag          *flags.Config     // Флаги.
 	ptrDB         *sql.DB           // Указатель на БД.
+	Server        server.ServerI    // Интерфейс сервера.
 }
 
 // Указатель на конфигурацию сервиса.
-var confInst *Configuration
+var inst *Configuration
 
 // Создание экземпляра конфигурации сервиса.
 func New(l *logfile.LogFile, a domain.StorageI, f *flags.Config) *Configuration {
 	onceConf.Do(func() {
-		confInst = &Configuration{
+		inst = &Configuration{
 			PtrLoggerFile: l,
 			DataBase:      a,
 			Flag:          f,
 		}
 	})
-	return confInst
+	return inst
+}
+
+// Обновление подключения к серверу.
+func NewServer(s server.ServerI) {
+	inst.Server = s
 }
 
 // Проверка содержимого конфигурации.

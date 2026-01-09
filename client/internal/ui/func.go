@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jroimartin/gocui"
@@ -1634,86 +1635,88 @@ func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func indicatorViewSelectType(g *gocui.Gui, c *handlerUI) error {
 
-	//
-	// Обновление вида элемента backUp (---> сервер).
-	//
-
-	name := "Backup"
-	btnBackup, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if btnBackup == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
-
 	statusBackUp := c.getStatusBackUp()
-
-	switch statusBackUp {
-	case stageNotActive: // Нет активности процесса.
-		btnBackup.FgColor = gocui.ColorWhite
-
-	case stageActive: // Есть активность процесса.
-		btnBackup.FgColor = gocui.ColorYellow
-
-	case stageOk: // Процесс завершён успешно.
-		btnBackup.FgColor = gocui.ColorGreen
-
-	case stageFault: // Ошибка процесса.
-		btnBackup.FgColor = gocui.ColorRed
-
-	default:
-	}
-
-	//
-	// Обновление вида элемента restore (<--- сервер).
-	//
-
-	name = "Restore"
-	btnRestore, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if btnRestore == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
-
 	statusRestore := c.getStatusRestore()
 
-	switch statusRestore {
-	case stageNotActive: // Нет активности процесса.
-		btnRestore.FgColor = gocui.ColorWhite
+	if c.conf.Flag.Mode == flags.ModeLocal { // Обработка в режиме - локальный.
 
-	case stageActive: // Есть активность процесса.
-		btnRestore.FgColor = gocui.ColorYellow
+		//
+		// Обновление вида элемента backUp (---> сервер).
+		//
 
-	case stageOk: // Процесс завершён успешно.
-		btnRestore.FgColor = gocui.ColorGreen
-
-	case stageFault: // Ошибка процесса.
-		btnRestore.FgColor = gocui.ColorRed
-
-	default:
-	}
-
-	//
-	// --- Индикатор процентов ---
-	//
-
-	if statusBackUp == stageActive || statusBackUp == stageOk ||
-		statusRestore == stageActive || statusRestore == stageOk {
-
-		name = "indicatorPercent"
-		indicator, err := g.View(name)
+		name := "Backup"
+		btnBackup, err := g.View(name)
 		if err != nil {
 			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
 		}
-		if indicator == nil {
+		if btnBackup == nil {
 			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
 
-		indicator.Clear()
-		indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
+		switch statusBackUp {
+		case stageNotActive: // Нет активности процесса.
+			btnBackup.FgColor = gocui.ColorWhite
+
+		case stageActive: // Есть активность процесса.
+			btnBackup.FgColor = gocui.ColorYellow
+
+		case stageOk: // Процесс завершён успешно.
+			btnBackup.FgColor = gocui.ColorGreen
+
+		case stageFault: // Ошибка процесса.
+			btnBackup.FgColor = gocui.ColorRed
+
+		default:
+		}
+
+		//
+		// Обновление вида элемента restore (<--- сервер).
+		//
+
+		name = "Restore"
+		btnRestore, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if btnRestore == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		switch statusRestore {
+		case stageNotActive: // Нет активности процесса.
+			btnRestore.FgColor = gocui.ColorWhite
+
+		case stageActive: // Есть активность процесса.
+			btnRestore.FgColor = gocui.ColorYellow
+
+		case stageOk: // Процесс завершён успешно.
+			btnRestore.FgColor = gocui.ColorGreen
+
+		case stageFault: // Ошибка процесса.
+			btnRestore.FgColor = gocui.ColorRed
+
+		default:
+		}
+
+		//
+		// --- Индикатор процентов ---
+		//
+
+		if statusBackUp == stageActive || statusBackUp == stageOk ||
+			statusRestore == stageActive || statusRestore == stageOk {
+
+			name := "indicatorPercent"
+			indicator, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+			}
+			if indicator == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
+			indicator.Clear()
+			indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
+		}
 	}
 
 	return nil
@@ -2987,4 +2990,47 @@ func createTokenForRegistration() (txMD metadata.MD, secretKey, nameToken string
 	txMD = metadata.Pairs(nameToken, txToken)
 
 	return txMD, secretKey, nameToken, nil
+}
+
+// Аутентификация в режиме - локальный.
+func doAuthenticationUserModeLocal(c *handlerUI) error {
+
+	userName := c.typed.login
+	userPwd1 := c.typed.password1
+
+	// Контекст для запроса.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// Выполнение запроса.
+	ok, err := c.conf.DataBase.AuthenticateUserContext(ctx, userName, userPwd1)
+	if err != nil {
+		return fmt.Errorf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err)
+	}
+
+	// Обработка результата
+	if !ok {
+		return fmt.Errorf("Info: пользователь <%s>, не прошел аутентификацию.", userName)
+	}
+
+	return nil
+}
+
+// Аутентификация в режиме - удалённый.
+func doAuthenticationUserModeRemote(c *handlerUI) error {
+
+	userName := c.typed.login
+	userPwd := c.typed.password1
+
+	// Контекст для запроса.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// Выполнение запроса.
+	err := c.conf.Server.AuthenticationContext(ctx, userName, userPwd)
+	if err != nil {
+		return fmt.Errorf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err)
+	}
+
+	return nil
 }

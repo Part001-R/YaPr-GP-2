@@ -17,4 +17,19 @@ var (
 
 	// Ошибка отправки заголовков
 	ErrSendHeaders = errors.New("Ошибка отправки заголовков")
+
+	// В аргументе tokenStr, нет данных.
+	MissingDataArgumentTokenStr = errors.New("в аргументе tokenStr, нет данных")
+
+	// Длинна ключа не соответутсвует 32-м.
+	LenSecretKey = errors.New("длина <secretKey> должна быть не менее 32 символов")
+
+	// Неизвестный метод подписи.
+	SigningMethodUnknown = errors.New("неизвестный метод подписи")
+
+	// Время валидности токена истекло
+	ValidTokenExpired = errors.New("время валидности токена истекло")
+
+	// В аргументе subjectName, нет данных.
+	EmptyDataArgumentSubjectName = errors.New("в аргументе <subjectName>, нет данных")
 )

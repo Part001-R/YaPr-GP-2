@@ -1,83 +1,75 @@
-package grpc
+package server
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
-	"os"
 	"time"
 
+	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
-// Определение размера файла в байтах. Возвращается размер в байтах и ошибка.
-func sizeFile(fileName string) (int64, error) {
+// Подключение к серверу.
+func connect(ip, port string) (conn *grpc.ClientConn, client pb.PasswordManagerClient, err error) {
 
-	// Проверка существования файла.
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return 0, ErrNotFound
+	// Проверка аргументов
+	if ip == "" {
+		return nil, nil, NilPtrArgumentIP
+	}
+	if port == "" {
+		return nil, nil, NilPtrArgumentPort
 	}
 
-	// Информация по файлу.
-	fileInfo, err := os.Stat(fileName)
+	//
+	// Логика
+	//
+
+	// Настройка TLS.
+	creds, err := credentials.NewClientTLSFromFile("tls/server.crt", "")
 	if err != nil {
-		return 0, fmt.Errorf("Ошибка получения данных по файлу: <%s>: %v", fileName, err)
+		return nil, nil, fmt.Errorf("функция credentials.NewClientTLSFromFile, вернула ошибку: <%w>", err)
 	}
 
-	return fileInfo.Size(), nil
-}
+	// Подключение к серверу.
+	srvAddr := ip + ":" + port
 
-// Вычисление хэша у файла.
-func hashFile(fileName string) (string, error) {
-
-	file, err := os.Open(fileName)
+	conn, err = grpc.NewClient(srvAddr, grpc.WithTransportCredentials(creds))
 	if err != nil {
-		return "", fmt.Errorf("ошибка при открытии файла: %w", err)
-	}
-	defer file.Close()
-
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return "", fmt.Errorf("ошибка при вычислении хэша: %w", err)
+		return nil, nil, fmt.Errorf("функция grpc.NewClient, вернула ошибку: <%w>", err)
 	}
 
-	hash := hasher.Sum(nil)
-	return hex.EncodeToString(hash), nil
+	// создание клиента.
+	client = pb.NewPasswordManagerClient(conn)
+
+	return conn, client, nil
 }
 
-// Проверка существования файла.
-func fileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		return false // Файл не существует
-	}
-	return err == nil // Файл существует
-}
-
-// Создание токена.
-func createServerToken() (secretKey, token string, err error) {
+// Создание токена для регистрации пользователя в режиме  - удалённый.
+func createTokenForAuthentication() (txMD metadata.MD, secretKey, nameToken string, err error) {
 
 	// Создание ключа.
 	secretKey, err = generateRandomString(50)
 	if err != nil {
-		return "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+		return nil, "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
 	}
 
 	// Создание токена.
-	timeValidToken := time.Duration(24 * time.Hour)
-	token, err = createToken("serverManager", secretKey, timeValidToken)
+	timeValidToken := time.Duration(5 * time.Second)
+	txToken, err := createToken("clientManager", secretKey, timeValidToken)
 	if err != nil {
-		return "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+		return nil, "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
 	}
 
-	// Результат.
-	return secretKey, token, nil
+	// Заполнение метаданных.
+	nameToken = "token"
+	txMD = metadata.Pairs(nameToken, txToken)
+
+	return txMD, secretKey, nameToken, nil
 }
 
-// Генерация строки заданной длины, из случайных символов. Возвращается сгенерированная строка и ошибка.
-//
 // Параметры:
 //
 //	length - уставка длинны строки.

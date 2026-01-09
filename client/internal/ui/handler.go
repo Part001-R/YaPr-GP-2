@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/container"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
+	service "github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/jroimartin/gocui"
 )
@@ -667,6 +669,19 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
 	c.view.activeView = viewAutentification // Установка признака активного окна
 
+	// Проверка запуска в режиме - удалённый. Подключение и создание/обновление экземпляра.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		srv, err := server.New(c.typed.ip, c.typed.port)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Не удалось создать экземпляр сервера: <%v>", err))
+			return fmt.Errorf("Не удалось создать экземпляр сервера: <%v>", err)
+		}
+		service.NewServer(srv)
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Соединение с сервером установлено: <%v>", err))
+	}
+
 	return nil
 }
 
@@ -1228,29 +1243,29 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 
 	// Если окно аутентификации.
 	if c.view.activeView == viewAutentification {
-		userName := c.typed.login
-		userPwd1 := c.typed.password1
 
-		// Контекст для запроса.
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-
-		// Выполнение запроса.
-		ok, err := c.conf.DataBase.AuthenticateUserContext(ctx, userName, userPwd1)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err))
-			return nil
+		// Если режим - локальный.
+		if c.conf.Flag.Mode == flags.ModeLocal {
+			if err := doAuthenticationUserModeLocal(c); err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doAuthenticationUserModeLocal, вернуля ошибку: <%v>", err))
+				return nil
+			}
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию. Режим - локальный", c.typed.login))
 		}
 
-		// Обработка результата
-		if !ok {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, не прошел аутентификацию.", userName))
-			return nil
+		// Если режим - удалённый.
+		if c.conf.Flag.Mode == flags.ModeRemote {
+			if err := doAuthenticationUserModeRemote(c); err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doAuthenticationUserModeRemote, вернуля ошибку: <%v>", err))
+				return nil
+			}
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию. Режим - удалённый", c.typed.login))
 		}
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию.", userName))
 
 		// Открытие окна, с запросом ввода дополнительного кода шифрования.
-		c.showRequestEncryptKey(gui, v)
+		if err := c.showRequestEncryptKey(gui, v); err != nil {
+			return fmt.Errorf("Error: функция showRequestEncryptKey, вернуля ошибку: <%v>", err)
+		}
 	}
 
 	return nil
@@ -1565,10 +1580,12 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// Создание экземпляра контейнера.
 	//
 	// Создаётся экземпляр в этом месте, т.к. ключ шифрования формируется после запроса дополнительного ключа.
-	inst := container.New(containerName, c.secret.secretKey)
-	c.conf.Container = inst
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		inst := container.New(containerName, c.secret.secretKey)
+		c.conf.Container = inst
 
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: стартовая обработка контейнера <%s> пройдена", containerName))
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: стартовая обработка контейнера <%s> пройдена", containerName))
+	}
 
 	// Логика обработчика
 	//
@@ -1697,18 +1714,20 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// --- Нижняя часть экрана ---
 	//
 
-	// Верхний ряд.
-	if v, err := g.SetView("Backup", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	if c.conf.Flag.Mode == flags.ModeLocal { // Отбразить элемент, если режим - локальный.
+		// Верхний ряд.
+		if v, err := g.SetView("Backup", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
+			if err != gocui.ErrUnknownView {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+				return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+			}
+			v.Editable = false
+			v.Wrap = true
+			v.Frame = true
+			v.BgColor = gocui.ColorDefault
+			v.FgColor = gocui.ColorWhite
+			v.Write([]byte("Ctrl+O - ---> сервер"))
 		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+O - ---> сервер"))
 	}
 
 	// Нижний ряд.
@@ -1760,17 +1779,19 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		v.FgColor = gocui.ColorWhite
 		v.Write([]byte("Ctrl+C - выход"))
 	}
-	if v, err := g.SetView("Restore", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+	if c.conf.Flag.Mode == flags.ModeLocal { // Отбразить элемент, если режим - локальный.
+		if v, err := g.SetView("Restore", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
+			if err != gocui.ErrUnknownView {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+				return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
+			}
+			v.Editable = false
+			v.Wrap = true
+			v.Frame = true
+			v.BgColor = gocui.ColorDefault
+			v.FgColor = gocui.ColorWhite
+			v.Write([]byte("Ctrl+P - <--- сервер"))
 		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+P - <--- сервер"))
 	}
 
 	// Установка фокуса.
