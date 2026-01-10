@@ -17,6 +17,8 @@ service PasswordManager {
     rpc Authentication(AuthenticationRequest) returns (AuthenticationResponse);
     rpc SendLoginPassword(SendLoginPasswordRequest) returns (google.protobuf.Empty);
     rpc SendText(SendTextRequest) returns (google.protobuf.Empty);
+    rpc SendBankCard(SendBankCardRequest) returns (google.protobuf.Empty);
+    rpc SendFile(stream SendFileRequest) returns (SendFileResponse);
 }
 
 message UploadRequest {
@@ -74,4 +76,24 @@ message SendTextRequest {
     string for = 2;
     string text = 3;
     string createdAt = 4;
+}
+
+message SendBankCardRequest {
+    string idClient = 1;
+    string for = 2;
+    string owner = 3;
+    string numb = 4;
+    string validData = 5;
+    string code = 6;
+    string createdAt = 7;
+}
+
+message SendFileRequest {
+    string idClient = 1;
+    string fileName = 2;
+    bytes content = 3;
+}
+
+message SendFileResponse {
+    string fileName = 1;
 }

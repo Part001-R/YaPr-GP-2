@@ -5,8 +5,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -261,4 +265,40 @@ func decrypt(data string, key [32]byte) (string, error) {
 	plaintext := plaintextPadded[:len(plaintextPadded)-padding]
 
 	return string(plaintext), nil
+}
+
+// Проверка существования файла
+func isFileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
+}
+
+// Функция для удаления файла
+func deleteFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		return fmt.Errorf("не удалось удалить файл <%s>: <%w>", filePath, err)
+	}
+	return nil
+}
+
+// Вычисление хэша у файла.
+func hashFile(fileName string) (string, error) {
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return "", fmt.Errorf("ошибка при открытии файла: %w", err)
+	}
+	defer file.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", fmt.Errorf("ошибка при вычислении хэша: %w", err)
+	}
+
+	hash := hasher.Sum(nil)
+	return hex.EncodeToString(hash), nil
 }

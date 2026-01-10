@@ -2719,12 +2719,20 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Получение списка названий файлов.
 	c.status.readFilePassed = true // Установка признака, что был запущен процесс получения значений текста.
 
-	c.data.files, err = c.conf.Container.ListFilesInContainer(c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
-	} else {
-		c.conf.PtrLoggerFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
-		c.status.readFileSUCCESS = true
+	// Если режим - локальный
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		c.data.files, err = c.conf.Container.ListFilesInContainer(c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
+		} else {
+			c.conf.PtrLoggerFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
+			c.status.readFileSUCCESS = true
+		}
+	}
+
+	// Если режим - удалённый
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
 	}
 
 	// Установка фокуса.
@@ -2768,7 +2776,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	layoutInitialized = false
 	c.view.currentFocus = "fieldAddFor" // Установка фокуса на элемент окна.
 
-	// Создание контейнера запроса ввода дополнительного секретного ключа.
+	// Окно для банковской карты.
 	view, err := g.SetView(viewBankCardData, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
@@ -3080,12 +3088,20 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	// Получение сохранённых значений банковских карт.
 	c.status.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
 
-	_, err = showBankCardWorkDB(c)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
-	} else {
-		c.conf.PtrLoggerFile.Write("Debug: данные банковских карт успешно прочитаны")
-		c.status.readBankCardSUCCESS = true
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		_, err = showBankCardWorkDB(c)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
+		} else {
+			c.conf.PtrLoggerFile.Write("Debug: данные банковских карт успешно прочитаны")
+			c.status.readBankCardSUCCESS = true
+		}
+	}
+
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
 	}
 
 	// Установка фокуса.

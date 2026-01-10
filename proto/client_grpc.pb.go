@@ -28,6 +28,8 @@ const (
 	PasswordManager_Authentication_FullMethodName    = "/manager.PasswordManager/Authentication"
 	PasswordManager_SendLoginPassword_FullMethodName = "/manager.PasswordManager/SendLoginPassword"
 	PasswordManager_SendText_FullMethodName          = "/manager.PasswordManager/SendText"
+	PasswordManager_SendBankCard_FullMethodName      = "/manager.PasswordManager/SendBankCard"
+	PasswordManager_SendFile_FullMethodName          = "/manager.PasswordManager/SendFile"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -42,6 +44,8 @@ type PasswordManagerClient interface {
 	Authentication(ctx context.Context, in *AuthenticationRequest, opts ...grpc.CallOption) (*AuthenticationResponse, error)
 	SendLoginPassword(ctx context.Context, in *SendLoginPasswordRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SendText(ctx context.Context, in *SendTextRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SendBankCard(ctx context.Context, in *SendBankCardRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SendFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendFileRequest, SendFileResponse], error)
 }
 
 type passwordManagerClient struct {
@@ -144,6 +148,29 @@ func (c *passwordManagerClient) SendText(ctx context.Context, in *SendTextReques
 	return out, nil
 }
 
+func (c *passwordManagerClient) SendBankCard(ctx context.Context, in *SendBankCardRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_SendBankCard_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) SendFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendFileRequest, SendFileResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &PasswordManager_ServiceDesc.Streams[2], PasswordManager_SendFile_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SendFileRequest, SendFileResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PasswordManager_SendFileClient = grpc.ClientStreamingClient[SendFileRequest, SendFileResponse]
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -156,6 +183,8 @@ type PasswordManagerServer interface {
 	Authentication(context.Context, *AuthenticationRequest) (*AuthenticationResponse, error)
 	SendLoginPassword(context.Context, *SendLoginPasswordRequest) (*emptypb.Empty, error)
 	SendText(context.Context, *SendTextRequest) (*emptypb.Empty, error)
+	SendBankCard(context.Context, *SendBankCardRequest) (*emptypb.Empty, error)
+	SendFile(grpc.ClientStreamingServer[SendFileRequest, SendFileResponse]) error
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -189,6 +218,12 @@ func (UnimplementedPasswordManagerServer) SendLoginPassword(context.Context, *Se
 }
 func (UnimplementedPasswordManagerServer) SendText(context.Context, *SendTextRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendText not implemented")
+}
+func (UnimplementedPasswordManagerServer) SendBankCard(context.Context, *SendBankCardRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendBankCard not implemented")
+}
+func (UnimplementedPasswordManagerServer) SendFile(grpc.ClientStreamingServer[SendFileRequest, SendFileResponse]) error {
+	return status.Error(codes.Unimplemented, "method SendFile not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -337,6 +372,31 @@ func _PasswordManager_SendText_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PasswordManager_SendBankCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendBankCardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).SendBankCard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_SendBankCard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).SendBankCard(ctx, req.(*SendBankCardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_SendFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(PasswordManagerServer).SendFile(&grpc.GenericServerStream[SendFileRequest, SendFileResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PasswordManager_SendFileServer = grpc.ClientStreamingServer[SendFileRequest, SendFileResponse]
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -368,6 +428,10 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "SendText",
 			Handler:    _PasswordManager_SendText_Handler,
 		},
+		{
+			MethodName: "SendBankCard",
+			Handler:    _PasswordManager_SendBankCard_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -379,6 +443,11 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "RestoreFile",
 			Handler:       _PasswordManager_RestoreFile_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "SendFile",
+			Handler:       _PasswordManager_SendFile_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "proto/client.proto",

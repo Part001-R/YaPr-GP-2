@@ -2133,35 +2133,51 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 // Логика процесса сохранения в окне BinaryData. Возвращается ошибка.
 func doStoreViewBinaryData(c *handlerUI) error {
 
-	if c.getStatusPopContainer() == stageNotActive && c.getStatusPushContainer() == stageNotActive {
+	// Если режим - локальный
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		if c.getStatusPopContainer() == stageNotActive && c.getStatusPushContainer() == stageNotActive {
 
-		c.updateStatusPushContainer(stageActive)
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
+			c.updateStatusPushContainer(stageActive)
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
 
-		// Сброс
-		c.txrx.passedKB = 0
-		c.txrx.percentTxRx = 0
+			// Сброс
+			c.txrx.passedKB = 0
+			c.txrx.percentTxRx = 0
 
-		// Определение размера файла.
-		var err error
-		files := []string{c.typed.dataPathSrc}
+			// Определение размера файла.
+			var err error
+			files := []string{c.typed.dataPathSrc}
 
-		c.txrx.totalSizeKB, err = totalFileSize(files)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
-			c.updateStatusBackUp(stageFault)
+			c.txrx.totalSizeKB, err = totalFileSize(files)
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
+				c.updateStatusBackUp(stageFault)
+				return nil
+			}
+
+			chPercent := make(chan float64)
+			chErr := make(chan error)
+			chDone := make(chan struct{})
+
+			// Запуск процесса передачи файла в контейнер.
+			go c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey, chPercent, chErr, chDone)
+
+			// Буфер между каналами и экземпляром.
+			go bufferProcessPushContainer(c, chPercent, chErr, chDone)
+		}
+	}
+
+	// Если режим - удалённый
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
+
+		if err := c.conf.Server.SendFile(c.typed.dataPathSrc, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция Server.SendFile, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		chPercent := make(chan float64)
-		chErr := make(chan error)
-		chDone := make(chan struct{})
-
-		// Запуск процесса передачи файла в контейнер.
-		go c.conf.Container.AddFileToContainer(c.typed.dataPathSrc, c.secret.secretKey, chPercent, chErr, chDone)
-
-		// Буфер между каналами и экземпляром.
-		go bufferProcessPushContainer(c, chPercent, chErr, chDone)
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Завершен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
 	}
 
 	return nil
@@ -2176,54 +2192,92 @@ func doStoreViewBankCardData(c *handlerUI) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// Шифрование данных
-	encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
-		return nil
-	}
-	encrOwner, err := encrypt(c.typed.dataOwner, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataOwner: <%v>", err))
-		return nil
-	}
-	encrNumb, err := encrypt(c.typed.dataNumb, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataNumb: <%v>", err))
-		return nil
-	}
-	encrValid, err := encrypt(c.typed.dataValidDate, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataValidDate: <%v>", err))
-		return nil
-	}
-	encrCode, err := encrypt(c.typed.dataCode, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataCode: <%v>", err))
-		return nil
-	}
-	tn := time.Now().UTC()
-	strT := tn.Format(time.RFC3339)
-	encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
-	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
-		return nil
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+
+		// Шифрование данных
+		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			return nil
+		}
+		encrOwner, err := encrypt(c.typed.dataOwner, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataOwner: <%v>", err))
+			return nil
+		}
+		encrNumb, err := encrypt(c.typed.dataNumb, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataNumb: <%v>", err))
+			return nil
+		}
+		encrValid, err := encrypt(c.typed.dataValidDate, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataValidDate: <%v>", err))
+			return nil
+		}
+		encrCode, err := encrypt(c.typed.dataCode, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataCode: <%v>", err))
+			return nil
+		}
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			return nil
+		}
+
+		// Проверка номера банковской карты на валидность.
+		if !checkCardNumber(c.typed.dataNumb) {
+			c.conf.PtrLoggerFile.Write("Error: номер карты, не прошел проверку")
+			return nil
+		}
+
+		// Добавление зашифрованных данных в БД.
+		if err := c.conf.DataBase.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Debug: карта добавлена в БД")
+		c.status.addBankCardSUCCESS = true
 	}
 
-	// Проверка номера банковской карты на валидность.
-	if !checkCardNumber(c.typed.dataNumb) {
-		c.conf.PtrLoggerFile.Write("Error: номер карты, не прошел проверку")
-		return nil
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		// Дата создания записи.
+		tn := time.Now().UTC()
+		strT := tn.Format(time.RFC3339)
+
+		// Подготовка.
+		txData := server.TxBankCard{
+			TxID:        c.clientName,
+			TxFor:       c.typed.dataFor,
+			TxOwner:     c.typed.dataOwner,
+			TxNumb:      c.typed.dataNumb,
+			TxValidData: c.typed.dataValidDate,
+			TxCode:      c.typed.dataValidDate,
+			TxCreatedAt: strT,
+		}
+
+		// Логика.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		token := c.conf.Server.GetTokenAuthentication()
+
+		if err := c.conf.Server.SendBankCard(ctx, txData, token, c.secret.secretKey); err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция SendBankCard, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.conf.PtrLoggerFile.Write("Info: банковская карта, успешно передана на сервер")
+		c.status.addBankCardSUCCESS = true
 	}
 
-	// Добавление зашифрованных данных в БД.
-	if err := c.conf.DataBase.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
-		return nil
-	}
-
-	c.conf.PtrLoggerFile.Write("Debug: карта добавлена в БД")
-	c.status.addBankCardSUCCESS = true
 	return nil
 }
 

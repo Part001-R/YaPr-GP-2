@@ -35,3 +35,14 @@ type RxText struct {
 	RxText      string // текст
 	RxCreatedAt string // дата создания
 }
+
+// Принятые данные банковской карты.
+type RxBankCard struct {
+	RxID        string // id клиента
+	RxFor       string // принадлежность текста
+	RxOwner     string // владелец
+	RxNumb      string // номер
+	RxValidData string // валидность
+	RxCode      string // код
+	RxCreatedAt string // дата создания
+}

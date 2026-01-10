@@ -26,6 +26,8 @@ type ActionsI interface {
 	AuthenticationContext(ctx context.Context, userName, userPwd string) error
 	SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error
 	SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error
+	SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error
+	SendFile(fileName, tokenSrv, idClient string, key [32]byte) error
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -261,6 +263,116 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key
 
 	return nil
 }
+
+// Передача банковской карты.
+func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error {
+
+	// Проверка аргументов.
+	if data.TxFor == "" {
+		return EmptyDataArgumentTxID
+	}
+	if data.TxFor == "" {
+		return EmptyDataArgumentTxFor
+	}
+	if data.TxOwner == "" {
+		return EmptyDataArgumentTxOwner
+	}
+	if data.TxNumb == "" {
+		return EmptyDataArgumentTxNumb
+	}
+	if data.TxValidData == "" {
+		return EmptyDataArgumentTxValidData
+	}
+	if data.TxCode == "" {
+		return EmptyDataArgumentTxCode
+	}
+	if s.client == nil {
+		return NilPtrConnect
+	}
+
+	// Шифрование передаваемых данных.
+	txData := TxBankCard{
+		TxID:        data.TxID,
+		TxFor:       data.TxFor,
+		TxOwner:     data.TxOwner,
+		TxNumb:      data.TxNumb,
+		TxValidData: data.TxValidData,
+		TxCreatedAt: data.TxCreatedAt,
+	}
+	eData, err := layerSendBankCardEncode(txData, key)
+	if err != nil {
+		return fmt.Errorf("функция layerSendBankCardEncode, вернула ошибку: <%w>", err)
+	}
+
+	// Подготовка метаданных
+	nameToken := "token"
+	txMD := metadata.Pairs(nameToken, tokenSrv)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+	// Подготовка данных
+	req := &proto.SendBankCardRequest{
+		IdClient:  eData.TxID,
+		For:       eData.TxFor,
+		Owner:     eData.TxOwner,
+		Numb:      eData.TxNumb,
+		Code:      eData.TxCode,
+		CreatedAt: eData.TxCreatedAt,
+	}
+
+	var header metadata.MD
+
+	// Запрос.
+	_, err = s.client.SendBankCard(ctx, req, grpc.Header(&header))
+	if err != nil {
+		return fmt.Errorf("функция client.SendBankCard, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Передача файла.
+func (s *server) SendFile(fileName, tokenSrv, idClient string, key [32]byte) error {
+
+	// Проверка аргументов.
+	if fileName == "" {
+		return EmptyDataArgumentFileName
+	}
+	if s.client == nil {
+		return NilPtrConnect
+	}
+
+	// Создание зашифрованной версии файла.
+	nameFileEncr, err := layerSendFileEncrypt(fileName, key)
+	if err != nil {
+		return fmt.Errorf("Функция layerSendFileEncrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Передача файла.
+	rxHash, err := layerSendFileTx(s.client, nameFileEncr, tokenSrv, idClient)
+	if err != nil {
+		return fmt.Errorf("Функция layerSendFileTx, вернула ошибку: <%w>", err)
+	}
+
+	// Вычисление хеша переданного файла
+	if err := layerSendFileCheckHash(nameFileEncr, rxHash); err != nil {
+		return fmt.Errorf("Функция layerSendFileCheckHash, вернула ошибку: <%w>", err)
+	}
+
+	// Удаление созданного зашифрованного файла
+	if err := layerSendFileRemove(nameFileEncr); err != nil {
+		return fmt.Errorf("Функция layerSendFileRemove, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- токен ---
+//
 
 // Получение токена аутентификации.
 func (s server) GetTokenAuthentication() string {

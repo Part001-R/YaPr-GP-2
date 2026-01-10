@@ -263,3 +263,57 @@ func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error 
 
 	return nil
 }
+
+//
+// --- SendBankCard ---
+//
+
+// Получение данных запроса.
+func layerSendBankCardRx(req *pb.SendBankCardRequest) (rxData RxBankCard, err error) {
+
+	rxData.RxID = req.IdClient
+	rxData.RxFor = req.For
+	rxData.RxOwner = req.Owner
+	rxData.RxNumb = req.Numb
+	rxData.RxValidData = req.ValidData
+	rxData.RxCode = req.Code
+	rxData.RxCreatedAt = req.CreatedAt
+
+	return rxData, nil
+}
+
+// Получение токена из запроса.
+func layerSendBankCardGetToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Логика.
+func layerSendBankCardContext(ctx context.Context, rxData RxBankCard, m *Manager) error {
+
+	if err := m.storage.AddDataBankCardContext(ctx, rxData.RxFor, rxData.RxOwner, rxData.RxNumb, rxData.RxValidData, rxData.RxCode, rxData.RxCreatedAt); err != nil {
+		return fmt.Errorf("Функция AddDataBankCardContext, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}

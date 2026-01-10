@@ -428,7 +428,10 @@ func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequ
 // Добавление данных - логин/пароль.
 func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswordRequest) (*emptypb.Empty, error) {
 
-	s.logger.Info("Принят запрос добавления логин/пароль")
+	if req.IdClient == "" {
+		return nil, status.Error(codes.NotFound, "нет данных ID клиента")
+	}
+	s.logger.Info("Принят запрос добавления логин/пароль", zap.String("ID клиента", req.IdClient))
 
 	// Получение данных запроса.
 	rxData, err := layerSendLoginPasswordRx(req)
@@ -456,7 +459,7 @@ func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswo
 		return nil, status.Error(codes.Internal, "ошибка добавления записи в БД")
 	}
 
-	s.logger.Info("Данные запроса логин/пароль, успешно добавлены")
+	s.logger.Info("Данные запроса логин/пароль, успешно добавлены", zap.String("ID клиента", req.IdClient))
 
 	return nil, nil
 }
@@ -464,7 +467,10 @@ func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswo
 // Добавление данных - текст.
 func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*emptypb.Empty, error) {
 
-	s.logger.Info("Принят запрос добавления текста")
+	if req.IdClient == "" {
+		return nil, status.Error(codes.NotFound, "нет данных ID клиента")
+	}
+	s.logger.Info("Принят запрос добавления текста", zap.String("ID клиента", req.IdClient))
 
 	// Получение данных запроса.
 	rxData, err := layerSendTextRx(req)
@@ -492,9 +498,170 @@ func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*empty
 		return nil, status.Error(codes.Internal, "ошибка добавления записи в БД")
 	}
 
-	s.logger.Info("Данные запроса текста, успешно добавлены")
+	s.logger.Info("Данные запроса текста, успешно добавлены", zap.String("ID клиента", req.IdClient))
 
 	return nil, nil
+}
+
+// Добавление данных - банковская карта.
+func (s *Manager) SendBankCard(ctx context.Context, req *pb.SendBankCardRequest) (*emptypb.Empty, error) {
+
+	if req.IdClient == "" {
+		return nil, status.Error(codes.NotFound, "нет данных ID клиента")
+	}
+	s.logger.Info("Принят запрос добавления банковской карты", zap.String("ID клиента", req.IdClient))
+
+	// Получение данных запроса.
+	rxData, err := layerSendBankCardRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения отправленных данных", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка получения отправленных данных")
+	}
+
+	// Получение токена запроса.
+	rxToken, err := layerSendBankCardGetToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена запроса", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка получения токена запроса")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Логика.
+	if err := layerSendBankCardContext(ctx, rxData, s); err != nil {
+		s.logger.Error("ошибка добавления записи в БД", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка добавления записи в БД")
+	}
+
+	s.logger.Info("Данные запроса банковской карты, успешно добавлены", zap.String("ID клиента", req.IdClient))
+
+	return nil, nil
+}
+
+// Добавление данных - файл.
+func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn error) {
+
+	s.logger.Info("Принят запрос добавления файла")
+
+	// Извлечение метаданных из контекста
+	md, ok := metadata.FromIncomingContext(stream.Context())
+	if !ok {
+		return status.Error(codes.InvalidArgument, "ошибка извлечения заголовков")
+	}
+
+	// Получение значения токена
+	token := md.Get("token")
+	if len(token) == 0 {
+		return status.Error(codes.Unauthenticated, "токен не передан")
+	}
+
+	//
+	// Логика
+	//
+
+	var rxFileName string
+	var file *os.File
+	var doDeferRemoveFile bool // Флаг необходимости удаления файла
+	var isRemovedFile bool     // Флаг, что файл уже был удалён
+
+	// Проверка необходимости удаления файла, перед выходом.
+	defer func(doRemove bool, fileName string) {
+		if fileExists(fileName) && doRemove {
+			if errRemove := os.Remove(fileName); errRemove != nil {
+				s.logger.Error("ошибка при удалении файла",
+					zap.String("файл", fileName),
+					zap.String("ошибка", errRemove.Error()),
+					zap.String("причина удаления", errReturn.Error()))
+
+				errReturn = fmt.Errorf("ошибка при удалении файла:<%v>, файл:<%s>, ошибка:<%v>, причина удаления:<%v>", errRemove, fileName, errRemove, errReturn)
+			}
+		}
+	}(doDeferRemoveFile, rxFileName)
+
+	// Приём данных файла.
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF { // конец потока
+			break
+		}
+		if err != nil {
+			s.logger.Error("ошибка stream.Recv", zap.String("ошибка", err.Error()))
+			break
+		}
+
+		// Создание файла.
+		if rxFileName == "" {
+			rxFileName = req.GetFileName()
+
+			// Предварительное удаление уже существующего файла.
+			if !isRemovedFile {
+				isRemovedFile = true
+
+				if fileExists(rxFileName) {
+					if err := os.Remove(rxFileName); err != nil {
+						errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, предварительного удаления существующего файла:<%s>", err, rxFileName))
+						return errReturn
+					}
+				}
+			}
+
+			// Новая версия файла.
+			file, err = os.OpenFile(rxFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+			if err != nil {
+				s.logger.Error("ошибка при открытии файла", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+				errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, открытия файла:<%s>", err, rxFileName))
+				return errReturn
+			}
+			defer func() {
+				if err := file.Close(); err != nil {
+					s.logger.Error("ошибка закрытия подключения к файлу", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+				}
+			}()
+		}
+
+		// Сохранение принятых данных потока, в файл.
+		_, err = file.Write(req.GetContent())
+		if err != nil {
+			s.logger.Error("ошибка при добавлении данных файла", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+			doDeferRemoveFile = true
+			errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, добавления данных в файл:<%s>", err, rxFileName))
+			return errReturn
+		}
+	}
+
+	// Вычисление хэша файла.
+	fileHash, err := hashFile(rxFileName)
+	if err != nil {
+		s.logger.Error("ошибка при вычислении эеша для файла", zap.String("файл", rxFileName))
+		doDeferRemoveFile = true
+		errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, при вычислении хэша для файла:<%s>", err, rxFileName))
+		return errReturn
+	}
+
+	s.logger.Info("От клиента принят файл", zap.String("имя", rxFileName), zap.String("хэш", fileHash))
+
+	// Установка трейлера с хэшем файла
+	mdTrailer := metadata.Pairs("hash", fileHash, "token", token[0])
+	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
+		s.logger.Error("ошибка установки трейлера", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
+		return status.Error(codes.Internal, "ошибка установки трейлера")
+	}
+
+	// Сброс статуса.
+	if err := s.UpdateStatusBackUp(stageNotActive); err != nil {
+		return status.Error(codes.Internal, "Ошибка обновления статуса")
+	}
+
+	s.logger.Info("Файл успешно принят")
+
+	// Финальное сообщение сервера.
+	return stream.SendAndClose(&pb.SendFileResponse{
+		FileName: rxFileName,
+	})
 }
 
 //

@@ -48,6 +48,18 @@ var (
 	// В аргументе txLogin, нет данных.
 	EmptyDataArgumentTxLogin = errors.New("в аргументе <txLogin>, нет данных")
 
+	// В аргументе txOwner, нет данных.
+	EmptyDataArgumentTxOwner = errors.New("в аргументе <txOwner>, нет данных")
+
+	// В аргументе txNumb, нет данных.
+	EmptyDataArgumentTxNumb = errors.New("в аргументе <txNumb>, нет данных")
+
+	// В аргументе txValidData, нет данных.
+	EmptyDataArgumentTxValidData = errors.New("в аргументе <txValidData>, нет данных")
+
+	// В аргументе txCode, нет данных.
+	EmptyDataArgumentTxCode = errors.New("в аргументе <txCode>, нет данных")
+
 	// В аргументе txText, нет данных.
 	EmptyDataArgumentTxText = errors.New("в аргументе <txText>, нет данных")
 
@@ -56,4 +68,10 @@ var (
 
 	// Некорректное заполнение
 	NotCorrectDataFill = errors.New("некорректное заполнение")
+
+	// Ошибка паддинга
+	ErrInvalidPadding = errors.New("Ошибка паддинга")
+
+	// В аргументе fileName, нет данных.
+	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
 )
