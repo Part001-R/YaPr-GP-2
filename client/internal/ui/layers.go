@@ -133,7 +133,7 @@ func layerBackUpCreateToken() (secretKey, token string, err error) {
 }
 
 // Передача файла на сервер.
-func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (resp *pb.UploadResponse, rxHash, rxToken string, err error) {
+func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token string, c *handlerUI) (resp *pb.LocalBackupFileResponse, rxHash, rxToken string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -143,7 +143,7 @@ func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token strin
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	// Инициация стрима для загрузки файла
-	stream, err := client.BackupFile(ctx)
+	stream, err := client.LocalBackupFile(ctx)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("ошибка создания stream, для передачи данных: <%w>", err)
 	}
@@ -172,7 +172,7 @@ func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token strin
 			break
 		}
 
-		req := &pb.UploadRequest{
+		req := &pb.LocalBackupFileRequest{
 			FileName: fileName,
 			Content:  buf[:n],
 		}
@@ -210,7 +210,7 @@ func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token strin
 }
 
 // Проверка результата.
-func layerBackUpCheckResult(resp *proto.UploadResponse, txFileName, txFileHash, rxFileHash, rxToken, secretKey string) error {
+func layerBackUpCheckResult(resp *proto.LocalBackupFileResponse, txFileName, txFileHash, rxFileHash, rxToken, secretKey string) error {
 
 	// Проверка аргументов.
 	if resp == nil {
@@ -304,8 +304,8 @@ func layerRestoreRxFile(client proto.PasswordManagerClient, fileName, token stri
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	// Запрос
-	req := &pb.DownloadRequest{FileName: fileName}
-	stream, err := client.RestoreFile(ctx, req)
+	req := &pb.LocalRestoreFileRequest{FileName: fileName}
+	stream, err := client.LocalRestoreFile(ctx, req)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("Функция client.RestoreFile, вернула ошибку: <%w>", err)
 	}
@@ -409,7 +409,7 @@ func layerFilesInfoRequest(client proto.PasswordManagerClient, token string) (fi
 
 	// Запрос у сервера информации по файлам.
 	emptyRequest := &emptypb.Empty{}
-	infoResp, err := client.FilesInfo(
+	infoResp, err := client.LocalFilesInfo(
 		ctx,
 		emptyRequest,
 		grpc.Trailer(&trailer),

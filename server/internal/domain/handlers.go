@@ -210,3 +210,27 @@ func (s *storage) DelBankCardContext(ctx context.Context, field1 string) error {
 		return fmt.Errorf("Неизвестный тип БД")
 	}
 }
+
+// Чтение имён записей - логин/пароль.
+func (s *storage) GetNamesLoginPasswordContext(ctx context.Context) ([]string, error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		return actions.GetNamesLoginPasswordContext(ctx)
+	// ...
+	default:
+		return []string{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// Чтение данных логин/пароль по имени.
+func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string) (data sqlitestor.DataLoginPassword, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		return actions.GetLoginPasswordByNameContext(ctx, name)
+	// ...
+	default:
+		return sqlitestor.DataLoginPassword{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}

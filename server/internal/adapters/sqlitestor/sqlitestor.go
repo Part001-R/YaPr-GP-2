@@ -34,6 +34,14 @@ type TextData struct {
 	CreatedAt string // время создания/обновления.
 }
 
+// Представление данных текста.
+type DataLoginPassword struct {
+	For       string // принадлежность
+	Login     string // логин
+	Password  string // пароль
+	CreatedAt string // дата создания
+}
+
 // Формат записи банковской карты.
 type BankCard struct {
 	Name      string // наименование записи.
@@ -58,7 +66,9 @@ type Actions interface {
 	DelTextContext(ctx context.Context, field1 string) error
 	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error
 	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)
+	GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error)
 	DelBankCardContext(ctx context.Context, field1 string) error
+	GetNamesLoginPasswordContext(ctx context.Context) ([]string, error)
 }
 
 var inst *dataBase
@@ -265,6 +275,54 @@ func (d *dataBase) DelDataLoginPasswordContext(ctx context.Context, field1 strin
 	}
 
 	return nil
+}
+
+// Получение имён записей для логин/пароль.
+func (d *dataBase) GetNamesLoginPasswordContext(ctx context.Context) ([]string, error) {
+
+	// Запрос к базе данных
+	query := "SELECT field_1 FROM data1"
+	rows, err := d.ptrDB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка выполнения запроса: <%w>", err)
+	}
+	defer rows.Close()
+
+	// Массив для хранения значений field_1
+	var records []string
+
+	// Обработка
+	for rows.Next() {
+		var field1 string
+		if err := rows.Scan(&field1); err != nil {
+			return nil, fmt.Errorf("ошибка сканирования записи: <%w>", err)
+		}
+		records = append(records, field1)
+	}
+
+	// Проверка на ошибки после обработки всех строк
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка при итерации по записям: <%w>", err)
+	}
+
+	return records, nil
+}
+
+// Получение данных логин/пароль по имени записи.
+func (d *dataBase) GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error) {
+
+	query := "SELECT field_1, field_2, field_3, created_at FROM data1 WHERE field_1 = ?"
+	row := d.ptrDB.QueryRowContext(ctx, query, name)
+
+	err = row.Scan(&data.For, &data.Login, &data.Password, &data.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return DataLoginPassword{}, nil // нет записи по указанному имени
+		}
+		return DataLoginPassword{}, err
+	}
+
+	return data, nil
 }
 
 //

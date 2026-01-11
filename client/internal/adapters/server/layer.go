@@ -17,6 +17,7 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 //
@@ -24,26 +25,26 @@ import (
 //
 
 // Шифрование передаваемых данных.
-func layerSendLoginPasswordEncode(data TxLoginPassword, secretKey [32]byte) (eData TxLoginPassword, err error) {
+func layerSendLoginPasswordEncode(data TxLoginPassword, key [32]byte) (eData TxLoginPassword, err error) {
 
-	eData.TxID = data.TxID
+	eData.ID = data.ID
 
-	eData.TxFor, err = encrypt(data.TxFor, secretKey)
+	eData.For, err = encrypt(data.For, key)
 	if err != nil {
 		return TxLoginPassword{}, fmt.Errorf("Error: ошибка шифрования содержимого txFor: <%v>", err)
 	}
 
-	eData.TxLogin, err = encrypt(data.TxLogin, secretKey)
+	eData.Login, err = encrypt(data.Login, key)
 	if err != nil {
 		return TxLoginPassword{}, fmt.Errorf("Error: ошибка шифрования содержимого txLogin: <%v>", err)
 	}
 
-	eData.TxPassword, err = encrypt(data.TxPassword, secretKey)
+	eData.Password, err = encrypt(data.Password, key)
 	if err != nil {
 		return TxLoginPassword{}, fmt.Errorf("Error: ошибка шифрования содержимого txPassword: <%v>", err)
 	}
 
-	eData.TxCreatedAt, err = encrypt(data.TxCreatedAt, secretKey)
+	eData.CreatedAt, err = encrypt(data.CreatedAt, key)
 	if err != nil {
 		return TxLoginPassword{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCreatedAt: <%v>", err)
 	}
@@ -58,19 +59,19 @@ func layerSendLoginPasswordEncode(data TxLoginPassword, secretKey [32]byte) (eDa
 // Шифрование передаваемых данных.
 func layerSendTextEncode(data TxText, secretKey [32]byte) (eData TxText, err error) {
 
-	eData.TxID = data.TxID
+	eData.ID = data.ID
 
-	eData.TxFor, err = encrypt(data.TxFor, secretKey)
+	eData.For, err = encrypt(data.For, secretKey)
 	if err != nil {
 		return TxText{}, fmt.Errorf("Error: ошибка шифрования содержимого txFor: <%v>", err)
 	}
 
-	eData.TxText, err = encrypt(data.TxText, secretKey)
+	eData.Text, err = encrypt(data.Text, secretKey)
 	if err != nil {
 		return TxText{}, fmt.Errorf("Error: ошибка шифрования содержимого txLogin: <%v>", err)
 	}
 
-	eData.TxCreatedAt, err = encrypt(data.TxCreatedAt, secretKey)
+	eData.CreatedAt, err = encrypt(data.CreatedAt, secretKey)
 	if err != nil {
 		return TxText{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCreatedAt: <%v>", err)
 	}
@@ -79,40 +80,40 @@ func layerSendTextEncode(data TxText, secretKey [32]byte) (eData TxText, err err
 }
 
 //
-// --- BankCard ---
+// --- SendBankCard ---
 //
 
 // Шифрование передаваемых данных.
 func layerSendBankCardEncode(data TxBankCard, secretKey [32]byte) (eData TxBankCard, err error) {
 
-	eData.TxID = data.TxID
+	eData.ID = data.ID
 
-	eData.TxFor, err = encrypt(data.TxFor, secretKey)
+	eData.For, err = encrypt(data.For, secretKey)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого txFor: <%w>", err)
 	}
 
-	eData.TxOwner, err = encrypt(data.TxOwner, secretKey)
+	eData.Owner, err = encrypt(data.Owner, secretKey)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxOwner: <%w>", err)
 	}
 
-	eData.TxNumb, err = encrypt(data.TxNumb, secretKey)
+	eData.Numb, err = encrypt(data.Numb, secretKey)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxNumb: <%w>", err)
 	}
 
-	eData.TxValidData, err = encrypt(data.TxValidData, secretKey)
+	eData.ValidData, err = encrypt(data.ValidData, secretKey)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxValidData: <%w>", err)
 	}
 
-	eData.TxCode, err = encrypt(data.TxCode, secretKey)
+	eData.Code, err = encrypt(data.Code, secretKey)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCode: <%w>", err)
 	}
 
-	eData.TxCreatedAt, err = encrypt(data.TxCreatedAt, secretKey)
+	eData.CreatedAt, err = encrypt(data.CreatedAt, secretKey)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCreatedAt: <%w>", err)
 	}
@@ -130,26 +131,28 @@ func layerSendFileEncrypt(filePath string, key [32]byte) (encFilePath string, er
 	// Подключение к исходному файлу.
 	inputFile, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("Ошибка: <%w>, подключения к файлу: <%s>", err, filePath)
+		return "", fmt.Errorf("Ошибка подключения к файлу: <%w>", err)
 	}
 	defer inputFile.Close()
 
 	// Создание имени для шифрованной версии файла.
 	extension := filepath.Ext(filePath)
 	baseName := filepath.Base(filePath[:len(filePath)-len(extension)])
-	encFilePath = filepath.Join(filepath.Dir(filePath), baseName+"-enc"+extension)
+	fileName := baseName + "-enc" + extension
+
+	encFilePath = filepath.Join(filepath.Dir(filePath), fileName)
 
 	// Проверка существования файла.
 	if isFileExists(encFilePath) {
 		if err := deleteFile(encFilePath); err != nil {
-			return "", fmt.Errorf("Ошибка: <%w>, удаления существующего файла: <%s>", err, encFilePath)
+			return "", fmt.Errorf("Ошибка удаления существующего файла: <%w>", err)
 		}
 	}
 
 	// Создание шифрованного файла.
 	encFile, err := os.Create(encFilePath)
 	if err != nil {
-		return "", fmt.Errorf("Ошибка: <%w>, создания зашифрованного файла: <%s>", err, encFilePath)
+		return "", fmt.Errorf("Ошибка создания зашифрованного файла: <%w>", err)
 	}
 	defer encFile.Close()
 
@@ -310,7 +313,7 @@ func layerSendFileRemove(filePath string) error {
 //
 
 // Расшифровка файла.
-func layerReceiveFileDecode(encFilePath string, key [32]byte) error {
+func layerReceiveFileDecrypt(encFilePath string, key [32]byte) error {
 
 	encFile, err := os.Open(encFilePath)
 	if err != nil {
@@ -436,4 +439,128 @@ func layerReceiveFileDecode(encFilePath string, key [32]byte) error {
 
 	// Удаление зашифрованного файла
 	return os.Remove(encFilePath)
+}
+
+//
+// --- RequestLoginPasswordNames ---
+//
+
+// Передача запроса
+func layerRequestLoginPasswordNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос у сервера информации.
+	emptyRequest := &emptypb.Empty{}
+	resp, err := client.RequestLoginPasswordName(
+		ctx,
+		emptyRequest,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Функция client.RequestLoginPasswordName, вернула ошибку: <%v>", err)
+	}
+
+	// Получение данных ответа.
+	for _, v := range resp.EntriesName {
+		rxData = append(rxData, v)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Расшифровка принятых данных
+func layerRequestLoginPasswordNamesDecrypt(enRxData []string, key [32]byte) (rxData []string, err error) {
+
+	// Проверка
+	if len(enRxData) == 0 {
+		return []string{}, nil
+	}
+
+	// Расшифровка
+	for _, v := range enRxData {
+		d, err := decrypt(v, key)
+		if err != nil {
+			return []string{}, fmt.Errorf("Функция decrypt, вернула ошибку: <%w>", err)
+		}
+		rxData = append(rxData, d)
+	}
+
+	// Результат
+	return rxData, nil
+}
+
+// RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte)
+
+//
+// --- RequestLoginPasswordByName ---
+//
+
+// Шифрование передаваемых данных
+func LayerRequestLoginPasswordByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry string, err error) {
+
+	// Шифрование имени записи
+	enNameEntry, err = encrypt(nameEntry, key)
+	if err != nil {
+		return "", fmt.Errorf("функция encrypt, вернула ошибку: <%w>", err)
+	}
+
+	return enNameEntry, nil
+}
+
+// Запрос к серверу
+func LayerRequestLoginPasswordByNameTx(client proto.PasswordManagerClient, tokenAuth, idClient, enNameEntry string) (resp *pb.RequestLoginPasswordByNameResponse, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Данные запроса
+	req := &proto.RequestLoginPasswordByNameRequest{
+		IdClient: idClient,
+		Name:     enNameEntry,
+	}
+
+	// Запрос
+	resp, err = client.RequestLoginPasswordByName(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("Функция RequestLoginPasswordByName, вернула ошибку: <%w>", err)
+	}
+
+	// Результат
+	return resp, nil
+}
+
+// Обработка ответа
+func LayerRequestLoginPasswordByDecrypt(resp *pb.RequestLoginPasswordByNameResponse, key [32]byte) (rxData RxLoginPassword, err error) {
+
+	rxData.For, err = decrypt(resp.Name, key)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("ошибка расшифровки Name:<%w>", err)
+	}
+
+	rxData.Login, err = decrypt(resp.Login, key)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("ошибка расшифровки Login:<%w>", err)
+	}
+
+	rxData.Password, err = decrypt(resp.Password, key)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("ошибка расшифровки Password:<%w>", err)
+	}
+
+	rxData.CreatedAt, err = decrypt(resp.CreatedAt, key)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("ошибка расшифровки CreatedAt:<%w>", err)
+	}
+
+	return rxData, nil
 }

@@ -730,6 +730,16 @@ func loginPasswordByIndex(c *handlerUI) (el loginPassword) {
 	return el
 }
 
+// Получение имени записи логин/пароль по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func nameLoginPasswordByIndex(c *handlerUI) string {
+
+	return c.data.namesLoginPassword[c.index.loginPassword]
+}
+
 // Получение данных текста по индексу. Возвращается запись.
 //
 // Параметры:
@@ -779,6 +789,18 @@ func fileByIndex(c *handlerUI) string {
 func incrIndexloginPassword(c *handlerUI) {
 
 	if c.index.loginPassword < len(c.data.loginPassword)-1 {
+		c.index.loginPassword++
+	}
+}
+
+// Увеличение значения индекса для имён логин/пароль массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexNamesloginPassword(c *handlerUI) {
+
+	if c.index.loginPassword < len(c.data.namesLoginPassword)-1 {
 		c.index.loginPassword++
 	}
 }
@@ -1273,70 +1295,144 @@ func indicatorViewSettings(g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func indicatorViewLoginPasswordData(g *gocui.Gui, c *handlerUI) error {
 
-	name := "indicatorReadStatus"
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	// Обработка индикатора получения данных.
-	indicatorRead, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if indicatorRead == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
+		name := "indicatorReadStatus"
 
-	if c.status.readLoginPaaswordPassed { // обработка при чтении
-		if c.status.readLoginPaaswordSUCCESS {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.loginPassword))))
-			indicatorRead.FgColor = gocui.ColorGreen
-			indicatorRead.BgColor = gocui.ColorDefault
-		} else {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Ошибка"))
-			indicatorRead.FgColor = gocui.ColorRed
-			indicatorRead.BgColor = gocui.ColorDefault
+		// Обработка индикатора получения данных.
+		indicatorRead, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
 		}
-	}
-	if c.status.delLoginPaaswordPassed { // обработка при удалении
-		if c.status.delLoginPaaswordSUCCESS {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Запись удалена"))
-			indicatorRead.FgColor = gocui.ColorGreen
-			indicatorRead.BgColor = gocui.ColorDefault
-		} else {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Ошибка удаления"))
-			indicatorRead.FgColor = gocui.ColorRed
-			indicatorRead.BgColor = gocui.ColorDefault
+		if indicatorRead == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
-	}
 
-	// Обработка индикатора добавления записи.
-	name = "indicatorAddSuccess"
+		if c.status.readLoginPaaswordPassed { // обработка при чтении
+			if c.status.readLoginPaaswordSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.loginPassword))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+		if c.status.delLoginPaaswordPassed { // обработка при удалении
+			if c.status.delLoginPaaswordSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
 
-	indicator, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if indicator == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
+		// Обработка индикатора добавления записи.
+		name = "indicatorAddSuccess"
 
-	if c.status.addLoginPaaswordPassed {
-		if c.status.addLoginPaaswordSUCCESS {
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addLoginPaaswordPassed {
+			if c.status.addLoginPaaswordSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+		} else {
 			indicator.Clear()
-			indicator.Write([]byte("Данные приняты!"))
-			indicator.FgColor = gocui.ColorGreen
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(""))
+		}
+	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		name := "indicatorReadStatus"
+
+		// Обработка индикатора получения данных.
+		indicatorRead, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicatorRead == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.readNameLoginPaaswordPassed { // обработка при чтении
+			if c.status.readNameLoginPaaswordSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.namesLoginPassword))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+		if c.status.delLoginPaaswordPassed { // обработка при удалении
+			if c.status.delLoginPaaswordSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+
+		// Обработка индикатора добавления записи.
+		name = "indicatorAddSuccess"
+
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addLoginPaaswordPassed {
+			if c.status.addLoginPaaswordSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
 		} else {
 			indicator.Clear()
-			indicator.Write([]byte("Ошибка добавления."))
-			indicator.FgColor = gocui.ColorRed
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(""))
 		}
-	} else {
-		indicator.Clear()
-		indicator.Write([]byte(""))
 	}
 
 	return nil
@@ -2254,13 +2350,13 @@ func doStoreViewBankCardData(c *handlerUI) error {
 
 		// Подготовка.
 		txData := server.TxBankCard{
-			TxID:        c.clientName,
-			TxFor:       c.typed.dataFor,
-			TxOwner:     c.typed.dataOwner,
-			TxNumb:      c.typed.dataNumb,
-			TxValidData: c.typed.dataValidDate,
-			TxCode:      c.typed.dataValidDate,
-			TxCreatedAt: strT,
+			ID:        c.clientName,
+			For:       c.typed.dataFor,
+			Owner:     c.typed.dataOwner,
+			Numb:      c.typed.dataNumb,
+			ValidData: c.typed.dataValidDate,
+			Code:      c.typed.dataValidDate,
+			CreatedAt: strT,
 		}
 
 		// Логика.
@@ -2330,10 +2426,10 @@ func doStoreViewTextData(c *handlerUI) error {
 
 		// Подготовка.
 		txData := server.TxText{
-			TxID:        c.clientName,
-			TxFor:       c.typed.dataFor,
-			TxText:      c.typed.dataText,
-			TxCreatedAt: strT,
+			ID:        c.clientName,
+			For:       c.typed.dataFor,
+			Text:      c.typed.dataText,
+			CreatedAt: strT,
 		}
 
 		// Логика.
@@ -2409,10 +2505,11 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 
 		// Подготовка.
 		txData := server.TxLoginPassword{
-			TxID:       c.clientName,
-			TxFor:      c.typed.dataFor,
-			TxLogin:    c.typed.dataLogin,
-			TxPassword: strT,
+			ID:        c.clientName,
+			For:       c.typed.dataFor,
+			Login:     c.typed.dataLogin,
+			Password:  c.typed.dataPassword,
+			CreatedAt: strT,
 		}
 
 		// Логика.
@@ -2436,56 +2533,130 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 // Логика перевода фокуса в окне viewLoginPasswordData. Возвращается ошибка.
 func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
-	if len(c.data.loginPassword) == 0 {
-		return nil
+	// Если режим локальный
+	if c.conf.Flag.Mode == flags.ModeLocal {
+
+		if len(c.data.loginPassword) == 0 {
+			return nil
+		}
+
+		el := loginPasswordByIndex(c) // получение записи по индексу
+		incrIndexloginPassword(c)     // увеличение значения индекса
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldLogin, err := gui.View("fieldShowLogin")
+		if err != nil || fieldLogin == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			return nil
+		}
+		if el.login != "" {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(el.login))
+
+		} else {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Password.
+		fieldPassword, err := gui.View("fieldShowPassword")
+		if err != nil || fieldPassword == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			return nil
+		}
+		if el.password != "" {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(el.password))
+
+		} else {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(""))
+		}
 	}
 
-	el := loginPasswordByIndex(c) // получение записи по индексу
-	incrIndexloginPassword(c)     // увеличение значения индекса
+	// Если режим удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
-	// отображение содержимого поля For.
-	fieldName, err := gui.View("fieldShowFor")
-	if err != nil || fieldName == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-		return nil
-	}
-	if el.name != "" {
-		fieldName.Clear()
-		fieldName.Write([]byte(el.name))
+		if len(c.data.namesLoginPassword) == 0 {
+			return nil
+		}
 
-	} else {
-		fieldName.Clear()
-		fieldName.Write([]byte(""))
-	}
+		name := nameLoginPasswordByIndex(c) // получение имени записи по индексу
+		incrIndexNamesloginPassword(c)      // увеличение значения индекса
 
-	// отображение содержимого поля Login.
-	fieldLogin, err := gui.View("fieldShowLogin")
-	if err != nil || fieldLogin == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
-		return nil
-	}
-	if el.login != "" {
-		fieldLogin.Clear()
-		fieldLogin.Write([]byte(el.login))
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных логин/пароль по имени: <%s>", name))
 
-	} else {
-		fieldLogin.Clear()
-		fieldLogin.Write([]byte(""))
-	}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	// отображение содержимого поля Password.
-	fieldPassword, err := gui.View("fieldShowPassword")
-	if err != nil || fieldPassword == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
-		return nil
-	}
-	if el.password != "" {
-		fieldPassword.Clear()
-		fieldPassword.Write([]byte(el.password))
+		// Запрос логин/пароль у сервера, по имени записи
+		rxData, err := c.conf.Server.RequestLoginPasswordByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestLoginPasswordByName, вернула ошибку: <%v>", err))
+			return nil
+		}
 
-	} else {
-		fieldPassword.Clear()
-		fieldPassword.Write([]byte(""))
+		// ---------------
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if rxData.For != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(rxData.For))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldLogin, err := gui.View("fieldShowLogin")
+		if err != nil || fieldLogin == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			return nil
+		}
+		if rxData.Login != "" {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(rxData.Login))
+
+		} else {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Password.
+		fieldPassword, err := gui.View("fieldShowPassword")
+		if err != nil || fieldPassword == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			return nil
+		}
+		if rxData.Password != "" {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(rxData.Password))
+
+		} else {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(""))
+		}
 	}
 
 	return nil
@@ -3181,4 +3352,34 @@ func doAuthenticationUserModeRemote(c *handlerUI) error {
 	}
 
 	return nil
+}
+
+// Расшифровка принятых данных логин/пароль на запрос по имени
+func DecryptRxLoginPasswordByName(rxData server.RxLoginPassword, key [32]byte) (data rxLoginPassword, err error) {
+
+	// Расшифровка For
+	data.name, err = decrypt(rxData.For, key)
+	if err != nil {
+		return rxLoginPassword{}, fmt.Errorf("Ошибка расшифровки For:<%w>", err)
+	}
+
+	// Расшифровка Login
+	data.login, err = decrypt(rxData.Login, key)
+	if err != nil {
+		return rxLoginPassword{}, fmt.Errorf("Ошибка расшифровки Login:<%w>", err)
+	}
+
+	// Расшифровка Password
+	data.password, err = decrypt(rxData.Password, key)
+	if err != nil {
+		return rxLoginPassword{}, fmt.Errorf("Ошибка расшифровки Password:<%w>", err)
+	}
+
+	// Расшифровка CreatedAt
+	data.createdAt, err = decrypt(rxData.CreatedAt, key)
+	if err != nil {
+		return rxLoginPassword{}, fmt.Errorf("Ошибка расшифровки CreatedAt:<%w>", err)
+	}
+
+	return data, nil
 }

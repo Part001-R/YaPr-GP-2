@@ -12,6 +12,7 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/Part001-R/YaPr-GP-2/server/internal/domain"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/utils/flags"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -39,13 +40,14 @@ type Manager struct {
 	storage   domain.StorageI // База данных.
 	token     string          // Выданный токен
 	secretKey string          // Секретный ключ
+	flag      *flags.Config   // Флаги
 }
 
 var once sync.Once // единоразовая инициализация экземпляра
 var inst *Manager  // экземпляр
 
 // Конструктор.
-func New(l *zap.Logger, s domain.StorageI) *Manager {
+func New(l *zap.Logger, s domain.StorageI, f *flags.Config) *Manager {
 	once.Do(func() {
 		inst = &Manager{
 			UnimplementedPasswordManagerServer: pb.UnimplementedPasswordManagerServer{},
@@ -57,6 +59,7 @@ func New(l *zap.Logger, s domain.StorageI) *Manager {
 			storage:   s,
 			token:     "",
 			secretKey: "",
+			flag:      f,
 		}
 	})
 	return inst
@@ -99,7 +102,7 @@ func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empt
 }
 
 // Обработчик приёма файла.
-func (s *Manager) BackupFile(stream pb.PasswordManager_BackupFileServer) (errReturn error) {
+func (s *Manager) BackupFile(stream pb.PasswordManager_LocalBackupFileServer) (errReturn error) {
 
 	// Проверка, что процесс уже активный.
 	if s.GetStatusBackUp() == stageActive || s.GetStatusRestore() == stageActive {
@@ -221,13 +224,13 @@ func (s *Manager) BackupFile(stream pb.PasswordManager_BackupFileServer) (errRet
 	}
 
 	// Финальное сообщение сервера.
-	return stream.SendAndClose(&pb.UploadResponse{
+	return stream.SendAndClose(&pb.LocalBackupFileResponse{
 		FileName: rxFileName,
 	})
 }
 
 // Обработчик передачи файлов.
-func (s *Manager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager_RestoreFileServer) error {
+func (s *Manager) RestoreFile(req *pb.LocalRestoreFileRequest, stream pb.PasswordManager_LocalRestoreFileServer) error {
 
 	// Получение статуса isBackUp
 	if s.GetStatusBackUp() == stageActive {
@@ -274,7 +277,7 @@ func (s *Manager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager
 			end = len(fileContent)
 		}
 
-		if err := stream.Send(&pb.DownloadResponse{
+		if err := stream.Send(&pb.LocalRestoreFileResponse{
 			FileName: reqFileName,
 			Content:  fileContent[i:end],
 		}); err != nil {
@@ -300,7 +303,7 @@ func (s *Manager) RestoreFile(req *pb.DownloadRequest, stream pb.PasswordManager
 }
 
 // Предоставление информации о файлах.
-func (s *Manager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.FilesInfoResponse, error) {
+func (s *Manager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.LocalFilesInfoResponse, error) {
 
 	// Извлечение метаданных из контекста
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -317,7 +320,7 @@ func (s *Manager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.Fil
 	s.logger.Debug("Принят FilesInfo запрос")
 
 	// Подготовка.
-	fileInfos := &pb.FilesInfoResponse{}
+	fileInfos := &pb.LocalFilesInfoResponse{}
 	files := []string{"manager.db", "container.data"}
 
 	// Сбор информации по файлам.
@@ -596,6 +599,7 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 		// Создание файла.
 		if rxFileName == "" {
 			rxFileName = req.GetFileName()
+			rxFileName = s.flag.NameSubDirFiles + "/" + rxFileName // Добавление дочерней директории
 
 			// Предварительное удаление уже существующего файла.
 			if !isRemovedFile {
@@ -662,6 +666,91 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 	return stream.SendAndClose(&pb.SendFileResponse{
 		FileName: rxFileName,
 	})
+}
+
+// Получение имён для логин/пароль.
+func (s *Manager) RequestLoginPasswordName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestLoginPasswordNameResponse, err error) {
+
+	s.logger.Info("Принят запрос на получение имён записей логин/пароль")
+
+	// Получение токена.
+	rxToken, err := LayerRequestLoginPasswordNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestLoginPasswordNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestLoginPasswordNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Выполнение запроса к БД.
+	rxData, err := LayerRequestLoginPasswordName(ctx, s)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestLoginPasswordName, вернула ошибку", zap.Error(err))
+		return &pb.RequestLoginPasswordNameResponse{}, status.Error(codes.Internal, "Ошибка при получении имён записей логин/пароль")
+	}
+
+	// Формирование ответа.
+	resp, err = LayerRequestLoginPasswordNameTx(rxData)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestLoginPasswordNameTx, вернула ошибку", zap.Error(err))
+		return &pb.RequestLoginPasswordNameResponse{}, status.Error(codes.Internal, "Ошибка при формировании ответа")
+	}
+
+	s.logger.Info("Обработка запроса имён записей логин/пароль, выполнена")
+	return resp, nil
+}
+
+// Получение данных логин/пароль по имени записи.
+func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.RequestLoginPasswordByNameRequest) (resp *pb.RequestLoginPasswordByNameResponse, err error) {
+
+	s.logger.Info("Принят запрос на получение данных записи логин/пароль, по имени записи")
+
+	// Полуение токена аутентификации
+	rxToken, err := layerRequestLoginPasswordByNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция layerRequestLoginPasswordByNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestLoginPasswordByNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	rxData, err := layerRequestLoginPasswordByName(req)
+	if err != nil {
+		s.logger.Error("Функция layerRequestLoginPasswordByName, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка обработки данных запроса")
+	}
+
+	// Запрос к БД.
+	dataDB, err := s.storage.GetLoginPasswordByNameContext(ctx, rxData.Name)
+	if err != nil {
+		s.logger.Error("Функция GetLoginPasswordByNameContext, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка запроса к БД")
+	}
+
+	// Формирование ответа.
+	var data TxLoginPassword
+	data.For = dataDB.For
+	data.Login = dataDB.Login
+	data.Password = dataDB.Password
+	data.CreatedAt = dataDB.CreatedAt
+
+	resp, err = layerRequestLoginPasswordByNameTx(data)
+	if err != nil {
+		s.logger.Error("Функция layerRequestLoginPasswordByNameTx, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка подготовки ответа")
+	}
+
+	// Результат.
+	return resp, nil
 }
 
 //

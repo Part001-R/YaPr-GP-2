@@ -74,4 +74,7 @@ var (
 
 	// В аргументе fileName, нет данных.
 	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
+
+	// Не удалось извлечь метаданные из контекста ответа
+	ErrMetadata = errors.New("не удалось извлечь метаданные из контекста ответа")
 )

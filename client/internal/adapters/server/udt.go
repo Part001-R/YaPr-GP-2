@@ -2,40 +2,48 @@ package server
 
 // Представление данных передачи логин/пароль.
 type TxLoginPassword struct {
-	TxID        string // id клиента
-	TxFor       string // принадлежность логин/пароль
-	TxLogin     string // логин
-	TxPassword  string // пароль
-	TxCreatedAt string // дата создания
+	ID        string // id клиента
+	For       string // принадлежность логин/пароль
+	Login     string // логин
+	Password  string // пароль
+	CreatedAt string // дата создания
+}
+
+// Представление данных приёма логин/пароль.
+type RxLoginPassword struct {
+	For       string // принадлежность логин/пароль
+	Login     string // логин
+	Password  string // пароль
+	CreatedAt string // дата создания
 }
 
 // Представление данных текста.
 type TxText struct {
-	TxID        string // id клиента
-	TxFor       string // принадлежность текста
-	TxText      string // текст
-	TxCreatedAt string // дата создания
+	ID        string // id клиента
+	For       string // принадлежность текста
+	Text      string // текст
+	CreatedAt string // дата создания
 }
 
 // Представление данных банковской карты.
 type TxBankCard struct {
-	TxID        string // id клиента
-	TxFor       string // принадлежность текста
-	TxOwner     string // владелец
-	TxNumb      string // номер
-	TxValidData string // валидность
-	TxCode      string // код
-	TxCreatedAt string // дата создания
+	ID        string // id клиента
+	For       string // принадлежность текста
+	Owner     string // владелец
+	Numb      string // номер
+	ValidData string // валидность
+	Code      string // код
+	CreatedAt string // дата создания
 }
 
 // Передача файла.
 type TxFile struct {
-	TxID       string // id клиента
-	TxFileName string // название файла
-	TxBytes    []byte // данные файла
+	ID       string // id клиента
+	FileName string // название файла
+	Bytes    []byte // данные файла
 }
 
 // Ответ на передачу данных файла (TxFile) .
 type TxFileResp struct {
-	TxFileName string // название файла
+	FileName string // название файла
 }

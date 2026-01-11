@@ -9,9 +9,9 @@ option go_package = "github.com/Part001-R/YaPr-GP-2/proto";
 service PasswordManager {
     rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
 
-    rpc BackupFile(stream UploadRequest) returns (UploadResponse);
-    rpc RestoreFile(DownloadRequest) returns (stream DownloadResponse);
-    rpc FilesInfo(google.protobuf.Empty) returns (FilesInfoResponse);
+    rpc LocalBackupFile(stream LocalBackupFileRequest) returns (LocalBackupFileResponse);
+    rpc LocalRestoreFile(LocalRestoreFileRequest) returns (stream LocalRestoreFileResponse);
+    rpc LocalFilesInfo(google.protobuf.Empty) returns (LocalFilesInfoResponse);
 
     rpc Registration(RegistrationRequest) returns (google.protobuf.Empty);
     rpc Authentication(AuthenticationRequest) returns (AuthenticationResponse);
@@ -19,22 +19,24 @@ service PasswordManager {
     rpc SendText(SendTextRequest) returns (google.protobuf.Empty);
     rpc SendBankCard(SendBankCardRequest) returns (google.protobuf.Empty);
     rpc SendFile(stream SendFileRequest) returns (SendFileResponse);
+    rpc RequestLoginPasswordName(google.protobuf.Empty) returns (RequestLoginPasswordNameResponse);
+    rpc RequestLoginPasswordByName(RequestLoginPasswordByNameRequest) returns (RequestLoginPasswordByNameResponse);
 }
 
-message UploadRequest {
+message LocalBackupFileRequest {
     string fileName = 1;
     bytes content = 2;
 }
 
-message UploadResponse {
+message LocalBackupFileResponse {
     string fileName = 1;
 }
 
-message DownloadRequest {
+message LocalRestoreFileRequest {
     string fileName = 1;
 }
 
-message DownloadResponse {
+message LocalRestoreFileResponse {
     string fileName = 1;
     bytes content = 2;
 }
@@ -44,7 +46,7 @@ message FileInfo {
     int64 size = 2;
 }
 
-message FilesInfoResponse {
+message LocalFilesInfoResponse {
     repeated FileInfo fileInfo = 1;
 }
 
@@ -96,4 +98,20 @@ message SendFileRequest {
 
 message SendFileResponse {
     string fileName = 1;
+}
+
+message RequestLoginPasswordNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestLoginPasswordByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestLoginPasswordByNameResponse {
+    string name = 1;
+    string login = 2;
+    string password = 3;
+    string createdAt = 4;
 }

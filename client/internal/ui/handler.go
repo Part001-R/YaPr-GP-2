@@ -46,41 +46,43 @@ type typeData struct {
 
 // Признаки выполнения логики
 type status struct {
-	checkConnectStatus       bool // Результат процедуры проверки связи с сервером.
-	checkConnectPassed       bool // Признак, что проверка связи была запущена.
-	addUserSUCCESS           bool // Признак успешного добавления пользователя.
-	addUserPassed            bool // Признак, что была запущена процедура регистрации пользователя.
-	addUserRegBusy           bool // Признак, чот уже есть заргистрированный пользователь
-	addLoginPaaswordSUCCESS  bool // Признак успешного добавления пары логин/пароль.
-	addLoginPaaswordPassed   bool // Признак, что выполнена процедура добавления пары логин/пароль.
-	readLoginPaaswordSUCCESS bool // Признак, успешного получения данных логин/пароль.
-	readLoginPaaswordPassed  bool // Признак, что процедура чтения логин/пароль, пройдена.
-	delLoginPaaswordSUCCESS  bool // Признак, успешного удаления данных логин/пароль.
-	delLoginPaaswordPassed   bool // Признак, что процедура удаления логин/пароль, пройдена.
-	addTextSUCCESS           bool // Признак успешного добавления текста.
-	addTextPassed            bool // Признак, что выполнена процедура добавления текста.
-	readTextSUCCESS          bool // Признак, успешного получения данных текста.
-	readTextPassed           bool // Признак, что процедура получения текста, пройдена.
-	delTextSUCCESS           bool // Признак, успешного удаления данных текста.
-	delTextPassed            bool // Признак, что процедура удаления текста, пройдена.
-	addBankCardSUCCESS       bool // Признак успешного добавления карты.
-	addBankCardPassed        bool // Признак, что выполнена процедура добавления карты.
-	readBankCardSUCCESS      bool // Признак, успешного получения данных карт.
-	readBankCardPassed       bool // Признак, что процедура получения данных карт, пройдена.
-	delBankCardSUCCESS       bool // Признак, успешного удаления данных карты.
-	delBankCardPassed        bool // Признак, что процедура удаления карты, пройдена.
-	addFileSUCCESS           bool // Признак успешного добавления файла.
-	addFilePassed            bool // Признак, что выполнена процедура добавления файла.
-	readFileSUCCESS          bool // Признак, успешного получения данных файла.
-	readFilePassed           bool // Признак, что процедура получения данных файла, пройдена.
-	delFileSUCCESS           bool // Признак, успешного удаления файла.
-	delFilePassed            bool // Признак, что процедура удаления файла, пройдена.
-	extractFileSUCCESS       bool // Признак, успешного извлечения файла.
-	extractFilePassed        bool // Признак, что процедура извлечения файла, пройдена.
-	restore                  int  // Статус процесса воостановления из резервной копии.
-	backUp                   int  // Статус процесса создания резервной копии.
-	pushContainer            int  // Статус процесса передачи в контейнер.
-	popContainer             int  // Статус процесса извлечения из контейнера.
+	checkConnectStatus           bool // Результат процедуры проверки связи с сервером.
+	checkConnectPassed           bool // Признак, что проверка связи была запущена.
+	addUserSUCCESS               bool // Признак успешного добавления пользователя.
+	addUserPassed                bool // Признак, что была запущена процедура регистрации пользователя.
+	addUserRegBusy               bool // Признак, чот уже есть заргистрированный пользователь
+	addLoginPaaswordSUCCESS      bool // Признак успешного добавления пары логин/пароль.
+	addLoginPaaswordPassed       bool // Признак, что выполнена процедура добавления пары логин/пароль.
+	readLoginPaaswordSUCCESS     bool // Признак, успешного получения данных логин/пароль.
+	readLoginPaaswordPassed      bool // Признак, что процедура чтения логин/пароль, пройдена.
+	readNameLoginPaaswordSUCCESS bool // Признак, успешного получения имён логин/пароль.
+	readNameLoginPaaswordPassed  bool // Признак, что процедура получения имён логин/пароль, пройдена.
+	delLoginPaaswordSUCCESS      bool // Признак, успешного удаления данных логин/пароль.
+	delLoginPaaswordPassed       bool // Признак, что процедура удаления логин/пароль, пройдена.
+	addTextSUCCESS               bool // Признак успешного добавления текста.
+	addTextPassed                bool // Признак, что выполнена процедура добавления текста.
+	readTextSUCCESS              bool // Признак, успешного получения данных текста.
+	readTextPassed               bool // Признак, что процедура получения текста, пройдена.
+	delTextSUCCESS               bool // Признак, успешного удаления данных текста.
+	delTextPassed                bool // Признак, что процедура удаления текста, пройдена.
+	addBankCardSUCCESS           bool // Признак успешного добавления карты.
+	addBankCardPassed            bool // Признак, что выполнена процедура добавления карты.
+	readBankCardSUCCESS          bool // Признак, успешного получения данных карт.
+	readBankCardPassed           bool // Признак, что процедура получения данных карт, пройдена.
+	delBankCardSUCCESS           bool // Признак, успешного удаления данных карты.
+	delBankCardPassed            bool // Признак, что процедура удаления карты, пройдена.
+	addFileSUCCESS               bool // Признак успешного добавления файла.
+	addFilePassed                bool // Признак, что выполнена процедура добавления файла.
+	readFileSUCCESS              bool // Признак, успешного получения данных файла.
+	readFilePassed               bool // Признак, что процедура получения данных файла, пройдена.
+	delFileSUCCESS               bool // Признак, успешного удаления файла.
+	delFilePassed                bool // Признак, что процедура удаления файла, пройдена.
+	extractFileSUCCESS           bool // Признак, успешного извлечения файла.
+	extractFilePassed            bool // Признак, что процедура извлечения файла, пройдена.
+	restore                      int  // Статус процесса воостановления из резервной копии.
+	backUp                       int  // Статус процесса создания резервной копии.
+	pushContainer                int  // Статус процесса передачи в контейнер.
+	popContainer                 int  // Статус процесса извлечения из контейнера.
 }
 
 // Для навигации по экранам.
@@ -123,6 +125,7 @@ type data struct {
 	encryptBankCard      []bankCard      // закодированные данные - банковские карты.
 	bankCard             []bankCard      // данные - банковские карты.
 	files                []string        // файлы
+	namesLoginPassword   []string        // имена записей логин/пароль
 }
 
 // Индесы.
@@ -183,6 +186,7 @@ func new(conf *udt.Configuration) *handlerUI {
 			data: data{
 				encryptLoginPassword: []loginPassword{},
 				loginPassword:        []loginPassword{},
+				namesLoginPassword:   []string{},
 			},
 			index: indexes{
 				loginPassword: 0,
@@ -1839,6 +1843,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeLoginPassword")
 
 	c.status.readLoginPaaswordPassed = false // Сброс признака.
+	c.status.readNameLoginPaaswordPassed = false
 	c.status.addLoginPaaswordPassed = false
 	c.status.delLoginPaaswordPassed = false
 	c.index.loginPassword = 0 // Сброс индекса навигации по массиву логин/пароль.
@@ -2137,7 +2142,22 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	// Обработка режима - локальный.
 	// Получение сохранённых значений логин/пароль.
 	if c.conf.Flag.Mode == flags.ModeRemote {
-		c.status.readLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения значений логин/пароль.
+
+		c.status.readNameLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения имён логин/пароль.
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Запрос у сервера имен записей
+		rxData, err := c.conf.Server.RequestLoginPasswordNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestLoginPasswordNames, вернула ошибку: <%v>", err))
+			c.status.readNameLoginPaaswordSUCCESS = false
+		} else {
+			c.data.namesLoginPassword = rxData // передача результата
+			c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
+			c.status.readNameLoginPaaswordSUCCESS = true
+		}
 
 	}
 

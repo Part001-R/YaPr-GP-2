@@ -6,6 +6,7 @@ import (
 
 	"github.com/Part001-R/YaPr-GP-2/server/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/server/internal/grpc"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/utils/flags"
 	"go.uber.org/zap"
 )
 
@@ -24,13 +25,14 @@ type Configuration struct {
 	Srv     *grpc.Manager   // Указатель на экземпляр grpc.
 	TLS     TLSdata         // Ключи реалзизации GRPCS.
 	Storage domain.StorageI // БД
+	Flag    *flags.Config   // Флаги.
 }
 
 // Указатель на конфигурацию сервиса.
 var confInst *Configuration
 
 // Конструктор.
-func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage domain.StorageI) *Configuration {
+func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage domain.StorageI, flag *flags.Config) *Configuration {
 	onceConf.Do(func() {
 		confInst = &Configuration{
 			Lgr: l,
@@ -40,6 +42,7 @@ func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage d
 				Privae: keyPrivate,
 			},
 			Storage: storage,
+			Flag:    flag,
 		}
 	})
 	return confInst

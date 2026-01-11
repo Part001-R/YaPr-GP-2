@@ -168,11 +168,11 @@ func layerAuthenticationTx(ctx context.Context, rxToken tokenData, srvToken stri
 // Получение данных запроса.
 func layerSendLoginPasswordRx(req *pb.SendLoginPasswordRequest) (rxData RxLoginPassword, err error) {
 
-	rxData.RxID = req.IdClient
-	rxData.RxFor = req.For
-	rxData.RxLogin = req.Login
-	rxData.RxPassword = req.Password
-	rxData.RxCreatedAt = req.CreatedAt
+	rxData.ID = req.IdClient
+	rxData.For = req.For
+	rxData.Login = req.Login
+	rxData.Password = req.Password
+	rxData.CreatedAt = req.CreatedAt
 
 	return rxData, nil
 }
@@ -206,7 +206,7 @@ func layerSendLoginPasswordGetToken(ctx context.Context) (token tokenData, err e
 // Логика.
 func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassword, m *Manager) error {
 
-	if err := m.storage.AddDataLoginPasswordContext(ctx, rxData.RxFor, rxData.RxLogin, rxData.RxPassword, rxData.RxCreatedAt); err != nil {
+	if err := m.storage.AddDataLoginPasswordContext(ctx, rxData.For, rxData.Login, rxData.Password, rxData.CreatedAt); err != nil {
 		return fmt.Errorf("Функция AddDataLoginPasswordContext, вернула ошибку: <%w>", err)
 	}
 
@@ -220,10 +220,10 @@ func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassw
 // Получение данных запроса.
 func layerSendTextRx(req *pb.SendTextRequest) (rxData RxText, err error) {
 
-	rxData.RxID = req.IdClient
-	rxData.RxFor = req.For
-	rxData.RxText = req.Text
-	rxData.RxCreatedAt = req.CreatedAt
+	rxData.ID = req.IdClient
+	rxData.For = req.For
+	rxData.Text = req.Text
+	rxData.CreatedAt = req.CreatedAt
 
 	return rxData, nil
 }
@@ -257,7 +257,7 @@ func layerSendTextGetToken(ctx context.Context) (token tokenData, err error) {
 // Логика.
 func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error {
 
-	if err := m.storage.AddDataTextContext(ctx, rxData.RxFor, rxData.RxText, rxData.RxCreatedAt); err != nil {
+	if err := m.storage.AddDataTextContext(ctx, rxData.For, rxData.Text, rxData.CreatedAt); err != nil {
 		return fmt.Errorf("Функция AddDataTextContext, вернула ошибку: <%w>", err)
 	}
 
@@ -271,13 +271,13 @@ func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error 
 // Получение данных запроса.
 func layerSendBankCardRx(req *pb.SendBankCardRequest) (rxData RxBankCard, err error) {
 
-	rxData.RxID = req.IdClient
-	rxData.RxFor = req.For
-	rxData.RxOwner = req.Owner
-	rxData.RxNumb = req.Numb
-	rxData.RxValidData = req.ValidData
-	rxData.RxCode = req.Code
-	rxData.RxCreatedAt = req.CreatedAt
+	rxData.ID = req.IdClient
+	rxData.For = req.For
+	rxData.Owner = req.Owner
+	rxData.Numb = req.Numb
+	rxData.ValidData = req.ValidData
+	rxData.Code = req.Code
+	rxData.CreatedAt = req.CreatedAt
 
 	return rxData, nil
 }
@@ -311,9 +311,112 @@ func layerSendBankCardGetToken(ctx context.Context) (token tokenData, err error)
 // Логика.
 func layerSendBankCardContext(ctx context.Context, rxData RxBankCard, m *Manager) error {
 
-	if err := m.storage.AddDataBankCardContext(ctx, rxData.RxFor, rxData.RxOwner, rxData.RxNumb, rxData.RxValidData, rxData.RxCode, rxData.RxCreatedAt); err != nil {
+	if err := m.storage.AddDataBankCardContext(ctx, rxData.For, rxData.Owner, rxData.Numb, rxData.ValidData, rxData.Code, rxData.CreatedAt); err != nil {
 		return fmt.Errorf("Функция AddDataBankCardContext, вернула ошибку: <%w>", err)
 	}
 
 	return nil
+}
+
+//
+// -- RequestLoginPasswordName ---
+//
+
+// Логика.
+func LayerRequestLoginPasswordName(ctx context.Context, s *Manager) (rxData []string, err error) {
+
+	// Получение из БД имён записей логин/пароль.
+	rxData, err = s.storage.GetNamesLoginPasswordContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Функция GetNamesLoginPasswordContext, вернула ошибку: <%w>", err)
+	}
+
+	return rxData, nil
+}
+
+// Получение токена из запроса.
+func LayerRequestLoginPasswordNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Формирование ответа.
+func LayerRequestLoginPasswordNameTx(data []string) (res *pb.RequestLoginPasswordNameResponse, err error) {
+
+	res = &pb.RequestLoginPasswordNameResponse{
+		EntriesName: data,
+	}
+
+	return res, nil
+}
+
+//
+// --- RequestLoginPasswordByName ---
+//
+
+// Получение токена из запроса.
+func layerRequestLoginPasswordByNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerRequestLoginPasswordByName(req *pb.RequestLoginPasswordByNameRequest) (name RxReqLoginPasswordByName, err error) {
+
+	name.ClientID = req.IdClient
+	name.Name = req.Name
+
+	return name, nil
+}
+
+// Формирование ответа.
+func layerRequestLoginPasswordByNameTx(txData TxLoginPassword) (*pb.RequestLoginPasswordByNameResponse, error) {
+
+	resp := &pb.RequestLoginPasswordByNameResponse{
+		Name:      txData.For,
+		Login:     txData.Login,
+		Password:  txData.Password,
+		CreatedAt: txData.CreatedAt,
+	}
+	return resp, nil
 }

@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type UploadRequest struct {
+type LocalBackupFileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
@@ -30,20 +30,20 @@ type UploadRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UploadRequest) Reset() {
-	*x = UploadRequest{}
+func (x *LocalBackupFileRequest) Reset() {
+	*x = LocalBackupFileRequest{}
 	mi := &file_proto_client_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UploadRequest) String() string {
+func (x *LocalBackupFileRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UploadRequest) ProtoMessage() {}
+func (*LocalBackupFileRequest) ProtoMessage() {}
 
-func (x *UploadRequest) ProtoReflect() protoreflect.Message {
+func (x *LocalBackupFileRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_client_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,46 +55,46 @@ func (x *UploadRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UploadRequest.ProtoReflect.Descriptor instead.
-func (*UploadRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use LocalBackupFileRequest.ProtoReflect.Descriptor instead.
+func (*LocalBackupFileRequest) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *UploadRequest) GetFileName() string {
+func (x *LocalBackupFileRequest) GetFileName() string {
 	if x != nil {
 		return x.FileName
 	}
 	return ""
 }
 
-func (x *UploadRequest) GetContent() []byte {
+func (x *LocalBackupFileRequest) GetContent() []byte {
 	if x != nil {
 		return x.Content
 	}
 	return nil
 }
 
-type UploadResponse struct {
+type LocalBackupFileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UploadResponse) Reset() {
-	*x = UploadResponse{}
+func (x *LocalBackupFileResponse) Reset() {
+	*x = LocalBackupFileResponse{}
 	mi := &file_proto_client_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UploadResponse) String() string {
+func (x *LocalBackupFileResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UploadResponse) ProtoMessage() {}
+func (*LocalBackupFileResponse) ProtoMessage() {}
 
-func (x *UploadResponse) ProtoReflect() protoreflect.Message {
+func (x *LocalBackupFileResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_client_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -106,39 +106,39 @@ func (x *UploadResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UploadResponse.ProtoReflect.Descriptor instead.
-func (*UploadResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use LocalBackupFileResponse.ProtoReflect.Descriptor instead.
+func (*LocalBackupFileResponse) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *UploadResponse) GetFileName() string {
+func (x *LocalBackupFileResponse) GetFileName() string {
 	if x != nil {
 		return x.FileName
 	}
 	return ""
 }
 
-type DownloadRequest struct {
+type LocalRestoreFileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DownloadRequest) Reset() {
-	*x = DownloadRequest{}
+func (x *LocalRestoreFileRequest) Reset() {
+	*x = LocalRestoreFileRequest{}
 	mi := &file_proto_client_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DownloadRequest) String() string {
+func (x *LocalRestoreFileRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DownloadRequest) ProtoMessage() {}
+func (*LocalRestoreFileRequest) ProtoMessage() {}
 
-func (x *DownloadRequest) ProtoReflect() protoreflect.Message {
+func (x *LocalRestoreFileRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_client_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -150,19 +150,19 @@ func (x *DownloadRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DownloadRequest.ProtoReflect.Descriptor instead.
-func (*DownloadRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use LocalRestoreFileRequest.ProtoReflect.Descriptor instead.
+func (*LocalRestoreFileRequest) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *DownloadRequest) GetFileName() string {
+func (x *LocalRestoreFileRequest) GetFileName() string {
 	if x != nil {
 		return x.FileName
 	}
 	return ""
 }
 
-type DownloadResponse struct {
+type LocalRestoreFileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileName      string                 `protobuf:"bytes,1,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
@@ -170,20 +170,20 @@ type DownloadResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DownloadResponse) Reset() {
-	*x = DownloadResponse{}
+func (x *LocalRestoreFileResponse) Reset() {
+	*x = LocalRestoreFileResponse{}
 	mi := &file_proto_client_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DownloadResponse) String() string {
+func (x *LocalRestoreFileResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DownloadResponse) ProtoMessage() {}
+func (*LocalRestoreFileResponse) ProtoMessage() {}
 
-func (x *DownloadResponse) ProtoReflect() protoreflect.Message {
+func (x *LocalRestoreFileResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_client_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -195,19 +195,19 @@ func (x *DownloadResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DownloadResponse.ProtoReflect.Descriptor instead.
-func (*DownloadResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use LocalRestoreFileResponse.ProtoReflect.Descriptor instead.
+func (*LocalRestoreFileResponse) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *DownloadResponse) GetFileName() string {
+func (x *LocalRestoreFileResponse) GetFileName() string {
 	if x != nil {
 		return x.FileName
 	}
 	return ""
 }
 
-func (x *DownloadResponse) GetContent() []byte {
+func (x *LocalRestoreFileResponse) GetContent() []byte {
 	if x != nil {
 		return x.Content
 	}
@@ -266,27 +266,27 @@ func (x *FileInfo) GetSize() int64 {
 	return 0
 }
 
-type FilesInfoResponse struct {
+type LocalFilesInfoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileInfo      []*FileInfo            `protobuf:"bytes,1,rep,name=fileInfo,proto3" json:"fileInfo,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *FilesInfoResponse) Reset() {
-	*x = FilesInfoResponse{}
+func (x *LocalFilesInfoResponse) Reset() {
+	*x = LocalFilesInfoResponse{}
 	mi := &file_proto_client_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *FilesInfoResponse) String() string {
+func (x *LocalFilesInfoResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*FilesInfoResponse) ProtoMessage() {}
+func (*LocalFilesInfoResponse) ProtoMessage() {}
 
-func (x *FilesInfoResponse) ProtoReflect() protoreflect.Message {
+func (x *LocalFilesInfoResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_client_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -298,12 +298,12 @@ func (x *FilesInfoResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use FilesInfoResponse.ProtoReflect.Descriptor instead.
-func (*FilesInfoResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use LocalFilesInfoResponse.ProtoReflect.Descriptor instead.
+func (*LocalFilesInfoResponse) Descriptor() ([]byte, []int) {
 	return file_proto_client_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *FilesInfoResponse) GetFileInfo() []*FileInfo {
+func (x *LocalFilesInfoResponse) GetFileInfo() []*FileInfo {
 	if x != nil {
 		return x.FileInfo
 	}
@@ -806,25 +806,189 @@ func (x *SendFileResponse) GetFileName() string {
 	return ""
 }
 
+type RequestLoginPasswordNameResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntriesName   []string               `protobuf:"bytes,1,rep,name=EntriesName,proto3" json:"EntriesName,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestLoginPasswordNameResponse) Reset() {
+	*x = RequestLoginPasswordNameResponse{}
+	mi := &file_proto_client_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestLoginPasswordNameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestLoginPasswordNameResponse) ProtoMessage() {}
+
+func (x *RequestLoginPasswordNameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestLoginPasswordNameResponse.ProtoReflect.Descriptor instead.
+func (*RequestLoginPasswordNameResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RequestLoginPasswordNameResponse) GetEntriesName() []string {
+	if x != nil {
+		return x.EntriesName
+	}
+	return nil
+}
+
+type RequestLoginPasswordByNameRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestLoginPasswordByNameRequest) Reset() {
+	*x = RequestLoginPasswordByNameRequest{}
+	mi := &file_proto_client_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestLoginPasswordByNameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestLoginPasswordByNameRequest) ProtoMessage() {}
+
+func (x *RequestLoginPasswordByNameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestLoginPasswordByNameRequest.ProtoReflect.Descriptor instead.
+func (*RequestLoginPasswordByNameRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RequestLoginPasswordByNameRequest) GetIdClient() string {
+	if x != nil {
+		return x.IdClient
+	}
+	return ""
+}
+
+func (x *RequestLoginPasswordByNameRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RequestLoginPasswordByNameResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,4,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestLoginPasswordByNameResponse) Reset() {
+	*x = RequestLoginPasswordByNameResponse{}
+	mi := &file_proto_client_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestLoginPasswordByNameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestLoginPasswordByNameResponse) ProtoMessage() {}
+
+func (x *RequestLoginPasswordByNameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestLoginPasswordByNameResponse.ProtoReflect.Descriptor instead.
+func (*RequestLoginPasswordByNameResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *RequestLoginPasswordByNameResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RequestLoginPasswordByNameResponse) GetLogin() string {
+	if x != nil {
+		return x.Login
+	}
+	return ""
+}
+
+func (x *RequestLoginPasswordByNameResponse) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *RequestLoginPasswordByNameResponse) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
 	"\n" +
-	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"E\n" +
-	"\rUploadRequest\x12\x1a\n" +
+	"\x12proto/client.proto\x12\amanager\x1a\x1bgoogle/protobuf/empty.proto\"N\n" +
+	"\x16LocalBackupFileRequest\x12\x1a\n" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\fR\acontent\",\n" +
-	"\x0eUploadResponse\x12\x1a\n" +
-	"\bfileName\x18\x01 \x01(\tR\bfileName\"-\n" +
-	"\x0fDownloadRequest\x12\x1a\n" +
-	"\bfileName\x18\x01 \x01(\tR\bfileName\"H\n" +
-	"\x10DownloadResponse\x12\x1a\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\"5\n" +
+	"\x17LocalBackupFileResponse\x12\x1a\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\"5\n" +
+	"\x17LocalRestoreFileRequest\x12\x1a\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\"P\n" +
+	"\x18LocalRestoreFileResponse\x12\x1a\n" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\fR\acontent\":\n" +
 	"\bFileInfo\x12\x1a\n" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x12\n" +
-	"\x04size\x18\x02 \x01(\x03R\x04size\"B\n" +
-	"\x11FilesInfoResponse\x12-\n" +
+	"\x04size\x18\x02 \x01(\x03R\x04size\"G\n" +
+	"\x16LocalFilesInfoResponse\x12-\n" +
 	"\bfileInfo\x18\x01 \x03(\v2\x11.manager.FileInfoR\bfileInfo\"q\n" +
 	"\x13RegistrationRequest\x12\x1a\n" +
 	"\buserName\x18\x01 \x01(\tR\buserName\x12\x18\n" +
@@ -859,19 +1023,30 @@ const file_proto_client_proto_rawDesc = "" +
 	"\bfileName\x18\x02 \x01(\tR\bfileName\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\fR\acontent\".\n" +
 	"\x10SendFileResponse\x12\x1a\n" +
-	"\bfileName\x18\x01 \x01(\tR\bfileName2\xc1\x05\n" +
+	"\bfileName\x18\x01 \x01(\tR\bfileName\"D\n" +
+	" RequestLoginPasswordNameResponse\x12 \n" +
+	"\vEntriesName\x18\x01 \x03(\tR\vEntriesName\"S\n" +
+	"!RequestLoginPasswordByNameRequest\x12\x1a\n" +
+	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x88\x01\n" +
+	"\"RequestLoginPasswordByNameResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05login\x18\x02 \x01(\tR\x05login\x12\x1a\n" +
+	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x1c\n" +
+	"\tcreatedAt\x18\x04 \x01(\tR\tcreatedAt2\xcd\a\n" +
 	"\x0fPasswordManager\x126\n" +
-	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
-	"\n" +
-	"BackupFile\x12\x16.manager.UploadRequest\x1a\x17.manager.UploadResponse(\x01\x12D\n" +
-	"\vRestoreFile\x12\x18.manager.DownloadRequest\x1a\x19.manager.DownloadResponse0\x01\x12?\n" +
-	"\tFilesInfo\x12\x16.google.protobuf.Empty\x1a\x1a.manager.FilesInfoResponse\x12D\n" +
+	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12V\n" +
+	"\x0fLocalBackupFile\x12\x1f.manager.LocalBackupFileRequest\x1a .manager.LocalBackupFileResponse(\x01\x12Y\n" +
+	"\x10LocalRestoreFile\x12 .manager.LocalRestoreFileRequest\x1a!.manager.LocalRestoreFileResponse0\x01\x12I\n" +
+	"\x0eLocalFilesInfo\x12\x16.google.protobuf.Empty\x1a\x1f.manager.LocalFilesInfoResponse\x12D\n" +
 	"\fRegistration\x12\x1c.manager.RegistrationRequest\x1a\x16.google.protobuf.Empty\x12Q\n" +
 	"\x0eAuthentication\x12\x1e.manager.AuthenticationRequest\x1a\x1f.manager.AuthenticationResponse\x12N\n" +
 	"\x11SendLoginPassword\x12!.manager.SendLoginPasswordRequest\x1a\x16.google.protobuf.Empty\x12<\n" +
 	"\bSendText\x12\x18.manager.SendTextRequest\x1a\x16.google.protobuf.Empty\x12D\n" +
 	"\fSendBankCard\x12\x1c.manager.SendBankCardRequest\x1a\x16.google.protobuf.Empty\x12A\n" +
-	"\bSendFile\x12\x18.manager.SendFileRequest\x1a\x19.manager.SendFileResponse(\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\bSendFile\x12\x18.manager.SendFileRequest\x1a\x19.manager.SendFileResponse(\x01\x12]\n" +
+	"\x18RequestLoginPasswordName\x12\x16.google.protobuf.Empty\x1a).manager.RequestLoginPasswordNameResponse\x12u\n" +
+	"\x1aRequestLoginPasswordByName\x12*.manager.RequestLoginPasswordByNameRequest\x1a+.manager.RequestLoginPasswordByNameResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -885,48 +1060,55 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_proto_client_proto_goTypes = []any{
-	(*UploadRequest)(nil),            // 0: manager.UploadRequest
-	(*UploadResponse)(nil),           // 1: manager.UploadResponse
-	(*DownloadRequest)(nil),          // 2: manager.DownloadRequest
-	(*DownloadResponse)(nil),         // 3: manager.DownloadResponse
-	(*FileInfo)(nil),                 // 4: manager.FileInfo
-	(*FilesInfoResponse)(nil),        // 5: manager.FilesInfoResponse
-	(*RegistrationRequest)(nil),      // 6: manager.RegistrationRequest
-	(*AuthenticationRequest)(nil),    // 7: manager.AuthenticationRequest
-	(*AuthenticationResponse)(nil),   // 8: manager.AuthenticationResponse
-	(*SendLoginPasswordRequest)(nil), // 9: manager.SendLoginPasswordRequest
-	(*SendTextRequest)(nil),          // 10: manager.SendTextRequest
-	(*SendBankCardRequest)(nil),      // 11: manager.SendBankCardRequest
-	(*SendFileRequest)(nil),          // 12: manager.SendFileRequest
-	(*SendFileResponse)(nil),         // 13: manager.SendFileResponse
-	(*emptypb.Empty)(nil),            // 14: google.protobuf.Empty
+	(*LocalBackupFileRequest)(nil),             // 0: manager.LocalBackupFileRequest
+	(*LocalBackupFileResponse)(nil),            // 1: manager.LocalBackupFileResponse
+	(*LocalRestoreFileRequest)(nil),            // 2: manager.LocalRestoreFileRequest
+	(*LocalRestoreFileResponse)(nil),           // 3: manager.LocalRestoreFileResponse
+	(*FileInfo)(nil),                           // 4: manager.FileInfo
+	(*LocalFilesInfoResponse)(nil),             // 5: manager.LocalFilesInfoResponse
+	(*RegistrationRequest)(nil),                // 6: manager.RegistrationRequest
+	(*AuthenticationRequest)(nil),              // 7: manager.AuthenticationRequest
+	(*AuthenticationResponse)(nil),             // 8: manager.AuthenticationResponse
+	(*SendLoginPasswordRequest)(nil),           // 9: manager.SendLoginPasswordRequest
+	(*SendTextRequest)(nil),                    // 10: manager.SendTextRequest
+	(*SendBankCardRequest)(nil),                // 11: manager.SendBankCardRequest
+	(*SendFileRequest)(nil),                    // 12: manager.SendFileRequest
+	(*SendFileResponse)(nil),                   // 13: manager.SendFileResponse
+	(*RequestLoginPasswordNameResponse)(nil),   // 14: manager.RequestLoginPasswordNameResponse
+	(*RequestLoginPasswordByNameRequest)(nil),  // 15: manager.RequestLoginPasswordByNameRequest
+	(*RequestLoginPasswordByNameResponse)(nil), // 16: manager.RequestLoginPasswordByNameResponse
+	(*emptypb.Empty)(nil),                      // 17: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
-	4,  // 0: manager.FilesInfoResponse.fileInfo:type_name -> manager.FileInfo
-	14, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
-	0,  // 2: manager.PasswordManager.BackupFile:input_type -> manager.UploadRequest
-	2,  // 3: manager.PasswordManager.RestoreFile:input_type -> manager.DownloadRequest
-	14, // 4: manager.PasswordManager.FilesInfo:input_type -> google.protobuf.Empty
+	4,  // 0: manager.LocalFilesInfoResponse.fileInfo:type_name -> manager.FileInfo
+	17, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	0,  // 2: manager.PasswordManager.LocalBackupFile:input_type -> manager.LocalBackupFileRequest
+	2,  // 3: manager.PasswordManager.LocalRestoreFile:input_type -> manager.LocalRestoreFileRequest
+	17, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
 	6,  // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
 	7,  // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
 	9,  // 7: manager.PasswordManager.SendLoginPassword:input_type -> manager.SendLoginPasswordRequest
 	10, // 8: manager.PasswordManager.SendText:input_type -> manager.SendTextRequest
 	11, // 9: manager.PasswordManager.SendBankCard:input_type -> manager.SendBankCardRequest
 	12, // 10: manager.PasswordManager.SendFile:input_type -> manager.SendFileRequest
-	14, // 11: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1,  // 12: manager.PasswordManager.BackupFile:output_type -> manager.UploadResponse
-	3,  // 13: manager.PasswordManager.RestoreFile:output_type -> manager.DownloadResponse
-	5,  // 14: manager.PasswordManager.FilesInfo:output_type -> manager.FilesInfoResponse
-	14, // 15: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
-	8,  // 16: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
-	14, // 17: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
-	14, // 18: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
-	14, // 19: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
-	13, // 20: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
-	11, // [11:21] is the sub-list for method output_type
-	1,  // [1:11] is the sub-list for method input_type
+	17, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
+	15, // 12: manager.PasswordManager.RequestLoginPasswordByName:input_type -> manager.RequestLoginPasswordByNameRequest
+	17, // 13: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1,  // 14: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
+	3,  // 15: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
+	5,  // 16: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
+	17, // 17: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
+	8,  // 18: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
+	17, // 19: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
+	17, // 20: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
+	17, // 21: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
+	13, // 22: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
+	14, // 23: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
+	16, // 24: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
+	13, // [13:25] is the sub-list for method output_type
+	1,  // [1:13] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -943,7 +1125,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

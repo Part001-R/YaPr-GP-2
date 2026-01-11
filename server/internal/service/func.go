@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
 
 	"github.com/Part001-R/YaPr-GP-2/server/internal/service/udt"
 )
@@ -19,4 +20,18 @@ func createTLSConfig(c *udt.Configuration) (*tls.Config, error) {
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
 	}, nil
+}
+
+// Создание дочерней директории.
+func createSubdirectory(subdirName string) error {
+
+	if _, err := os.Stat(subdirName); os.IsNotExist(err) {
+
+		err := os.Mkdir(subdirName, 0755)
+		if err != nil {
+			return fmt.Errorf("ошибка при создании директории: %v", err)
+		}
+		fmt.Printf("Поддиректория <%s> успешно создана.\n", subdirName)
+	}
+	return nil
 }

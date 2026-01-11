@@ -21,28 +21,42 @@ type tokenData struct {
 
 // Принятые данные логин/пароль.
 type RxLoginPassword struct {
-	RxID        string // id клиента
-	RxFor       string // принадлежность логин/пароль
-	RxLogin     string // логин
-	RxPassword  string // пароль
-	RxCreatedAt string // дата создания
+	ID        string // id клиента
+	For       string // принадлежность логин/пароль
+	Login     string // логин
+	Password  string // пароль
+	CreatedAt string // дата создания
+}
+
+// Передаваемые данные логин/пароль.
+type TxLoginPassword struct {
+	For       string // принадлежность логин/пароль
+	Login     string // логин
+	Password  string // пароль
+	CreatedAt string // дата создания
 }
 
 // Принятые данные текста.
 type RxText struct {
-	RxID        string // id клиента
-	RxFor       string // принадлежность текста
-	RxText      string // текст
-	RxCreatedAt string // дата создания
+	ID        string // id клиента
+	For       string // принадлежность текста
+	Text      string // текст
+	CreatedAt string // дата создания
 }
 
 // Принятые данные банковской карты.
 type RxBankCard struct {
-	RxID        string // id клиента
-	RxFor       string // принадлежность текста
-	RxOwner     string // владелец
-	RxNumb      string // номер
-	RxValidData string // валидность
-	RxCode      string // код
-	RxCreatedAt string // дата создания
+	ID        string // id клиента
+	For       string // принадлежность текста
+	Owner     string // владелец
+	Numb      string // номер
+	ValidData string // валидность
+	Code      string // код
+	CreatedAt string // дата создания
+}
+
+// Приянтые данные для запроса логин/пароль по имени записи.
+type RxReqLoginPasswordByName struct {
+	ClientID string // id клиента
+	Name     string // имя записи логин/пароль
 }

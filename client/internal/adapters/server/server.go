@@ -28,6 +28,8 @@ type ActionsI interface {
 	SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error
 	SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error
 	SendFile(fileName, tokenSrv, idClient string, key [32]byte) error
+	RequestLoginPasswordNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
+	RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error)
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -152,13 +154,13 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error {
 
 	// Проверка аргументов.
-	if data.TxFor == "" {
+	if data.For == "" {
 		return EmptyDataArgumentTxID
 	}
-	if data.TxFor == "" {
+	if data.For == "" {
 		return EmptyDataArgumentTxFor
 	}
-	if data.TxLogin == "" {
+	if data.Login == "" {
 		return EmptyDataArgumentTxLogin
 	}
 	if s.client == nil {
@@ -167,13 +169,14 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 
 	// Шифрование передаваемых данных.
 	txData := TxLoginPassword{
-		TxID:        data.TxID,
-		TxFor:       data.TxFor,
-		TxLogin:     data.TxLogin,
-		TxPassword:  data.TxPassword,
-		TxCreatedAt: data.TxCreatedAt,
+		ID:        data.ID,
+		For:       data.For,
+		Login:     data.Login,
+		Password:  data.Password,
+		CreatedAt: data.CreatedAt,
 	}
-	eData, err := layerSendLoginPasswordEncode(txData, key)
+
+	enTxData, err := layerSendLoginPasswordEncode(txData, key)
 	if err != nil {
 		return fmt.Errorf("функция layerSendLoginPasswordEncode, вернула ошибку: <%w>", err)
 	}
@@ -189,11 +192,11 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 
 	// Подготовка данных
 	req := &proto.SendLoginPasswordRequest{
-		IdClient:  eData.TxID,
-		For:       eData.TxFor,
-		Login:     eData.TxLogin,
-		Password:  eData.TxPassword,
-		CreatedAt: eData.TxCreatedAt,
+		IdClient:  enTxData.ID,
+		For:       enTxData.For,
+		Login:     enTxData.Login,
+		Password:  enTxData.Password,
+		CreatedAt: enTxData.CreatedAt,
 	}
 
 	var header metadata.MD
@@ -211,13 +214,13 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error {
 
 	// Проверка аргументов.
-	if data.TxFor == "" {
+	if data.For == "" {
 		return EmptyDataArgumentTxID
 	}
-	if data.TxFor == "" {
+	if data.For == "" {
 		return EmptyDataArgumentTxFor
 	}
-	if data.TxText == "" {
+	if data.Text == "" {
 		return EmptyDataArgumentTxText
 	}
 	if s.client == nil {
@@ -226,10 +229,10 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key
 
 	// Шифрование передаваемых данных.
 	txData := TxText{
-		TxID:        data.TxID,
-		TxFor:       data.TxFor,
-		TxText:      data.TxText,
-		TxCreatedAt: data.TxCreatedAt,
+		ID:        data.ID,
+		For:       data.For,
+		Text:      data.Text,
+		CreatedAt: data.CreatedAt,
 	}
 	eData, err := layerSendTextEncode(txData, key)
 	if err != nil {
@@ -247,10 +250,10 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key
 
 	// Подготовка данных
 	req := &proto.SendTextRequest{
-		IdClient:  eData.TxID,
-		For:       eData.TxFor,
-		Text:      eData.TxText,
-		CreatedAt: eData.TxCreatedAt,
+		IdClient:  eData.ID,
+		For:       eData.For,
+		Text:      eData.Text,
+		CreatedAt: eData.CreatedAt,
 	}
 
 	var header metadata.MD
@@ -268,22 +271,22 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key
 func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error {
 
 	// Проверка аргументов.
-	if data.TxFor == "" {
+	if data.For == "" {
 		return EmptyDataArgumentTxID
 	}
-	if data.TxFor == "" {
+	if data.For == "" {
 		return EmptyDataArgumentTxFor
 	}
-	if data.TxOwner == "" {
+	if data.Owner == "" {
 		return EmptyDataArgumentTxOwner
 	}
-	if data.TxNumb == "" {
+	if data.Numb == "" {
 		return EmptyDataArgumentTxNumb
 	}
-	if data.TxValidData == "" {
+	if data.ValidData == "" {
 		return EmptyDataArgumentTxValidData
 	}
-	if data.TxCode == "" {
+	if data.Code == "" {
 		return EmptyDataArgumentTxCode
 	}
 	if s.client == nil {
@@ -292,12 +295,12 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 
 	// Шифрование передаваемых данных.
 	txData := TxBankCard{
-		TxID:        data.TxID,
-		TxFor:       data.TxFor,
-		TxOwner:     data.TxOwner,
-		TxNumb:      data.TxNumb,
-		TxValidData: data.TxValidData,
-		TxCreatedAt: data.TxCreatedAt,
+		ID:        data.ID,
+		For:       data.For,
+		Owner:     data.Owner,
+		Numb:      data.Numb,
+		ValidData: data.ValidData,
+		CreatedAt: data.CreatedAt,
 	}
 	eData, err := layerSendBankCardEncode(txData, key)
 	if err != nil {
@@ -315,12 +318,12 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 
 	// Подготовка данных
 	req := &proto.SendBankCardRequest{
-		IdClient:  eData.TxID,
-		For:       eData.TxFor,
-		Owner:     eData.TxOwner,
-		Numb:      eData.TxNumb,
-		Code:      eData.TxCode,
-		CreatedAt: eData.TxCreatedAt,
+		IdClient:  eData.ID,
+		For:       eData.For,
+		Owner:     eData.Owner,
+		Numb:      eData.Numb,
+		Code:      eData.Code,
+		CreatedAt: eData.CreatedAt,
 	}
 
 	var header metadata.MD
@@ -346,28 +349,72 @@ func (s *server) SendFile(fileName, tokenSrv, idClient string, key [32]byte) err
 	}
 
 	// Создание зашифрованной версии файла.
-	nameFileEncr, err := layerSendFileEncrypt(fileName, key)
+	enNameFile, err := layerSendFileEncrypt(fileName, key)
 	if err != nil {
 		return fmt.Errorf("Функция layerSendFileEncrypt, вернула ошибку: <%w>", err)
 	}
 
 	// Передача файла.
-	rxHash, err := layerSendFileTx(s.client, nameFileEncr, tokenSrv, idClient)
+	rxHash, err := layerSendFileTx(s.client, enNameFile, tokenSrv, idClient)
 	if err != nil {
 		return fmt.Errorf("Функция layerSendFileTx, вернула ошибку: <%w>", err)
 	}
 
 	// Вычисление хеша переданного файла
-	if err := layerSendFileCheckHash(nameFileEncr, rxHash); err != nil {
+	if err := layerSendFileCheckHash(enNameFile, rxHash); err != nil {
 		return fmt.Errorf("Функция layerSendFileCheckHash, вернула ошибку: <%w>", err)
 	}
 
 	// Удаление созданного зашифрованного файла
-	if err := layerSendFileRemove(nameFileEncr); err != nil {
+	if err := layerSendFileRemove(enNameFile); err != nil {
 		return fmt.Errorf("Функция layerSendFileRemove, вернула ошибку: <%w>", err)
 	}
 
 	return nil
+}
+
+// Запрос у сервера имён записей для логин/пароль
+func (s *server) RequestLoginPasswordNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
+
+	// Запрос у сервера имён записей для логин/пароль.
+	enRxData, err := layerRequestLoginPasswordNamesTx(s.client, tokenAuth, idClient)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestLoginPasswordNamesTx, вернула ошибку: <%w>", err)
+	}
+
+	// Расшифровка принятых данных.
+	rxData, err := layerRequestLoginPasswordNamesDecrypt(enRxData, key)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestLoginPasswordNamesDecrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Запрос у сервера записи логин/пароль по его имени
+func (s *server) RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error) {
+
+	// Шифрование имени записи логин/пароль
+	enNameEntry, err := LayerRequestLoginPasswordByNameEncrypt(nameEntry, key)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("Функция LayerRequestLoginPasswordByNameEncrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Запрос
+	resp, err := LayerRequestLoginPasswordByNameTx(s.client, tokenAuth, idClient, enNameEntry)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("Функция LayerRequestLoginPasswordByNameTx, вернула ошибку: <%w>", err)
+	}
+
+	// Обработка ответа
+	rxData, err = LayerRequestLoginPasswordByDecrypt(resp, key)
+	if err != nil {
+		return RxLoginPassword{}, fmt.Errorf("Функция LayerRequestLoginPasswordByDecrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Результат
+	return rxData, nil
 }
 
 //
