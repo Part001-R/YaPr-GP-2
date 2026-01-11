@@ -17,6 +17,13 @@ type RxLoginPassword struct {
 	CreatedAt string // дата создания
 }
 
+// Представление данных приёма текста.
+type RxText struct {
+	For       string // принадлежность текста
+	Text      string // текст
+	CreatedAt string // дата создания
+}
+
 // Представление данных текста.
 type TxText struct {
 	ID        string // id клиента

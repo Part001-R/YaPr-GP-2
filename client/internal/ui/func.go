@@ -740,6 +740,16 @@ func nameLoginPasswordByIndex(c *handlerUI) string {
 	return c.data.namesLoginPassword[c.index.loginPassword]
 }
 
+// Получение имени записи текста по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func nameTextByIndex(c *handlerUI) string {
+
+	return c.data.namesText[c.index.text]
+}
+
 // Получение данных текста по индексу. Возвращается запись.
 //
 // Параметры:
@@ -805,6 +815,18 @@ func incrIndexNamesloginPassword(c *handlerUI) {
 	}
 }
 
+// Увеличение значения индекса для имён текст массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexNamesText(c *handlerUI) {
+
+	if c.index.text < len(c.data.namesText)-1 {
+		c.index.text++
+	}
+}
+
 // Увеличение значения индекса для текст массива.
 //
 // Параметры:
@@ -859,6 +881,18 @@ func decrIndexloginPassword(c *handlerUI) {
 //
 //	с - конфигурация.
 func decrIndexText(c *handlerUI) {
+
+	if c.index.text > 0 {
+		c.index.text--
+	}
+}
+
+// Уменьшение значения индекса для массива имён текста.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexNamesText(c *handlerUI) {
 
 	if c.index.text > 0 {
 		c.index.text--
@@ -1446,70 +1480,146 @@ func indicatorViewLoginPasswordData(g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func indicatorViewTextData(g *gocui.Gui, c *handlerUI) error {
 
-	// Обработка индикатора получения данных.
-	name := "indicatorReadStatus"
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	indicatorRead, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if indicatorRead == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
+		// Обработка индикатора получения данных.
+		name := "indicatorReadStatus"
 
-	if c.status.readTextPassed { // обработка при чтении
-		if c.status.readTextSUCCESS {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.textData))))
-			indicatorRead.FgColor = gocui.ColorGreen
-			indicatorRead.BgColor = gocui.ColorDefault
-		} else {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Ошибка"))
-			indicatorRead.FgColor = gocui.ColorRed
-			indicatorRead.BgColor = gocui.ColorDefault
+		indicatorRead, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
 		}
-	}
-	if c.status.delTextPassed { // обработка при удалении
-		if c.status.delTextSUCCESS {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Запись удалена"))
-			indicatorRead.FgColor = gocui.ColorGreen
-			indicatorRead.BgColor = gocui.ColorDefault
-		} else {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Ошибка удаления"))
-			indicatorRead.FgColor = gocui.ColorRed
-			indicatorRead.BgColor = gocui.ColorDefault
+		if indicatorRead == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
-	}
 
-	// Обработка индикатора добавления записи.
-	name = "indicatorAddSuccess"
+		if c.status.readTextPassed { // обработка при чтении
+			if c.status.readTextSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.textData))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+		if c.status.delTextPassed { // обработка при удалении
+			if c.status.delTextSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
 
-	indicator, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if indicator == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
+		// Обработка индикатора добавления записи.
+		name = "indicatorAddSuccess"
 
-	if c.status.addTextPassed {
-		if c.status.addTextSUCCESS {
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addTextPassed {
+			if c.status.addTextSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+		} else {
 			indicator.Clear()
-			indicator.Write([]byte("Данные приняты!"))
-			indicator.FgColor = gocui.ColorGreen
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(""))
+		}
+		return nil
+	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		// Обработка индикатора получения данных.
+		name := "indicatorReadStatus"
+
+		indicatorRead, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicatorRead == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.readNameTextPassed { // обработка при чтении
+			if c.status.readNameTextSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.namesText))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+		if c.status.delTextPassed { // обработка при удалении
+			if c.status.delTextSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+		}
+
+		// Обработка индикатора добавления записи.
+		name = "indicatorAddSuccess"
+
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addTextPassed {
+			if c.status.addTextSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
 		} else {
 			indicator.Clear()
-			indicator.Write([]byte("Ошибка добавления."))
-			indicator.FgColor = gocui.ColorRed
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(""))
 		}
-	} else {
-		indicator.Clear()
-		indicator.Write([]byte(""))
+		return nil
 	}
 
 	return nil
@@ -2533,7 +2643,7 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 // Логика перевода фокуса в окне viewLoginPasswordData. Возвращается ошибка.
 func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
-	// Если режим локальный
+	// Если режим - локальный
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
 		if len(c.data.loginPassword) == 0 {
@@ -2589,7 +2699,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		}
 	}
 
-	// Если режим удалённый.
+	// Если режим - удалённый.
 	if c.conf.Flag.Mode == flags.ModeRemote {
 
 		if len(c.data.namesLoginPassword) == 0 {
@@ -2665,41 +2775,104 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 // Логика перевода фокуса в окне viewTextData. Возвращается ошибка.
 func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
-	if len(c.data.textData) == 0 {
+	// Если режим - локальный
+	if c.conf.Flag.Mode == flags.ModeLocal {
+
+		if len(c.data.textData) == 0 {
+			return nil
+		}
+
+		el := textByIndex(c) // получение записи по индексу
+		incrIndexText(c)     // увеличение значения индекса
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldText, err := gui.View("fieldShowText")
+		if err != nil || fieldText == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			return nil
+		}
+		if el.text != "" {
+			fieldText.Clear()
+			fieldText.Write([]byte(el.text))
+
+		} else {
+			fieldText.Clear()
+			fieldText.Write([]byte(""))
+		}
+
 		return nil
 	}
 
-	el := textByIndex(c) // получение записи по индексу
-	incrIndexText(c)     // увеличение значения индекса
+	// Если режим - локальный
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
-	// отображение содержимого поля For.
-	fieldName, err := gui.View("fieldShowFor")
-	if err != nil || fieldName == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+		if len(c.data.namesText) == 0 {
+			return nil
+		}
+
+		name := nameTextByIndex(c) // получение записи по индексу
+		incrIndexNamesText(c)      // увеличение значения индекса
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных текста по имени: <%s>", name))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Запрос текста у сервера, по имени записи
+		rxData, err := c.conf.Server.RequestTextByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestTextByName, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// ----------------
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if rxData.For != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(rxData.For))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldText, err := gui.View("fieldShowText")
+		if err != nil || fieldText == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			return nil
+		}
+		if rxData.Text != "" {
+			fieldText.Clear()
+			fieldText.Write([]byte(rxData.Text))
+
+		} else {
+			fieldText.Clear()
+			fieldText.Write([]byte(""))
+		}
+
 		return nil
-	}
-	if el.name != "" {
-		fieldName.Clear()
-		fieldName.Write([]byte(el.name))
-
-	} else {
-		fieldName.Clear()
-		fieldName.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Login.
-	fieldText, err := gui.View("fieldShowText")
-	if err != nil || fieldText == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
-		return nil
-	}
-	if el.text != "" {
-		fieldText.Clear()
-		fieldText.Write([]byte(el.text))
-
-	} else {
-		fieldText.Clear()
-		fieldText.Write([]byte(""))
 	}
 
 	return nil
@@ -2829,52 +3002,126 @@ func doShowNextElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 // Логика перевода фокуса в окне viewLoginPasswordData. Возвращается ошибка.
 func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
-	decrIndexloginPassword(c)     // уменьшение значения индекса
-	el := loginPasswordByIndex(c) // получение записи по индексу
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	// отображение содержимого поля For.
-	fieldName, err := gui.View("fieldShowFor")
-	if err != nil || fieldName == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+		decrIndexloginPassword(c)     // уменьшение значения индекса
+		el := loginPasswordByIndex(c) // получение записи по индексу
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldLogin, err := gui.View("fieldShowLogin")
+		if err != nil || fieldLogin == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			return nil
+		}
+		if el.login != "" {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(el.login))
+
+		} else {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Password.
+		fieldPassword, err := gui.View("fieldShowPassword")
+		if err != nil || fieldPassword == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			return nil
+		}
+		if el.password != "" {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(el.password))
+
+		} else {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(""))
+		}
+
 		return nil
 	}
-	if el.name != "" {
-		fieldName.Clear()
-		fieldName.Write([]byte(el.name))
 
-	} else {
-		fieldName.Clear()
-		fieldName.Write([]byte(""))
-	}
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
-	// отображение содержимого поля Login.
-	fieldLogin, err := gui.View("fieldShowLogin")
-	if err != nil || fieldLogin == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+		name := nameLoginPasswordByIndex(c) // получение имени записи по индексу
+		decrIndexloginPassword(c)           // увеличение значения индекса
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных логин/пароль по имени: <%s>", name))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Запрос логин/пароль у сервера, по имени записи
+		rxData, err := c.conf.Server.RequestLoginPasswordByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestLoginPasswordByName, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// ---------------------
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if rxData.For != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(rxData.For))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldLogin, err := gui.View("fieldShowLogin")
+		if err != nil || fieldLogin == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			return nil
+		}
+		if rxData.Login != "" {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(rxData.Login))
+
+		} else {
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Password.
+		fieldPassword, err := gui.View("fieldShowPassword")
+		if err != nil || fieldPassword == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			return nil
+		}
+		if rxData.Password != "" {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(rxData.Password))
+
+		} else {
+			fieldPassword.Clear()
+			fieldPassword.Write([]byte(""))
+		}
+
 		return nil
-	}
-	if el.login != "" {
-		fieldLogin.Clear()
-		fieldLogin.Write([]byte(el.login))
-
-	} else {
-		fieldLogin.Clear()
-		fieldLogin.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Password.
-	fieldPassword, err := gui.View("fieldShowPassword")
-	if err != nil || fieldPassword == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
-		return nil
-	}
-	if el.password != "" {
-		fieldPassword.Clear()
-		fieldPassword.Write([]byte(el.password))
-
-	} else {
-		fieldPassword.Clear()
-		fieldPassword.Write([]byte(""))
 	}
 
 	return nil
@@ -2883,37 +3130,94 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 // Логика перевода фокуса в окне viewTextData. Возвращается ошибка.
 func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
-	decrIndexText(c)     // уменьшение значения индекса
-	el := textByIndex(c) // получение записи по индексу
+	// Если режим - локальный
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	// отображение содержимого поля For.
-	fieldName, err := gui.View("fieldShowFor")
-	if err != nil || fieldName == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+		decrIndexText(c)     // уменьшение значения индекса
+		el := textByIndex(c) // получение записи по индексу
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Login.
+		fieldText, err := gui.View("fieldShowText")
+		if err != nil || fieldText == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			return nil
+		}
+		if el.text != "" {
+			fieldText.Clear()
+			fieldText.Write([]byte(el.text))
+
+		} else {
+			fieldText.Clear()
+			fieldText.Write([]byte(""))
+		}
 		return nil
 	}
-	if el.name != "" {
-		fieldName.Clear()
-		fieldName.Write([]byte(el.name))
 
-	} else {
-		fieldName.Clear()
-		fieldName.Write([]byte(""))
-	}
+	// Если режим - удалённый
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
-	// отображение содержимого поля Login.
-	fieldText, err := gui.View("fieldShowText")
-	if err != nil || fieldText == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+		decrIndexNamesText(c)      // уменьшение значения индекса
+		name := nameTextByIndex(c) // получение записи по индексу
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных текста по имени: <%s>", name))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Запрос текста у сервера, по имени записи
+		rxData, err := c.conf.Server.RequestTextByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestTextByName, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// ---------------
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(rxData.For))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля текст.
+		fieldText, err := gui.View("fieldShowText")
+		if err != nil || fieldText == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			return nil
+		}
+		if rxData.Text != "" {
+			fieldText.Clear()
+			fieldText.Write([]byte(rxData.Text))
+
+		} else {
+			fieldText.Clear()
+			fieldText.Write([]byte(""))
+		}
 		return nil
-	}
-	if el.text != "" {
-		fieldText.Clear()
-		fieldText.Write([]byte(el.text))
-
-	} else {
-		fieldText.Clear()
-		fieldText.Write([]byte(""))
 	}
 	return nil
 }

@@ -36,6 +36,13 @@ type TxLoginPassword struct {
 	CreatedAt string // дата создания
 }
 
+// Передаваемые данные текста.
+type TxText struct {
+	For       string // принадлежность текста
+	Text      string // текст
+	CreatedAt string // дата создания
+}
+
 // Принятые данные текста.
 type RxText struct {
 	ID        string // id клиента
@@ -59,4 +66,10 @@ type RxBankCard struct {
 type RxReqLoginPasswordByName struct {
 	ClientID string // id клиента
 	Name     string // имя записи логин/пароль
+}
+
+// Приянтые данные для запроса текста по имени записи.
+type RxReqTextByName struct {
+	ClientID string // id клиента
+	Name     string // имя записи текста
 }

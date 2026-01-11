@@ -21,6 +21,8 @@ service PasswordManager {
     rpc SendFile(stream SendFileRequest) returns (SendFileResponse);
     rpc RequestLoginPasswordName(google.protobuf.Empty) returns (RequestLoginPasswordNameResponse);
     rpc RequestLoginPasswordByName(RequestLoginPasswordByNameRequest) returns (RequestLoginPasswordByNameResponse);
+    rpc RequestTextName(google.protobuf.Empty) returns (RequestTextNameResponse);
+    rpc RequestTextByName(RequestTextByNameRequest) returns (RequestTextByNameResponse);
 }
 
 message LocalBackupFileRequest {
@@ -114,4 +116,19 @@ message RequestLoginPasswordByNameResponse {
     string login = 2;
     string password = 3;
     string createdAt = 4;
+}
+
+message RequestTextNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestTextByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestTextByNameResponse {
+    string name = 1;
+    string text = 2;
+    string createdAt = 3;
 }

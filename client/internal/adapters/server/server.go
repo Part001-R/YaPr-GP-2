@@ -30,6 +30,8 @@ type ActionsI interface {
 	SendFile(fileName, tokenSrv, idClient string, key [32]byte) error
 	RequestLoginPasswordNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
 	RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error)
+	RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
+	RequestTextByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxText, err error)
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -411,6 +413,50 @@ func (s *server) RequestLoginPasswordByName(ctx context.Context, tokenAuth, idCl
 	rxData, err = LayerRequestLoginPasswordByDecrypt(resp, key)
 	if err != nil {
 		return RxLoginPassword{}, fmt.Errorf("Функция LayerRequestLoginPasswordByDecrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Результат
+	return rxData, nil
+}
+
+// Запрос у сервера имён записей для текста
+func (s *server) RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
+
+	// Запрос у сервера имён записей для логин/пароль.
+	enRxData, err := layerRequestRequestTextNamesTx(s.client, tokenAuth, idClient)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestRequestTextNamesTx, вернула ошибку: <%w>", err)
+	}
+
+	// Расшифровка принятых данных.
+	rxData, err := layerRequestTextNamesDecrypt(enRxData, key)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestTextNamesDecrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Запрос у сервера записи текста по его имени
+func (s *server) RequestTextByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxText, err error) {
+
+	// Шифрование имени записи логин/пароль
+	enNameEntry, err := LayerRequestTextByNameEncrypt(nameEntry, key)
+	if err != nil {
+		return RxText{}, fmt.Errorf("Функция LayerRequestTextByNameEncrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Запрос
+	resp, err := LayerRequestTextByNameTx(s.client, tokenAuth, idClient, enNameEntry)
+	if err != nil {
+		return RxText{}, fmt.Errorf("Функция LayerRequestTextByNameTx, вернула ошибку: <%w>", err)
+	}
+
+	// Обработка ответа
+	rxData, err = LayerRequestTextByDecrypt(resp, key)
+	if err != nil {
+		return RxText{}, fmt.Errorf("Функция LayerRequestTextByDecrypt, вернула ошибку: <%w>", err)
 	}
 
 	// Результат

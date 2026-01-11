@@ -420,3 +420,105 @@ func layerRequestLoginPasswordByNameTx(txData TxLoginPassword) (*pb.RequestLogin
 	}
 	return resp, nil
 }
+
+//
+// -- RequestTextName ---
+//
+
+// Логика.
+func LayerRequestTextName(ctx context.Context, s *Manager) (rxData []string, err error) {
+
+	// Получение из БД имён записей текста.
+	rxData, err = s.storage.GetNamesTextContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Функция GetNamesTextContext, вернула ошибку: <%w>", err)
+	}
+
+	return rxData, nil
+}
+
+// Получение токена из запроса.
+func LayerRequestTextNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Формирование ответа.
+func LayerRequestTextNameTx(data []string) (res *pb.RequestTextNameResponse, err error) {
+
+	res = &pb.RequestTextNameResponse{
+		EntriesName: data,
+	}
+
+	return res, nil
+}
+
+//
+// --- RequestTextByName ---
+//
+
+// Получение токена из запроса.
+func layerRequestTextByNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerRequestTextByName(req *pb.RequestTextByNameRequest) (name RxReqTextByName, err error) {
+
+	name.ClientID = req.IdClient
+	name.Name = req.Name
+
+	return name, nil
+}
+
+// Формирование ответа.
+func layerRequestTextByNameTx(txData TxText) (*pb.RequestTextByNameResponse, error) {
+
+	resp := &pb.RequestTextByNameResponse{
+		Name:      txData.For,
+		Text:      txData.Text,
+		CreatedAt: txData.CreatedAt,
+	}
+	return resp, nil
+}

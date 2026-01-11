@@ -970,6 +970,162 @@ func (x *RequestLoginPasswordByNameResponse) GetCreatedAt() string {
 	return ""
 }
 
+type RequestTextNameResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntriesName   []string               `protobuf:"bytes,1,rep,name=EntriesName,proto3" json:"EntriesName,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestTextNameResponse) Reset() {
+	*x = RequestTextNameResponse{}
+	mi := &file_proto_client_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestTextNameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestTextNameResponse) ProtoMessage() {}
+
+func (x *RequestTextNameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestTextNameResponse.ProtoReflect.Descriptor instead.
+func (*RequestTextNameResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RequestTextNameResponse) GetEntriesName() []string {
+	if x != nil {
+		return x.EntriesName
+	}
+	return nil
+}
+
+type RequestTextByNameRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestTextByNameRequest) Reset() {
+	*x = RequestTextByNameRequest{}
+	mi := &file_proto_client_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestTextByNameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestTextByNameRequest) ProtoMessage() {}
+
+func (x *RequestTextByNameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestTextByNameRequest.ProtoReflect.Descriptor instead.
+func (*RequestTextByNameRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RequestTextByNameRequest) GetIdClient() string {
+	if x != nil {
+		return x.IdClient
+	}
+	return ""
+}
+
+func (x *RequestTextByNameRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RequestTextByNameResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,3,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestTextByNameResponse) Reset() {
+	*x = RequestTextByNameResponse{}
+	mi := &file_proto_client_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestTextByNameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestTextByNameResponse) ProtoMessage() {}
+
+func (x *RequestTextByNameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestTextByNameResponse.ProtoReflect.Descriptor instead.
+func (*RequestTextByNameResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RequestTextByNameResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RequestTextByNameResponse) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *RequestTextByNameResponse) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
@@ -1033,7 +1189,16 @@ const file_proto_client_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x1c\n" +
-	"\tcreatedAt\x18\x04 \x01(\tR\tcreatedAt2\xcd\a\n" +
+	"\tcreatedAt\x18\x04 \x01(\tR\tcreatedAt\";\n" +
+	"\x17RequestTextNameResponse\x12 \n" +
+	"\vEntriesName\x18\x01 \x03(\tR\vEntriesName\"J\n" +
+	"\x18RequestTextByNameRequest\x12\x1a\n" +
+	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"a\n" +
+	"\x19RequestTextByNameResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1c\n" +
+	"\tcreatedAt\x18\x03 \x01(\tR\tcreatedAt2\xf6\b\n" +
 	"\x0fPasswordManager\x126\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12V\n" +
 	"\x0fLocalBackupFile\x12\x1f.manager.LocalBackupFileRequest\x1a .manager.LocalBackupFileResponse(\x01\x12Y\n" +
@@ -1046,7 +1211,9 @@ const file_proto_client_proto_rawDesc = "" +
 	"\fSendBankCard\x12\x1c.manager.SendBankCardRequest\x1a\x16.google.protobuf.Empty\x12A\n" +
 	"\bSendFile\x12\x18.manager.SendFileRequest\x1a\x19.manager.SendFileResponse(\x01\x12]\n" +
 	"\x18RequestLoginPasswordName\x12\x16.google.protobuf.Empty\x1a).manager.RequestLoginPasswordNameResponse\x12u\n" +
-	"\x1aRequestLoginPasswordByName\x12*.manager.RequestLoginPasswordByNameRequest\x1a+.manager.RequestLoginPasswordByNameResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\x1aRequestLoginPasswordByName\x12*.manager.RequestLoginPasswordByNameRequest\x1a+.manager.RequestLoginPasswordByNameResponse\x12K\n" +
+	"\x0fRequestTextName\x12\x16.google.protobuf.Empty\x1a .manager.RequestTextNameResponse\x12Z\n" +
+	"\x11RequestTextByName\x12!.manager.RequestTextByNameRequest\x1a\".manager.RequestTextByNameResponseB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -1060,7 +1227,7 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_proto_client_proto_goTypes = []any{
 	(*LocalBackupFileRequest)(nil),             // 0: manager.LocalBackupFileRequest
 	(*LocalBackupFileResponse)(nil),            // 1: manager.LocalBackupFileResponse
@@ -1079,36 +1246,43 @@ var file_proto_client_proto_goTypes = []any{
 	(*RequestLoginPasswordNameResponse)(nil),   // 14: manager.RequestLoginPasswordNameResponse
 	(*RequestLoginPasswordByNameRequest)(nil),  // 15: manager.RequestLoginPasswordByNameRequest
 	(*RequestLoginPasswordByNameResponse)(nil), // 16: manager.RequestLoginPasswordByNameResponse
-	(*emptypb.Empty)(nil),                      // 17: google.protobuf.Empty
+	(*RequestTextNameResponse)(nil),            // 17: manager.RequestTextNameResponse
+	(*RequestTextByNameRequest)(nil),           // 18: manager.RequestTextByNameRequest
+	(*RequestTextByNameResponse)(nil),          // 19: manager.RequestTextByNameResponse
+	(*emptypb.Empty)(nil),                      // 20: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
 	4,  // 0: manager.LocalFilesInfoResponse.fileInfo:type_name -> manager.FileInfo
-	17, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	20, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
 	0,  // 2: manager.PasswordManager.LocalBackupFile:input_type -> manager.LocalBackupFileRequest
 	2,  // 3: manager.PasswordManager.LocalRestoreFile:input_type -> manager.LocalRestoreFileRequest
-	17, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
+	20, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
 	6,  // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
 	7,  // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
 	9,  // 7: manager.PasswordManager.SendLoginPassword:input_type -> manager.SendLoginPasswordRequest
 	10, // 8: manager.PasswordManager.SendText:input_type -> manager.SendTextRequest
 	11, // 9: manager.PasswordManager.SendBankCard:input_type -> manager.SendBankCardRequest
 	12, // 10: manager.PasswordManager.SendFile:input_type -> manager.SendFileRequest
-	17, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
+	20, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
 	15, // 12: manager.PasswordManager.RequestLoginPasswordByName:input_type -> manager.RequestLoginPasswordByNameRequest
-	17, // 13: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1,  // 14: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
-	3,  // 15: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
-	5,  // 16: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
-	17, // 17: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
-	8,  // 18: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
-	17, // 19: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
-	17, // 20: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
-	17, // 21: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
-	13, // 22: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
-	14, // 23: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
-	16, // 24: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
-	13, // [13:25] is the sub-list for method output_type
-	1,  // [1:13] is the sub-list for method input_type
+	20, // 13: manager.PasswordManager.RequestTextName:input_type -> google.protobuf.Empty
+	18, // 14: manager.PasswordManager.RequestTextByName:input_type -> manager.RequestTextByNameRequest
+	20, // 15: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1,  // 16: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
+	3,  // 17: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
+	5,  // 18: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
+	20, // 19: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
+	8,  // 20: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
+	20, // 21: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
+	20, // 22: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
+	20, // 23: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
+	13, // 24: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
+	14, // 25: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
+	16, // 26: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
+	17, // 27: manager.PasswordManager.RequestTextName:output_type -> manager.RequestTextNameResponse
+	19, // 28: manager.PasswordManager.RequestTextByName:output_type -> manager.RequestTextByNameResponse
+	15, // [15:29] is the sub-list for method output_type
+	1,  // [1:15] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1125,7 +1299,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

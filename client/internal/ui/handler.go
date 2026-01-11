@@ -57,6 +57,8 @@ type status struct {
 	readLoginPaaswordPassed      bool // Признак, что процедура чтения логин/пароль, пройдена.
 	readNameLoginPaaswordSUCCESS bool // Признак, успешного получения имён логин/пароль.
 	readNameLoginPaaswordPassed  bool // Признак, что процедура получения имён логин/пароль, пройдена.
+	readNameTextSUCCESS          bool // Признак, успешного получения имён текста.
+	readNameTextPassed           bool // Признак, что процедура получения имён текста, пройдена.
 	delLoginPaaswordSUCCESS      bool // Признак, успешного удаления данных логин/пароль.
 	delLoginPaaswordPassed       bool // Признак, что процедура удаления логин/пароль, пройдена.
 	addTextSUCCESS               bool // Признак успешного добавления текста.
@@ -126,6 +128,9 @@ type data struct {
 	bankCard             []bankCard      // данные - банковские карты.
 	files                []string        // файлы
 	namesLoginPassword   []string        // имена записей логин/пароль
+	namesText            []string        // имена записей текст
+	namesBankCard        []string        // имена записей банковские карты
+	namesFile            []string        // имена файлов
 }
 
 // Индесы.
@@ -2142,7 +2147,6 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	// Обработка режима - локальный.
 	// Получение сохранённых значений логин/пароль.
 	if c.conf.Flag.Mode == flags.ModeRemote {
-
 		c.status.readNameLoginPaaswordPassed = true // Установка признака, что был запущен процесс получения имён логин/пароль.
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -2158,7 +2162,6 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 			c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
 			c.status.readNameLoginPaaswordSUCCESS = true
 		}
-
 	}
 
 	// Установка фокуса.
@@ -2183,6 +2186,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeText")
 
 	c.status.readTextPassed = false // Сброс признака.
+	c.status.readNameTextPassed = false
 	c.status.addTextPassed = false
 	c.status.delTextPassed = false
 	c.status.readTextSUCCESS = false
@@ -2445,8 +2449,27 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 		if err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
 		} else {
-			c.conf.PtrLoggerFile.Write("Debug: текстовые данные успешно прочитаны")
+			c.conf.PtrLoggerFile.Write("Debug: данные текста успешно прочитаны")
 			c.status.readTextSUCCESS = true
+		}
+	}
+
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		c.status.readNameTextPassed = true // Установка признака, что был запущен процесс получения имён текста.
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Запрос у сервера имен записей
+		rxData, err := c.conf.Server.RequestTextNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
+			c.status.readNameTextSUCCESS = false
+		} else {
+			c.data.namesText = rxData // передача результата
+			c.conf.PtrLoggerFile.Write("Debug: данные текста успешно прочитаны")
+			c.status.readNameTextSUCCESS = true
 		}
 	}
 

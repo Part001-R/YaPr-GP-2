@@ -234,3 +234,34 @@ func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string
 		return sqlitestor.DataLoginPassword{}, fmt.Errorf("Неизвестный тип БД")
 	}
 }
+
+// Получение имен записей текста.
+func (s *storage) GetNamesTextContext(ctx context.Context) ([]string, error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		return actions.GetNamesTextContext(ctx)
+	// ...
+	default:
+		return []string{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// Получение записb текста, по имени.
+func (s *storage) GetTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		rxData, err := actions.GetTextByNameContext(ctx, name)
+		if err != nil {
+			return TextData{}, fmt.Errorf("SQlite. Функция GetTextByNameContext, вернула ошибку: <%w>", err)
+		}
+		data.Name = rxData.Name
+		data.Text = rxData.Text
+		data.CreatedAt = rxData.CreatedAt
+		return data, nil
+	// ...
+	default:
+		return TextData{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}

@@ -25,6 +25,8 @@ type StorageI interface {
 	DelBankCardContext(ctx context.Context, field1 string) error                                                   // Удаление данных - банковские карты.
 	GetNamesLoginPasswordContext(ctx context.Context) ([]string, error)                                            // Полчение имён записей логин/пароль.
 	GetLoginPasswordByNameContext(ctx context.Context, name string) (data sqlitestor.DataLoginPassword, err error) // Получение строки по имени
+	GetNamesTextContext(ctx context.Context) ([]string, error)                                                     // Полчение имён записей текста.
+	GetTextByNameContext(ctx context.Context, name string) (data TextData, err error)                              // Получение строки по имени
 }
 
 // БД.

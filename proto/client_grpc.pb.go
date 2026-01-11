@@ -32,6 +32,8 @@ const (
 	PasswordManager_SendFile_FullMethodName                   = "/manager.PasswordManager/SendFile"
 	PasswordManager_RequestLoginPasswordName_FullMethodName   = "/manager.PasswordManager/RequestLoginPasswordName"
 	PasswordManager_RequestLoginPasswordByName_FullMethodName = "/manager.PasswordManager/RequestLoginPasswordByName"
+	PasswordManager_RequestTextName_FullMethodName            = "/manager.PasswordManager/RequestTextName"
+	PasswordManager_RequestTextByName_FullMethodName          = "/manager.PasswordManager/RequestTextByName"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -50,6 +52,8 @@ type PasswordManagerClient interface {
 	SendFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[SendFileRequest, SendFileResponse], error)
 	RequestLoginPasswordName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestLoginPasswordNameResponse, error)
 	RequestLoginPasswordByName(ctx context.Context, in *RequestLoginPasswordByNameRequest, opts ...grpc.CallOption) (*RequestLoginPasswordByNameResponse, error)
+	RequestTextName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestTextNameResponse, error)
+	RequestTextByName(ctx context.Context, in *RequestTextByNameRequest, opts ...grpc.CallOption) (*RequestTextByNameResponse, error)
 }
 
 type passwordManagerClient struct {
@@ -195,6 +199,26 @@ func (c *passwordManagerClient) RequestLoginPasswordByName(ctx context.Context, 
 	return out, nil
 }
 
+func (c *passwordManagerClient) RequestTextName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestTextNameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestTextNameResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_RequestTextName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) RequestTextByName(ctx context.Context, in *RequestTextByNameRequest, opts ...grpc.CallOption) (*RequestTextByNameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestTextByNameResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_RequestTextByName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -211,6 +235,8 @@ type PasswordManagerServer interface {
 	SendFile(grpc.ClientStreamingServer[SendFileRequest, SendFileResponse]) error
 	RequestLoginPasswordName(context.Context, *emptypb.Empty) (*RequestLoginPasswordNameResponse, error)
 	RequestLoginPasswordByName(context.Context, *RequestLoginPasswordByNameRequest) (*RequestLoginPasswordByNameResponse, error)
+	RequestTextName(context.Context, *emptypb.Empty) (*RequestTextNameResponse, error)
+	RequestTextByName(context.Context, *RequestTextByNameRequest) (*RequestTextByNameResponse, error)
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -256,6 +282,12 @@ func (UnimplementedPasswordManagerServer) RequestLoginPasswordName(context.Conte
 }
 func (UnimplementedPasswordManagerServer) RequestLoginPasswordByName(context.Context, *RequestLoginPasswordByNameRequest) (*RequestLoginPasswordByNameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RequestLoginPasswordByName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestTextName(context.Context, *emptypb.Empty) (*RequestTextNameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestTextName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestTextByName(context.Context, *RequestTextByNameRequest) (*RequestTextByNameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestTextByName not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -465,6 +497,42 @@ func _PasswordManager_RequestLoginPasswordByName_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PasswordManager_RequestTextName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).RequestTextName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_RequestTextName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).RequestTextName(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_RequestTextByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestTextByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).RequestTextByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_RequestTextByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).RequestTextByName(ctx, req.(*RequestTextByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -507,6 +575,14 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestLoginPasswordByName",
 			Handler:    _PasswordManager_RequestLoginPasswordByName_Handler,
+		},
+		{
+			MethodName: "RequestTextName",
+			Handler:    _PasswordManager_RequestTextName_Handler,
+		},
+		{
+			MethodName: "RequestTextByName",
+			Handler:    _PasswordManager_RequestTextByName_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

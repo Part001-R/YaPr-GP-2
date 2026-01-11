@@ -66,9 +66,11 @@ type Actions interface {
 	DelTextContext(ctx context.Context, field1 string) error
 	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error
 	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)
-	GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error)
 	DelBankCardContext(ctx context.Context, field1 string) error
 	GetNamesLoginPasswordContext(ctx context.Context) ([]string, error)
+	GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error)
+	GetNamesTextContext(ctx context.Context) ([]string, error)
+	GetTextByNameContext(ctx context.Context, name string) (data TextData, err error)
 }
 
 var inst *dataBase
@@ -408,6 +410,54 @@ func (d *dataBase) DelTextContext(ctx context.Context, field1 string) error {
 	}
 
 	return nil
+}
+
+// Получение имён записей для текст.
+func (d *dataBase) GetNamesTextContext(ctx context.Context) ([]string, error) {
+
+	// Запрос к базе данных
+	query := "SELECT field_1 FROM data2"
+	rows, err := d.ptrDB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка выполнения запроса: <%w>", err)
+	}
+	defer rows.Close()
+
+	// Массив для хранения значений field_1
+	var records []string
+
+	// Обработка
+	for rows.Next() {
+		var field1 string
+		if err := rows.Scan(&field1); err != nil {
+			return nil, fmt.Errorf("ошибка сканирования записи: <%w>", err)
+		}
+		records = append(records, field1)
+	}
+
+	// Проверка на ошибки после обработки всех строк
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка при итерации по записям: <%w>", err)
+	}
+
+	return records, nil
+}
+
+// Получение данных текста по имени записи.
+func (d *dataBase) GetTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
+
+	query := "SELECT field_1, field_2, created_at FROM data2 WHERE field_1 = ?"
+	row := d.ptrDB.QueryRowContext(ctx, query, name)
+
+	err = row.Scan(&data.Name, &data.Text, &data.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return TextData{}, nil // нет записи по указанному имени
+		}
+		return TextData{}, err
+	}
+
+	return data, nil
 }
 
 //

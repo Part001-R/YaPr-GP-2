@@ -495,8 +495,6 @@ func layerRequestLoginPasswordNamesDecrypt(enRxData []string, key [32]byte) (rxD
 	return rxData, nil
 }
 
-// RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte)
-
 //
 // --- RequestLoginPasswordByName ---
 //
@@ -560,6 +558,123 @@ func LayerRequestLoginPasswordByDecrypt(resp *pb.RequestLoginPasswordByNameRespo
 	rxData.CreatedAt, err = decrypt(resp.CreatedAt, key)
 	if err != nil {
 		return RxLoginPassword{}, fmt.Errorf("ошибка расшифровки CreatedAt:<%w>", err)
+	}
+
+	return rxData, nil
+}
+
+//
+// --- RequestTextNames ---
+//
+
+// Передача запроса
+func layerRequestRequestTextNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос у сервера информации.
+	emptyRequest := &emptypb.Empty{}
+	resp, err := client.RequestTextName(
+		ctx,
+		emptyRequest,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Функция client.RequestTextName, вернула ошибку: <%v>", err)
+	}
+
+	// Получение данных ответа.
+	for _, v := range resp.EntriesName {
+		rxData = append(rxData, v)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Расшифровка принятых данных
+func layerRequestTextNamesDecrypt(enRxData []string, key [32]byte) (rxData []string, err error) {
+
+	// Проверка
+	if len(enRxData) == 0 {
+		return []string{}, nil
+	}
+
+	// Расшифровка
+	for _, v := range enRxData {
+		d, err := decrypt(v, key)
+		if err != nil {
+			return []string{}, fmt.Errorf("Функция decrypt, вернула ошибку: <%w>", err)
+		}
+		rxData = append(rxData, d)
+	}
+
+	// Результат
+	return rxData, nil
+}
+
+//
+// --- RequestTextByName ---
+//
+
+// Шифрование передаваемых данных
+func LayerRequestTextByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry string, err error) {
+
+	// Шифрование имени записи
+	enNameEntry, err = encrypt(nameEntry, key)
+	if err != nil {
+		return "", fmt.Errorf("функция encrypt, вернула ошибку: <%w>", err)
+	}
+
+	return enNameEntry, nil
+}
+
+// Запрос к серверу
+func LayerRequestTextByNameTx(client proto.PasswordManagerClient, tokenAuth, idClient, enNameEntry string) (resp *pb.RequestTextByNameResponse, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Данные запроса
+	req := &proto.RequestTextByNameRequest{
+		IdClient: idClient,
+		Name:     enNameEntry,
+	}
+
+	// Запрос
+	resp, err = client.RequestTextByName(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("Функция RequestTextByName, вернула ошибку: <%w>", err)
+	}
+
+	// Результат
+	return resp, nil
+}
+
+// Обработка ответа
+func LayerRequestTextByDecrypt(resp *pb.RequestTextByNameResponse, key [32]byte) (rxData RxText, err error) {
+
+	rxData.For, err = decrypt(resp.Name, key)
+	if err != nil {
+		return RxText{}, fmt.Errorf("ошибка расшифровки Name:<%w>", err)
+	}
+
+	rxData.Text, err = decrypt(resp.Text, key)
+	if err != nil {
+		return RxText{}, fmt.Errorf("ошибка расшифровки Text:<%w>", err)
+	}
+
+	rxData.CreatedAt, err = decrypt(resp.CreatedAt, key)
+	if err != nil {
+		return RxText{}, fmt.Errorf("ошибка расшифровки CreatedAt:<%w>", err)
 	}
 
 	return rxData, nil

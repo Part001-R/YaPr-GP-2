@@ -753,6 +753,90 @@ func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.Reques
 	return resp, nil
 }
 
+// Получение имён для текста.
+func (s *Manager) RequestTextName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestTextNameResponse, err error) {
+
+	s.logger.Info("Принят запрос на получение имён записей текста")
+
+	// Получение токена.
+	rxToken, err := LayerRequestTextNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestTextNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestTextNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Выполнение запроса к БД.
+	rxData, err := LayerRequestTextName(ctx, s)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestTextName, вернула ошибку", zap.Error(err))
+		return &pb.RequestTextNameResponse{}, status.Error(codes.Internal, "Ошибка при получении имён записей текста")
+	}
+
+	// Формирование ответа.
+	resp, err = LayerRequestTextNameTx(rxData)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestTextNameTx, вернула ошибку", zap.Error(err))
+		return &pb.RequestTextNameResponse{}, status.Error(codes.Internal, "Ошибка при формировании ответа")
+	}
+
+	s.logger.Info("Обработка запроса имён записей текста, выполнена")
+	return resp, nil
+}
+
+// Получение данных текста по имени записи.
+func (s *Manager) RequestTextByName(ctx context.Context, req *pb.RequestTextByNameRequest) (resp *pb.RequestTextByNameResponse, err error) {
+
+	s.logger.Info("Принят запрос на получение данных записи текста, по имени записи")
+
+	// Полуение токена аутентификации
+	rxToken, err := layerRequestTextByNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция layerRequestTextByNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestTextByNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	rxData, err := layerRequestTextByName(req)
+	if err != nil {
+		s.logger.Error("Функция layerRequestTextByName, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка обработки данных запроса")
+	}
+
+	// Запрос к БД.
+	dataDB, err := s.storage.GetTextByNameContext(ctx, rxData.Name)
+	if err != nil {
+		s.logger.Error("Функция GetTextByNameContext, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка запроса к БД")
+	}
+
+	// Формирование ответа.
+	var data TxText
+	data.For = dataDB.Name
+	data.Text = dataDB.Text
+	data.CreatedAt = dataDB.CreatedAt
+
+	resp, err = layerRequestTextByNameTx(data)
+	if err != nil {
+		s.logger.Error("Функция layerRequestTextByNameTx, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка подготовки ответа")
+	}
+
+	// Результат.
+	return resp, nil
+}
+
 //
 // Интерцепторы.
 //
