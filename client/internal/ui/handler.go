@@ -71,6 +71,10 @@ type status struct {
 	addBankCardPassed            bool // Признак, что выполнена процедура добавления карты.
 	readBankCardSUCCESS          bool // Признак, успешного получения данных карт.
 	readBankCardPassed           bool // Признак, что процедура получения данных карт, пройдена.
+	readNameBankCardSUCCESS      bool // Признак, успешного получения данных карт.
+	readNameBankCardPassed       bool // Признак, что процедура получения данных карт, пройдена.
+	readNameFileSUCCESS          bool // Признак, успешного получения данных файлов.
+	readNameFilePassed           bool // Признак, что процедура получения данных файлов, пройдена.
 	delBankCardSUCCESS           bool // Признак, успешного удаления данных карты.
 	delBankCardPassed            bool // Признак, что процедура удаления карты, пройдена.
 	addFileSUCCESS               bool // Признак успешного добавления файла.
@@ -2800,6 +2804,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeBankCard")
 
 	c.status.readBankCardPassed = false // Сброс признака.
+	c.status.readNameBankCardPassed = false
 	c.status.addBankCardPassed = false
 	c.status.delBankCardPassed = false
 	c.index.bankCard = 0 // Сброс индекса навигации по массиву логин/пароль.
@@ -3128,11 +3133,12 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		v.Write([]byte("Ctrl+U - назад"))
 	}
 
-	// Получение сохранённых значений банковских карт.
-	c.status.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
-
 	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
+
+		// Получение сохранённых значений банковских карт.
+		c.status.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
+
 		_, err = showBankCardWorkDB(c)
 		if err != nil {
 			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
@@ -3142,9 +3148,24 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		}
 	}
 
-	// Если режим - локальный.
+	// Если режим - удалённый.
 	if c.conf.Flag.Mode == flags.ModeRemote {
 
+		c.status.readNameBankCardPassed = true // Установка признака, что был запущен процесс получения имён банковских карт.
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Запрос у сервера имен записей
+		rxData, err := c.conf.Server.RequestBankCardNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
+			c.status.readNameBankCardSUCCESS = false
+		} else {
+			c.data.namesBankCard = rxData // передача результата
+			c.conf.PtrLoggerFile.Write("Debug: данные банковской карты, успешно прочитаны")
+			c.status.readNameBankCardSUCCESS = true
+		}
 	}
 
 	// Установка фокуса.

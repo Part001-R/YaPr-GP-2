@@ -76,7 +76,7 @@ func (s *storage) ReadTableLoginPasswordContext(ctx context.Context) (list []Log
 	case sqlitestor.Actions:
 		rxArr, err := actions.ReadTableLoginPasswordContext(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("SQlite. Функция ReadTableLoginPasswordContext, вернула ошибку: <%w>", err)
 		}
 		for _, v := range rxArr {
 			var el LoginPassword
@@ -125,11 +125,11 @@ func (s *storage) ReadTableTextContext(ctx context.Context) (list []TextData, er
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		rxArr, err := actions.ReadTableTextContext(ctx)
+		rxData, err := actions.ReadTableTextContext(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("SQlite. Функция ReadTableTextContext, вернула ошибку: <%w>", err)
 		}
-		for _, v := range rxArr {
+		for _, v := range rxData {
 			var el TextData
 
 			el.Name = v.Name
@@ -138,7 +138,6 @@ func (s *storage) ReadTableTextContext(ctx context.Context) (list []TextData, er
 
 			list = append(list, el)
 		}
-
 		return list, nil
 	// ...
 	default:
@@ -176,11 +175,11 @@ func (s *storage) ReadTableBankCardContext(ctx context.Context) (list []BankCard
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		rxArr, err := actions.ReadTableBankCardContext(ctx)
+		rxData, err := actions.ReadTableBankCardContext(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("SQlite. Функция ReadTableBankCardContext, вернула ошибку: <%w>", err)
 		}
-		for _, v := range rxArr {
+		for _, v := range rxData {
 			var el BankCard
 
 			el.Name = v.Name
@@ -216,7 +215,11 @@ func (s *storage) GetNamesLoginPasswordContext(ctx context.Context) ([]string, e
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.GetNamesLoginPasswordContext(ctx)
+		rxData, err := actions.GetNamesLoginPasswordContext(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("SQlite. Функция GetNamesLoginPasswordContext, вернула ошибку: <%w>", err)
+		}
+		return rxData, nil
 	// ...
 	default:
 		return []string{}, fmt.Errorf("Неизвестный тип БД")
@@ -224,14 +227,22 @@ func (s *storage) GetNamesLoginPasswordContext(ctx context.Context) ([]string, e
 }
 
 // Чтение данных логин/пароль по имени.
-func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string) (data sqlitestor.DataLoginPassword, err error) {
+func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string) (data LoginPassword, err error) {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.GetLoginPasswordByNameContext(ctx, name)
+		rxData, err := actions.GetLoginPasswordByNameContext(ctx, name)
+		if err != nil {
+			return LoginPassword{}, fmt.Errorf("SQlite. Функция GetLoginPasswordByNameContext, вернула ошибку: <%w>", err)
+		}
+		data.Name = rxData.For
+		data.Login = rxData.Login
+		data.Password = rxData.Password
+		data.CreatedAt = rxData.CreatedAt
+		return data, nil
 	// ...
 	default:
-		return sqlitestor.DataLoginPassword{}, fmt.Errorf("Неизвестный тип БД")
+		return LoginPassword{}, fmt.Errorf("Неизвестный тип БД")
 	}
 }
 
@@ -240,7 +251,11 @@ func (s *storage) GetNamesTextContext(ctx context.Context) ([]string, error) {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.GetNamesTextContext(ctx)
+		rxData, err := actions.GetNamesTextContext(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("SQlite. Функция GetNamesTextContext, вернула ошибку: <%w>", err)
+		}
+		return rxData, nil
 	// ...
 	default:
 		return []string{}, fmt.Errorf("Неизвестный тип БД")
@@ -263,5 +278,43 @@ func (s *storage) GetTextByNameContext(ctx context.Context, name string) (data T
 	// ...
 	default:
 		return TextData{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// Получение имен записей банковских карт.
+func (s *storage) GetNamesBankCardContext(ctx context.Context) ([]string, error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		rxData, err := actions.GetNamesBankCardContext(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("SQlite. Функция GetNamesBankCardContext, вернула ошибку: <%w>", err)
+		}
+		return rxData, nil
+	// ...
+	default:
+		return []string{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// Получение записи банковской карты, по имени.
+func (s *storage) GetBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		rxData, err := actions.GetBankCardByNameContext(ctx, name)
+		if err != nil {
+			return BankCard{}, fmt.Errorf("SQlite. Функция GetBankCardByNameContext, вернула ошибку: <%w>", err)
+		}
+		data.Name = rxData.Name
+		data.Owner = rxData.Owner
+		data.Numb = rxData.Numb
+		data.Valid = rxData.Valid
+		data.Code = rxData.Code
+		data.CreatedAt = rxData.CreatedAt
+		return data, nil
+	// ...
+	default:
+		return BankCard{}, fmt.Errorf("Неизвестный тип БД")
 	}
 }

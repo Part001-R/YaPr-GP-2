@@ -34,6 +34,10 @@ const (
 	PasswordManager_RequestLoginPasswordByName_FullMethodName = "/manager.PasswordManager/RequestLoginPasswordByName"
 	PasswordManager_RequestTextName_FullMethodName            = "/manager.PasswordManager/RequestTextName"
 	PasswordManager_RequestTextByName_FullMethodName          = "/manager.PasswordManager/RequestTextByName"
+	PasswordManager_RequestBankCardName_FullMethodName        = "/manager.PasswordManager/RequestBankCardName"
+	PasswordManager_RequestBankCardByName_FullMethodName      = "/manager.PasswordManager/RequestBankCardByName"
+	PasswordManager_RequestFileName_FullMethodName            = "/manager.PasswordManager/RequestFileName"
+	PasswordManager_RequestFileByName_FullMethodName          = "/manager.PasswordManager/RequestFileByName"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -54,6 +58,10 @@ type PasswordManagerClient interface {
 	RequestLoginPasswordByName(ctx context.Context, in *RequestLoginPasswordByNameRequest, opts ...grpc.CallOption) (*RequestLoginPasswordByNameResponse, error)
 	RequestTextName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestTextNameResponse, error)
 	RequestTextByName(ctx context.Context, in *RequestTextByNameRequest, opts ...grpc.CallOption) (*RequestTextByNameResponse, error)
+	RequestBankCardName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestBankCardNameResponse, error)
+	RequestBankCardByName(ctx context.Context, in *RequestBankCardByNameRequest, opts ...grpc.CallOption) (*RequestBankCardByNameResponse, error)
+	RequestFileName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestFileNameResponse, error)
+	RequestFileByName(ctx context.Context, in *RequestFileByNameRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RequestFileByNameResponse], error)
 }
 
 type passwordManagerClient struct {
@@ -219,6 +227,55 @@ func (c *passwordManagerClient) RequestTextByName(ctx context.Context, in *Reque
 	return out, nil
 }
 
+func (c *passwordManagerClient) RequestBankCardName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestBankCardNameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestBankCardNameResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_RequestBankCardName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) RequestBankCardByName(ctx context.Context, in *RequestBankCardByNameRequest, opts ...grpc.CallOption) (*RequestBankCardByNameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestBankCardByNameResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_RequestBankCardByName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) RequestFileName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestFileNameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestFileNameResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_RequestFileName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) RequestFileByName(ctx context.Context, in *RequestFileByNameRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RequestFileByNameResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &PasswordManager_ServiceDesc.Streams[3], PasswordManager_RequestFileByName_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RequestFileByNameRequest, RequestFileByNameResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PasswordManager_RequestFileByNameClient = grpc.ServerStreamingClient[RequestFileByNameResponse]
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -237,6 +294,10 @@ type PasswordManagerServer interface {
 	RequestLoginPasswordByName(context.Context, *RequestLoginPasswordByNameRequest) (*RequestLoginPasswordByNameResponse, error)
 	RequestTextName(context.Context, *emptypb.Empty) (*RequestTextNameResponse, error)
 	RequestTextByName(context.Context, *RequestTextByNameRequest) (*RequestTextByNameResponse, error)
+	RequestBankCardName(context.Context, *emptypb.Empty) (*RequestBankCardNameResponse, error)
+	RequestBankCardByName(context.Context, *RequestBankCardByNameRequest) (*RequestBankCardByNameResponse, error)
+	RequestFileName(context.Context, *emptypb.Empty) (*RequestFileNameResponse, error)
+	RequestFileByName(*RequestFileByNameRequest, grpc.ServerStreamingServer[RequestFileByNameResponse]) error
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -288,6 +349,18 @@ func (UnimplementedPasswordManagerServer) RequestTextName(context.Context, *empt
 }
 func (UnimplementedPasswordManagerServer) RequestTextByName(context.Context, *RequestTextByNameRequest) (*RequestTextByNameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RequestTextByName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestBankCardName(context.Context, *emptypb.Empty) (*RequestBankCardNameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestBankCardName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestBankCardByName(context.Context, *RequestBankCardByNameRequest) (*RequestBankCardByNameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestBankCardByName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestFileName(context.Context, *emptypb.Empty) (*RequestFileNameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestFileName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestFileByName(*RequestFileByNameRequest, grpc.ServerStreamingServer[RequestFileByNameResponse]) error {
+	return status.Error(codes.Unimplemented, "method RequestFileByName not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -533,6 +606,71 @@ func _PasswordManager_RequestTextByName_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PasswordManager_RequestBankCardName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).RequestBankCardName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_RequestBankCardName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).RequestBankCardName(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_RequestBankCardByName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestBankCardByNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).RequestBankCardByName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_RequestBankCardByName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).RequestBankCardByName(ctx, req.(*RequestBankCardByNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_RequestFileName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).RequestFileName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_RequestFileName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).RequestFileName(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_RequestFileByName_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RequestFileByNameRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(PasswordManagerServer).RequestFileByName(m, &grpc.GenericServerStream[RequestFileByNameRequest, RequestFileByNameResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type PasswordManager_RequestFileByNameServer = grpc.ServerStreamingServer[RequestFileByNameResponse]
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -584,6 +722,18 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "RequestTextByName",
 			Handler:    _PasswordManager_RequestTextByName_Handler,
 		},
+		{
+			MethodName: "RequestBankCardName",
+			Handler:    _PasswordManager_RequestBankCardName_Handler,
+		},
+		{
+			MethodName: "RequestBankCardByName",
+			Handler:    _PasswordManager_RequestBankCardByName_Handler,
+		},
+		{
+			MethodName: "RequestFileName",
+			Handler:    _PasswordManager_RequestFileName_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -600,6 +750,11 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "SendFile",
 			Handler:       _PasswordManager_SendFile_Handler,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "RequestFileByName",
+			Handler:       _PasswordManager_RequestFileByName_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "proto/client.proto",

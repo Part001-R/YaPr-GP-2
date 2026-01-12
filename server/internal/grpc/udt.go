@@ -43,6 +43,16 @@ type TxText struct {
 	CreatedAt string // дата создания
 }
 
+// Передаваемые данные банковской карты.
+type TxBankCard struct {
+	For       string // принадлежность текста
+	Owner     string // владелец
+	Numb      string // номер
+	Valid     string // валидность
+	Code      string // код
+	CreatedAt string // дата создания
+}
+
 // Принятые данные текста.
 type RxText struct {
 	ID        string // id клиента
@@ -72,4 +82,10 @@ type RxReqLoginPasswordByName struct {
 type RxReqTextByName struct {
 	ClientID string // id клиента
 	Name     string // имя записи текста
+}
+
+// Приянтые данные для запроса банковской карты по имени записи.
+type RxReqBankCardByName struct {
+	ClientID string // id клиента
+	Name     string // имя записи банковской карты
 }

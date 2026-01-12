@@ -34,6 +34,16 @@ type TextData struct {
 	CreatedAt string // время создания/обновления.
 }
 
+// Формат записи банковской карты.
+type BankCardData struct {
+	Name      string // наименование записи.
+	Owner     string // владелец.
+	Numb      string // номер.
+	Valid     string // валидность.
+	Code      string // код.
+	CreatedAt string // время создания/обновления.
+}
+
 // Представление данных текста.
 type DataLoginPassword struct {
 	For       string // принадлежность
@@ -71,6 +81,8 @@ type Actions interface {
 	GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error)
 	GetNamesTextContext(ctx context.Context) ([]string, error)
 	GetTextByNameContext(ctx context.Context, name string) (data TextData, err error)
+	GetNamesBankCardContext(ctx context.Context) ([]string, error)
+	GetBankCardByNameContext(ctx context.Context, name string) (data BankCardData, err error)
 }
 
 var inst *dataBase
@@ -543,4 +555,52 @@ func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error 
 	}
 
 	return nil
+}
+
+// Получение имён записей для банковских карт.
+func (d *dataBase) GetNamesBankCardContext(ctx context.Context) ([]string, error) {
+
+	// Запрос к базе данных
+	query := "SELECT field_1 FROM data4"
+	rows, err := d.ptrDB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка выполнения запроса: <%w>", err)
+	}
+	defer rows.Close()
+
+	// Массив для хранения значений field_1
+	var records []string
+
+	// Обработка
+	for rows.Next() {
+		var field1 string
+		if err := rows.Scan(&field1); err != nil {
+			return nil, fmt.Errorf("ошибка сканирования записи: <%w>", err)
+		}
+		records = append(records, field1)
+	}
+
+	// Проверка на ошибки после обработки всех строк
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка при итерации по записям: <%w>", err)
+	}
+
+	return records, nil
+}
+
+// Получение данных банковской карты по имени записи.
+func (d *dataBase) GetBankCardByNameContext(ctx context.Context, name string) (data BankCardData, err error) {
+
+	query := "SELECT field_1, field_2, field_3, field_4, field_5, created_at FROM data4 WHERE field_1 = ?"
+	row := d.ptrDB.QueryRowContext(ctx, query, name)
+
+	err = row.Scan(&data.Name, &data.Owner, &data.Numb, &data.Valid, &data.Code, &data.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return BankCardData{}, nil // нет записи по указанному имени
+		}
+		return BankCardData{}, err
+	}
+
+	return data, nil
 }

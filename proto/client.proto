@@ -23,6 +23,10 @@ service PasswordManager {
     rpc RequestLoginPasswordByName(RequestLoginPasswordByNameRequest) returns (RequestLoginPasswordByNameResponse);
     rpc RequestTextName(google.protobuf.Empty) returns (RequestTextNameResponse);
     rpc RequestTextByName(RequestTextByNameRequest) returns (RequestTextByNameResponse);
+    rpc RequestBankCardName(google.protobuf.Empty) returns (RequestBankCardNameResponse);
+    rpc RequestBankCardByName(RequestBankCardByNameRequest) returns (RequestBankCardByNameResponse);
+    rpc RequestFileName(google.protobuf.Empty) returns (RequestFileNameResponse);
+    rpc RequestFileByName(RequestFileByNameRequest) returns (stream RequestFileByNameResponse);
 }
 
 message LocalBackupFileRequest {
@@ -131,4 +135,36 @@ message RequestTextByNameResponse {
     string name = 1;
     string text = 2;
     string createdAt = 3;
+}
+
+message RequestBankCardNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestBankCardByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestBankCardByNameResponse {
+    string name = 1;
+    string owner = 2;
+    string numb = 3;
+    string valid = 4;
+    string code = 5;
+    string createdAt = 6;
+}
+
+message RequestFileNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestFileByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestFileByNameResponse {
+    string fileName = 1;
+    bytes content = 2;
 }

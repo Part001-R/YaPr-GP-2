@@ -738,7 +738,7 @@ func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.Reques
 
 	// Формирование ответа.
 	var data TxLoginPassword
-	data.For = dataDB.For
+	data.For = dataDB.Name
 	data.Login = dataDB.Login
 	data.Password = dataDB.Password
 	data.CreatedAt = dataDB.CreatedAt
@@ -834,6 +834,94 @@ func (s *Manager) RequestTextByName(ctx context.Context, req *pb.RequestTextByNa
 	}
 
 	// Результат.
+	return resp, nil
+}
+
+// Получение имён для банковских карт.
+func (s *Manager) RequestBankCardName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestBankCardNameResponse, err error) {
+
+	s.logger.Info("Принят запрос на получение имён записей банковских карт")
+
+	// Получение токена.
+	rxToken, err := LayerRequestBankCardNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestBankCardNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestBankCardNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Выполнение запроса к БД.
+	rxData, err := LayerRequestBankCardName(ctx, s)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestBankCardName, вернула ошибку", zap.Error(err))
+		return &pb.RequestBankCardNameResponse{}, status.Error(codes.Internal, "Ошибка при получении имён записей текста")
+	}
+
+	// Формирование ответа.
+	resp, err = LayerRequestBankCardNameTx(rxData)
+	if err != nil {
+		s.logger.Error("Функция LayerRequestBankCardNameTx, вернула ошибку", zap.Error(err))
+		return &pb.RequestBankCardNameResponse{}, status.Error(codes.Internal, "Ошибка при формировании ответа")
+	}
+
+	s.logger.Info("Обработка запроса имён записей банковских карт, выполнена")
+	return resp, nil
+}
+
+// Получение данных банковской карты по имени записи.
+func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBankCardByNameRequest) (resp *pb.RequestBankCardByNameResponse, err error) {
+
+	s.logger.Info("Принят запрос на получение данных записи банковской карты, по имени записи")
+
+	// Полуение токена аутентификации
+	rxToken, err := layerRequestBankCardByNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция layerRequestBankCardByNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestBankCardByNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	rxData, err := layerRequestBankCardByName(req)
+	if err != nil {
+		s.logger.Error("Функция layerRequestBankCardByName, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка обработки данных запроса")
+	}
+
+	// Запрос к БД.
+	dataDB, err := s.storage.GetBankCardByNameContext(ctx, rxData.Name)
+	if err != nil {
+		s.logger.Error("Функция GetBankCardByNameContext, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка запроса к БД")
+	}
+
+	// Формирование ответа.
+	var data TxBankCard
+	data.For = dataDB.Name
+	data.Owner = dataDB.Owner
+	data.Numb = dataDB.Numb
+	data.Valid = dataDB.Valid
+	data.Code = dataDB.Code
+	data.CreatedAt = dataDB.CreatedAt
+
+	resp, err = layerRequestBankCardByNameTx(data)
+	if err != nil {
+		s.logger.Error("Функция layerRequestBankCardByNameTx, вернула ошибку", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка подготовки ответа")
+	}
+
+	// Результат.
+	s.logger.Info("Обработка запроса банковской карты, выполнена")
 	return resp, nil
 }
 

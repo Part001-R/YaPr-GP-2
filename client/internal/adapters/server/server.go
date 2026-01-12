@@ -32,6 +32,8 @@ type ActionsI interface {
 	RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error)
 	RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
 	RequestTextByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxText, err error)
+	RequestBankCardNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
+	RequestBankCardByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxBankCard, err error)
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -302,6 +304,7 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 		Owner:     data.Owner,
 		Numb:      data.Numb,
 		ValidData: data.ValidData,
+		Code:      data.Code,
 		CreatedAt: data.CreatedAt,
 	}
 	eData, err := layerSendBankCardEncode(txData, key)
@@ -324,6 +327,7 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 		For:       eData.For,
 		Owner:     eData.Owner,
 		Numb:      eData.Numb,
+		ValidData: eData.ValidData,
 		Code:      eData.Code,
 		CreatedAt: eData.CreatedAt,
 	}
@@ -454,9 +458,53 @@ func (s *server) RequestTextByName(ctx context.Context, tokenAuth, idClient, nam
 	}
 
 	// Обработка ответа
-	rxData, err = LayerRequestTextByDecrypt(resp, key)
+	rxData, err = LayerRequestTextByNameDecrypt(resp, key)
 	if err != nil {
 		return RxText{}, fmt.Errorf("Функция LayerRequestTextByDecrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Результат
+	return rxData, nil
+}
+
+// Запрос у сервера имён записей для банковских карт.
+func (s *server) RequestBankCardNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
+
+	// Запрос у сервера имён записей для банковских карт.
+	enRxData, err := layerRequestBankCardNamesTx(s.client, tokenAuth, idClient)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestRequestTextNamesTx, вернула ошибку: <%w>", err)
+	}
+
+	// Расшифровка принятых данных.
+	rxData, err := layerRequestBankCardNamesDecrypt(enRxData, key)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestTextNamesDecrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Запрос у сервера записи банковской карты по его имени
+func (s *server) RequestBankCardByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxBankCard, err error) {
+
+	// Шифрование имени записи банковской карты
+	enNameEntry, err := LayerRequestBankCardByNameEncrypt(nameEntry, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("Функция LayerRequestBankCardByNameEncrypt, вернула ошибку: <%w>", err)
+	}
+
+	// Запрос
+	resp, err := LayerRequestBankCardByNameTx(s.client, tokenAuth, idClient, enNameEntry)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("Функция LayerRequestBankCardByNameTx, вернула ошибку: <%w>", err)
+	}
+
+	// Обработка ответа
+	rxData, err = LayerRequestBankCardByNameDecrypt(resp, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("Функция LayerRequestBankCardByNameDecrypt, вернула ошибку: <%w>", err)
 	}
 
 	// Результат

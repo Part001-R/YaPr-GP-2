@@ -750,6 +750,16 @@ func nameTextByIndex(c *handlerUI) string {
 	return c.data.namesText[c.index.text]
 }
 
+// Получение имени записи банковской карты по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func nameBankCardByIndex(c *handlerUI) string {
+
+	return c.data.namesBankCard[c.index.bankCard]
+}
+
 // Получение данных текста по индексу. Возвращается запись.
 //
 // Параметры:
@@ -824,6 +834,18 @@ func incrIndexNamesText(c *handlerUI) {
 
 	if c.index.text < len(c.data.namesText)-1 {
 		c.index.text++
+	}
+}
+
+// Увеличение значения индекса для имён массива банковских карт.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexNamesBankCard(c *handlerUI) {
+
+	if c.index.bankCard < len(c.data.namesBankCard)-1 {
+		c.index.bankCard++
 	}
 }
 
@@ -905,6 +927,18 @@ func decrIndexNamesText(c *handlerUI) {
 //
 //	с - конфигурация.
 func decrIndexBankCard(c *handlerUI) {
+
+	if c.index.bankCard > 0 {
+		c.index.bankCard--
+	}
+}
+
+// Уменьшение значения индекса для массива имён банковских карт.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexBankCardName(c *handlerUI) {
 
 	if c.index.bankCard > 0 {
 		c.index.bankCard--
@@ -1633,72 +1667,152 @@ func indicatorViewTextData(g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func indicatorViewBankCardData(g *gocui.Gui, c *handlerUI) error {
 
-	// Обработка индикатора получения данных.
-	name := "indicatorReadStatus"
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	indicatorRead, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if indicatorRead == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
-	if c.status.readBankCardPassed { // обработка при чтении
-		if c.status.readBankCardSUCCESS {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.bankCard))))
-			indicatorRead.FgColor = gocui.ColorGreen
-			indicatorRead.BgColor = gocui.ColorDefault
-		} else {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Ошибка"))
-			indicatorRead.FgColor = gocui.ColorRed
-			indicatorRead.BgColor = gocui.ColorDefault
+		// Обработка индикатора получения данных.
+		name := "indicatorReadStatus"
+
+		indicatorRead, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
 		}
-		c.status.readBankCardPassed = false
-	}
-
-	if c.status.delBankCardPassed { // обработка при удалении
-		if c.status.delBankCardSUCCESS {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Запись удалена"))
-			indicatorRead.FgColor = gocui.ColorGreen
-			indicatorRead.BgColor = gocui.ColorDefault
-		} else {
-			indicatorRead.Clear()
-			indicatorRead.Write([]byte("Ошибка удаления"))
-			indicatorRead.FgColor = gocui.ColorRed
-			indicatorRead.BgColor = gocui.ColorDefault
+		if indicatorRead == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
-		c.status.delBankCardPassed = false
-	}
+		if c.status.readBankCardPassed { // обработка при чтении
+			if c.status.readBankCardSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.bankCard))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+			c.status.readBankCardPassed = false
+		}
 
-	// Обработка индикатора добавления записи.
-	name = "indicatorAddSuccess"
+		if c.status.delBankCardPassed { // обработка при удалении
+			if c.status.delBankCardSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+			c.status.delBankCardPassed = false
+		}
 
-	indicator, err := g.View(name)
-	if err != nil {
-		return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-	}
-	if indicator == nil {
-		return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-	}
+		// Обработка индикатора добавления записи.
+		name = "indicatorAddSuccess"
 
-	if c.status.addBankCardPassed {
-		if c.status.addBankCardSUCCESS {
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addBankCardPassed {
+			if c.status.addBankCardSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+		} else {
 			indicator.Clear()
-			indicator.Write([]byte("Данные приняты!"))
-			indicator.FgColor = gocui.ColorGreen
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(""))
+		}
+
+		return nil
+	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		// Обработка индикатора получения данных.
+		name := "indicatorReadStatus"
+
+		indicatorRead, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicatorRead == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+		if c.status.readNameBankCardPassed { // обработка при чтении
+			if c.status.readNameBankCardSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.namesBankCard))))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+			c.status.readNameBankCardPassed = false
+		}
+
+		if c.status.delBankCardPassed { // обработка при удалении
+			if c.status.delBankCardSUCCESS {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Запись удалена"))
+				indicatorRead.FgColor = gocui.ColorGreen
+				indicatorRead.BgColor = gocui.ColorDefault
+			} else {
+				indicatorRead.Clear()
+				indicatorRead.Write([]byte("Ошибка удаления"))
+				indicatorRead.FgColor = gocui.ColorRed
+				indicatorRead.BgColor = gocui.ColorDefault
+			}
+			c.status.delBankCardPassed = false
+		}
+
+		// Обработка индикатора добавления записи.
+		name = "indicatorAddSuccess"
+
+		indicator, err := g.View(name)
+		if err != nil {
+			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+		}
+		if indicator == nil {
+			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+		}
+
+		if c.status.addBankCardPassed {
+			if c.status.addBankCardSUCCESS {
+				indicator.Clear()
+				indicator.Write([]byte("Данные приняты!"))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка добавления."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
 		} else {
 			indicator.Clear()
-			indicator.Write([]byte("Ошибка добавления."))
-			indicator.FgColor = gocui.ColorRed
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(""))
 		}
-	} else {
-		indicator.Clear()
-		indicator.Write([]byte(""))
+
+		return nil
 	}
 
 	return nil
@@ -2465,7 +2579,7 @@ func doStoreViewBankCardData(c *handlerUI) error {
 			Owner:     c.typed.dataOwner,
 			Numb:      c.typed.dataNumb,
 			ValidData: c.typed.dataValidDate,
-			Code:      c.typed.dataValidDate,
+			Code:      c.typed.dataCode,
 			CreatedAt: strT,
 		}
 
@@ -2881,88 +2995,192 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 // Логика перевода фокуса в окне viewBankCardData. Возвращается ошибка.
 func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
-	if len(c.data.bankCard) == 0 {
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+
+		if len(c.data.bankCard) == 0 {
+			return nil
+		}
+
+		el := bankCardByIndex(c) // получение записи по индексу
+		incrIndexBankCard(c)     // увеличение значения индекса
+
+		// отображение содержимого поля Для.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Владелец.
+		fieldOwner, err := gui.View("fieldShowOwner")
+		if err != nil || fieldOwner == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			return nil
+		}
+		if el.owner != "" {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(el.owner))
+
+		} else {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Номер.
+		fieldNumb, err := gui.View("fieldShowNumber")
+		if err != nil || fieldNumb == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			return nil
+		}
+		if el.numb != "" {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(el.numb))
+
+		} else {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Валидность.
+		fieldValid, err := gui.View("fieldShowValid")
+		if err != nil || fieldValid == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			return nil
+		}
+		if el.valid != "" {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(el.valid))
+
+		} else {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowCode")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			return nil
+		}
+		if el.code != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(el.code))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
 		return nil
 	}
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
-	el := bankCardByIndex(c) // получение записи по индексу
-	incrIndexBankCard(c)     // увеличение значения индекса
+		if len(c.data.namesBankCard) == 0 {
+			return nil
+		}
 
-	// отображение содержимого поля Для.
-	fieldName, err := gui.View("fieldShowFor")
-	if err != nil || fieldName == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+		name := nameBankCardByIndex(c) // получение записи по индексу
+		incrIndexNamesBankCard(c)      // увеличение значения индекса
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных банковской карты по имени: <%s>", name))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Запрос банковской карты у сервера, по имени записи
+		rxData, err := c.conf.Server.RequestBankCardByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestBankCardByName, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// -------------------
+
+		// отображение содержимого поля Для.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if rxData.For != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(rxData.For))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Владелец.
+		fieldOwner, err := gui.View("fieldShowOwner")
+		if err != nil || fieldOwner == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			return nil
+		}
+		if rxData.Owner != "" {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(rxData.Owner))
+
+		} else {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Номер.
+		fieldNumb, err := gui.View("fieldShowNumber")
+		if err != nil || fieldNumb == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			return nil
+		}
+		if rxData.Numb != "" {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(rxData.Numb))
+
+		} else {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Валидность.
+		fieldValid, err := gui.View("fieldShowValid")
+		if err != nil || fieldValid == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			return nil
+		}
+		if rxData.Valid != "" {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(rxData.Valid))
+
+		} else {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowCode")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			return nil
+		}
+		if rxData.Code != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(rxData.Code))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
 		return nil
 	}
-	if el.name != "" {
-		fieldName.Clear()
-		fieldName.Write([]byte(el.name))
-
-	} else {
-		fieldName.Clear()
-		fieldName.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Владелец.
-	fieldOwner, err := gui.View("fieldShowOwner")
-	if err != nil || fieldOwner == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
-		return nil
-	}
-	if el.owner != "" {
-		fieldOwner.Clear()
-		fieldOwner.Write([]byte(el.owner))
-
-	} else {
-		fieldOwner.Clear()
-		fieldOwner.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Номер.
-	fieldNumb, err := gui.View("fieldShowNumber")
-	if err != nil || fieldNumb == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
-		return nil
-	}
-	if el.numb != "" {
-		fieldNumb.Clear()
-		fieldNumb.Write([]byte(el.numb))
-
-	} else {
-		fieldNumb.Clear()
-		fieldNumb.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Валидность.
-	fieldValid, err := gui.View("fieldShowValid")
-	if err != nil || fieldValid == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
-		return nil
-	}
-	if el.valid != "" {
-		fieldValid.Clear()
-		fieldValid.Write([]byte(el.valid))
-
-	} else {
-		fieldValid.Clear()
-		fieldValid.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Код.
-	fieldCode, err := gui.View("fieldShowCode")
-	if err != nil || fieldCode == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
-		return nil
-	}
-	if el.code != "" {
-		fieldCode.Clear()
-		fieldCode.Write([]byte(el.code))
-
-	} else {
-		fieldCode.Clear()
-		fieldCode.Write([]byte(""))
-	}
-
 	return nil
 }
 
@@ -3225,82 +3443,190 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 // Логика перевода фокуса в окне viewBankCardData. Возвращается ошибка.
 func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
-	decrIndexBankCard(c)     // уменьшение значения индекса
-	el := bankCardByIndex(c) // получение записи по индексу
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	// отображение содержимого поля For.
-	fieldName, err := gui.View("fieldShowFor")
-	if err != nil || fieldName == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+		decrIndexBankCard(c)     // уменьшение значения индекса
+		el := bankCardByIndex(c) // получение записи по индексу
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if el.name != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(el.name))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Владелец.
+		fieldOwner, err := gui.View("fieldShowOwner")
+		if err != nil || fieldOwner == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			return nil
+		}
+		if el.owner != "" {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(el.owner))
+
+		} else {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Номер.
+		fieldNumb, err := gui.View("fieldShowNumber")
+		if err != nil || fieldNumb == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			return nil
+		}
+		if el.numb != "" {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(el.numb))
+
+		} else {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Валидность.
+		fieldValid, err := gui.View("fieldShowValid")
+		if err != nil || fieldValid == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			return nil
+		}
+		if el.valid != "" {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(el.valid))
+
+		} else {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowCode")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			return nil
+		}
+		if el.code != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(el.code))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
+
 		return nil
 	}
-	if el.name != "" {
-		fieldName.Clear()
-		fieldName.Write([]byte(el.name))
 
-	} else {
-		fieldName.Clear()
-		fieldName.Write([]byte(""))
-	}
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
-	// отображение содержимого поля Владелец.
-	fieldOwner, err := gui.View("fieldShowOwner")
-	if err != nil || fieldOwner == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+		if len(c.data.namesBankCard) == 0 {
+			return nil
+		}
+
+		decrIndexBankCardName(c)       // уменьшение значения индекса
+		name := nameBankCardByIndex(c) // Получение значения по индексу
+
+		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных банковской карты по имени: <%s>", name))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Запрос банковской карты у сервера, по имени записи
+		rxData, err := c.conf.Server.RequestBankCardByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestBankCardByName, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// -------------------
+
+		// отображение содержимого поля For.
+		fieldName, err := gui.View("fieldShowFor")
+		if err != nil || fieldName == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			return nil
+		}
+		if rxData.For != "" {
+			fieldName.Clear()
+			fieldName.Write([]byte(rxData.For))
+
+		} else {
+			fieldName.Clear()
+			fieldName.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Владелец.
+		fieldOwner, err := gui.View("fieldShowOwner")
+		if err != nil || fieldOwner == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			return nil
+		}
+		if rxData.Owner != "" {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(rxData.Owner))
+
+		} else {
+			fieldOwner.Clear()
+			fieldOwner.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Номер.
+		fieldNumb, err := gui.View("fieldShowNumber")
+		if err != nil || fieldNumb == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			return nil
+		}
+		if rxData.Numb != "" {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(rxData.Numb))
+
+		} else {
+			fieldNumb.Clear()
+			fieldNumb.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Валидность.
+		fieldValid, err := gui.View("fieldShowValid")
+		if err != nil || fieldValid == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			return nil
+		}
+		if rxData.Valid != "" {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(rxData.Valid))
+
+		} else {
+			fieldValid.Clear()
+			fieldValid.Write([]byte(""))
+		}
+
+		// отображение содержимого поля Код.
+		fieldCode, err := gui.View("fieldShowCode")
+		if err != nil || fieldCode == nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			return nil
+		}
+		if rxData.Code != "" {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(rxData.Code))
+
+		} else {
+			fieldCode.Clear()
+			fieldCode.Write([]byte(""))
+		}
+
 		return nil
-	}
-	if el.owner != "" {
-		fieldOwner.Clear()
-		fieldOwner.Write([]byte(el.owner))
-
-	} else {
-		fieldOwner.Clear()
-		fieldOwner.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Номер.
-	fieldNumb, err := gui.View("fieldShowNumber")
-	if err != nil || fieldNumb == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
-		return nil
-	}
-	if el.numb != "" {
-		fieldNumb.Clear()
-		fieldNumb.Write([]byte(el.numb))
-
-	} else {
-		fieldNumb.Clear()
-		fieldNumb.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Валидность.
-	fieldValid, err := gui.View("fieldShowValid")
-	if err != nil || fieldValid == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
-		return nil
-	}
-	if el.valid != "" {
-		fieldValid.Clear()
-		fieldValid.Write([]byte(el.valid))
-
-	} else {
-		fieldValid.Clear()
-		fieldValid.Write([]byte(""))
-	}
-
-	// отображение содержимого поля Код.
-	fieldCode, err := gui.View("fieldShowCode")
-	if err != nil || fieldCode == nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
-		return nil
-	}
-	if el.code != "" {
-		fieldCode.Clear()
-		fieldCode.Write([]byte(el.code))
-
-	} else {
-		fieldCode.Clear()
-		fieldCode.Write([]byte(""))
 	}
 
 	return nil

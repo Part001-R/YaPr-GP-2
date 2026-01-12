@@ -522,3 +522,109 @@ func layerRequestTextByNameTx(txData TxText) (*pb.RequestTextByNameResponse, err
 	}
 	return resp, nil
 }
+
+//
+// -- RequestBankCardName ---
+//
+
+// Логика.
+func LayerRequestBankCardName(ctx context.Context, s *Manager) (rxData []string, err error) {
+
+	// Получение из БД имён записей текста.
+	rxData, err = s.storage.GetNamesBankCardContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Функция GetNamesTextContext, вернула ошибку: <%w>", err)
+	}
+
+	return rxData, nil
+}
+
+// Получение токена из запроса.
+func LayerRequestBankCardNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Формирование ответа.
+func LayerRequestBankCardNameTx(data []string) (res *pb.RequestBankCardNameResponse, err error) {
+
+	res = &pb.RequestBankCardNameResponse{
+		EntriesName: data,
+	}
+
+	return res, nil
+}
+
+//
+// --- RequestBankCardByName ---
+//
+
+// Получение токена из запроса.
+func layerRequestBankCardByNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerRequestBankCardByName(req *pb.RequestBankCardByNameRequest) (name RxReqBankCardByName, err error) {
+
+	name.ClientID = req.IdClient
+	name.Name = req.Name
+
+	return name, nil
+}
+
+// Формирование ответа.
+func layerRequestBankCardByNameTx(txData TxBankCard) (*pb.RequestBankCardByNameResponse, error) {
+
+	resp := &pb.RequestBankCardByNameResponse{
+		Name:      txData.For,
+		Owner:     txData.Owner,
+		Numb:      txData.Numb,
+		Valid:     txData.Valid,
+		Code:      txData.Code,
+		CreatedAt: txData.CreatedAt,
+	}
+
+	return resp, nil
+}

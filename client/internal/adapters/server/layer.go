@@ -660,7 +660,7 @@ func LayerRequestTextByNameTx(client proto.PasswordManagerClient, tokenAuth, idC
 }
 
 // Обработка ответа
-func LayerRequestTextByDecrypt(resp *pb.RequestTextByNameResponse, key [32]byte) (rxData RxText, err error) {
+func LayerRequestTextByNameDecrypt(resp *pb.RequestTextByNameResponse, key [32]byte) (rxData RxText, err error) {
 
 	rxData.For, err = decrypt(resp.Name, key)
 	if err != nil {
@@ -675,6 +675,138 @@ func LayerRequestTextByDecrypt(resp *pb.RequestTextByNameResponse, key [32]byte)
 	rxData.CreatedAt, err = decrypt(resp.CreatedAt, key)
 	if err != nil {
 		return RxText{}, fmt.Errorf("ошибка расшифровки CreatedAt:<%w>", err)
+	}
+
+	return rxData, nil
+}
+
+//
+// --- RequestBankCardNames ---
+//
+
+// Передача запроса
+func layerRequestBankCardNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос у сервера информации.
+	emptyRequest := &emptypb.Empty{}
+	resp, err := client.RequestBankCardName(
+		ctx,
+		emptyRequest,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Функция client.RequestBankCardName, вернула ошибку: <%v>", err)
+	}
+
+	// Получение данных ответа.
+	for _, v := range resp.EntriesName {
+		rxData = append(rxData, v)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Расшифровка принятых данных
+func layerRequestBankCardNamesDecrypt(enRxData []string, key [32]byte) (rxData []string, err error) {
+
+	// Проверка
+	if len(enRxData) == 0 {
+		return []string{}, nil
+	}
+
+	// Расшифровка
+	for _, v := range enRxData {
+		d, err := decrypt(v, key)
+		if err != nil {
+			return []string{}, fmt.Errorf("Функция decrypt, вернула ошибку: <%w>", err)
+		}
+		rxData = append(rxData, d)
+	}
+
+	// Результат
+	return rxData, nil
+}
+
+//
+// --- RequestBankCardByName ---
+//
+
+// Шифрование передаваемых данных
+func LayerRequestBankCardByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry string, err error) {
+
+	// Шифрование имени записи
+	enNameEntry, err = encrypt(nameEntry, key)
+	if err != nil {
+		return "", fmt.Errorf("функция encrypt, вернула ошибку: <%w>", err)
+	}
+
+	return enNameEntry, nil
+}
+
+// Запрос к серверу
+func LayerRequestBankCardByNameTx(client proto.PasswordManagerClient, tokenAuth, idClient, enNameEntry string) (resp *pb.RequestBankCardByNameResponse, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Данные запроса
+	req := &proto.RequestBankCardByNameRequest{
+		IdClient: idClient,
+		Name:     enNameEntry,
+	}
+
+	// Запрос
+	resp, err = client.RequestBankCardByName(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("Функция RequestBankCardByName, вернула ошибку: <%w>", err)
+	}
+
+	// Результат
+	return resp, nil
+}
+
+// Обработка ответа
+func LayerRequestBankCardByNameDecrypt(resp *pb.RequestBankCardByNameResponse, key [32]byte) (rxData RxBankCard, err error) {
+
+	rxData.For, err = decrypt(resp.Name, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("ошибка расшифровки Name:<%w>", err)
+	}
+
+	rxData.Owner, err = decrypt(resp.Owner, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("ошибка расшифровки Owner:<%w>", err)
+	}
+
+	rxData.Numb, err = decrypt(resp.Numb, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("ошибка расшифровки Numb:<%w>", err)
+	}
+
+	rxData.Valid, err = decrypt(resp.Valid, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("ошибка расшифровки Valid:<%w>", err)
+	}
+
+	rxData.Code, err = decrypt(resp.Code, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("ошибка расшифровки Code:<%w>", err)
+	}
+
+	rxData.CreatedAt, err = decrypt(resp.CreatedAt, key)
+	if err != nil {
+		return RxBankCard{}, fmt.Errorf("ошибка расшифровки CreatedAt:<%w>", err)
 	}
 
 	return rxData, nil
