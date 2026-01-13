@@ -89,3 +89,10 @@ type RxReqBankCardByName struct {
 	ClientID string // id клиента
 	Name     string // имя записи банковской карты
 }
+
+// Информация по файлу.
+type fileInfo struct {
+	name string // имя
+	hash string // хэш
+	size int64  // размер
+}

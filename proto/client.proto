@@ -25,6 +25,7 @@ service PasswordManager {
     rpc RequestTextByName(RequestTextByNameRequest) returns (RequestTextByNameResponse);
     rpc RequestBankCardName(google.protobuf.Empty) returns (RequestBankCardNameResponse);
     rpc RequestBankCardByName(RequestBankCardByNameRequest) returns (RequestBankCardByNameResponse);
+    rpc RequestFileInfo(RequestFileInfoRequest) returns (RequestFileInfoResponse);
     rpc RequestFileName(google.protobuf.Empty) returns (RequestFileNameResponse);
     rpc RequestFileByName(RequestFileByNameRequest) returns (stream RequestFileByNameResponse);
 }
@@ -155,13 +156,24 @@ message RequestBankCardByNameResponse {
     string createdAt = 6;
 }
 
+message RequestFileInfoRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestFileInfoResponse {
+    string name = 1;
+    string hash = 2;
+    int64 size = 3;
+}
+
 message RequestFileNameResponse {
     repeated string EntriesName = 1;
 }
 
 message RequestFileByNameRequest {
     string idClient = 1;
-    string name = 2;
+    string fileName = 2;
 }
 
 message RequestFileByNameResponse {

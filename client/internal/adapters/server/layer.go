@@ -7,10 +7,10 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -131,68 +131,76 @@ func layerSendFileEncrypt(filePath string, key [32]byte) (encFilePath string, er
 	// Подключение к исходному файлу.
 	inputFile, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("Ошибка подключения к файлу: <%w>", err)
+		return "", err
 	}
-	defer inputFile.Close()
-
-	// Создание имени для шифрованной версии файла.
-	extension := filepath.Ext(filePath)
-	baseName := filepath.Base(filePath[:len(filePath)-len(extension)])
-	fileName := baseName + "-enc" + extension
-
-	encFilePath = filepath.Join(filepath.Dir(filePath), fileName)
-
-	// Проверка существования файла.
-	if isFileExists(encFilePath) {
-		if err := deleteFile(encFilePath); err != nil {
-			return "", fmt.Errorf("Ошибка удаления существующего файла: <%w>", err)
+	defer func() {
+		if errCl := inputFile.Close(); errCl != nil {
+			err = fmt.Errorf("Ошибка:<%w>, закрытия подключения к файлу:<%s>. Базовая ошибка:<%w>", errCl, filePath, err)
 		}
-	}
+	}()
 
-	// Создание шифрованного файла.
-	encFile, err := os.Create(encFilePath)
+	// Создание зашифрованного файла
+	fileExt := path.Ext(filePath)
+	fileName := path.Base(filePath)
+	fileName = strings.TrimSuffix(fileName, fileExt)
+
+	encFilePath = fileName + "-enc" + fileExt
+	outputFile, err := os.Create(encFilePath)
 	if err != nil {
-		return "", fmt.Errorf("Ошибка создания зашифрованного файла: <%w>", err)
+		return "", err
 	}
-	defer encFile.Close()
+	defer func() {
+		if errCl := outputFile.Close(); errCl != nil {
+			err = fmt.Errorf("Ошибка:<%w>, закрытия подключения к файлу:<%s>. Базовая ошибка:<%w>", errCl, encFilePath, err)
+		}
+	}()
 
-	// Создание шифра AES.
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
-		return "", fmt.Errorf("Ошибка создания AES шифра: <%w>", err)
+		return "", err
 	}
 
+	// Генерация случайного IV
 	iv := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(iv); err != nil {
-		return "", fmt.Errorf("Ошибка генерации IV: <%w>", err)
+		return "", err
 	}
 
-	cipherStream := cipher.NewCBCEncrypter(block, iv)
-
-	// Запись IV в начало файла.
-	if _, err := encFile.Write(iv); err != nil {
-		return "", fmt.Errorf("Ошибка записи IV: <%w>", err)
+	// IV в начало файла
+	if _, err := outputFile.Write(iv); err != nil {
+		return "", err
 	}
 
-	buffer := make([]byte, aes.BlockSize)
+	stream := cipher.NewCBCEncrypter(block, iv)
+
+	buffer := make([]byte, 4096)
 	for {
 		n, err := inputFile.Read(buffer)
-		if n == 0 {
-			if err == io.EOF {
-				break
-			}
-			return "", fmt.Errorf("Ошибка чтения: <%w>", err)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
 		}
 
-		// Добавление паддинга PKCS#7.
-		pad := aes.BlockSize - n%aes.BlockSize
-		paddedData := append(buffer[:n], bytes.Repeat([]byte{byte(pad)}, pad)...)
+		// PKCS#7 паддинг (только для последнего блока)
+		isLastBlock := (err == io.EOF || n < len(buffer))
+		if isLastBlock {
+			pad := aes.BlockSize - n%aes.BlockSize
+			if pad == 0 {
+				pad = aes.BlockSize
+			}
+			buffer = append(buffer[:n], bytes.Repeat([]byte{byte(pad)}, pad)...)
+			n += pad
+		}
 
-		ciphertext := make([]byte, len(paddedData))
-		cipherStream.CryptBlocks(ciphertext, paddedData)
+		// Шифрация
+		ciphertext := make([]byte, n)
+		stream.CryptBlocks(ciphertext, buffer[:n])
 
-		if _, err := encFile.Write(ciphertext); err != nil {
-			return "", fmt.Errorf("Ошибка записи зашифрованных данных: <%w>", err)
+		// Пишем в файл
+		if _, err := outputFile.Write(ciphertext); err != nil {
+			return "", err
 		}
 	}
 
@@ -260,7 +268,7 @@ func layerSendFileTx(client proto.PasswordManagerClient, filePath, tokenAuth, id
 	}
 
 	// Проверка имени файла из ответа.
-	if resp.FileName != fileName {
+	if path.Base(resp.FileName) != path.Base(fileName) {
 		return "", fmt.Errorf("нет соответствия имени файла в ответе. Ожидалось:<%s>, а принято:<%s>", filePath, resp.FileName)
 	}
 
@@ -306,139 +314,6 @@ func layerSendFileRemove(filePath string) error {
 	}
 
 	return nil
-}
-
-//
-// --- ReceiveFile ---
-//
-
-// Расшифровка файла.
-func layerReceiveFileDecrypt(encFilePath string, key [32]byte) error {
-
-	encFile, err := os.Open(encFilePath)
-	if err != nil {
-		return fmt.Errorf("Ошибка открытия файла: <%w>", err)
-	}
-	defer func() {
-		if cerr := encFile.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("Ошибка закрытия encFile: <%w>", cerr)
-		}
-	}()
-
-	// Чтение IV (16 байт)
-	iv := make([]byte, aes.BlockSize)
-	n, err := encFile.Read(iv)
-	if err != nil && err != io.EOF {
-		return fmt.Errorf("Ошибка чтения IV: <%w>", err)
-	}
-	if n != aes.BlockSize {
-		return io.ErrUnexpectedEOF
-	}
-
-	// Создание AES-шифра
-	block, err := aes.NewCipher(key[:])
-	if err != nil {
-		return fmt.Errorf("Ошибка создания шифра: <%w>", err)
-	}
-	cipherStream := cipher.NewCBCDecrypter(block, iv)
-
-	// Буферы
-	const (
-		base64Chunk = 4 * 1024 // 4 КБ
-		plainChunk  = 3 * 1024 // 3 КБ
-	)
-
-	encodedBuf := make([]byte, base64Chunk)
-	decodedBuf := make([]byte, plainChunk)
-	cipherBuf := make([]byte, plainChunk)
-
-	var leftover []byte
-
-	// Создание расшифрованного файла
-	ext := filepath.Ext(encFilePath)
-	decFileName := strings.TrimSuffix(filepath.Base(encFilePath), "-enc"+ext)
-	decFilePath := filepath.Join(filepath.Dir(encFilePath), decFileName+ext)
-
-	decFile, err := os.Create(decFilePath)
-	if err != nil {
-		return fmt.Errorf("Ошибка создания файла: <%w>", err)
-	}
-	defer func() {
-		if cerr := decFile.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("Ошибка закрытия decFile: <%w>", cerr)
-		}
-	}()
-
-	for {
-		// Чтение base64-данных
-		n, err := encFile.Read(encodedBuf)
-		if n == 0 {
-			if err == io.EOF {
-				break
-			}
-			return fmt.Errorf("Ошибка чтения: <%w>", err)
-		}
-
-		// Объединяем с остатком предыдущего чтения
-		chunk := append(leftover, encodedBuf[:n]...)
-
-		// Убираем остаток
-		remainder := len(chunk) % 4
-		if remainder != 0 {
-			leftover = chunk[len(chunk)-remainder:]
-			chunk = chunk[:len(chunk)-remainder]
-		} else {
-			leftover = nil
-		}
-
-		// Декодирование base64
-		decodedLen, err := base64.StdEncoding.Decode(decodedBuf, chunk)
-		if err != nil {
-			return fmt.Errorf("Ошибка base64-декодирования: <%w>", err)
-		}
-
-		// Расшифровка блока
-		cipherStream.CryptBlocks(cipherBuf[:decodedLen], decodedBuf[:decodedLen])
-
-		// Запись в файл
-		if _, err := decFile.Write(cipherBuf[:decodedLen]); err != nil {
-			return fmt.Errorf("Ошибка записи: <%w>", err)
-		}
-	}
-
-	// Проверка остатка
-	if len(leftover) > 0 {
-		return fmt.Errorf("Неполный base64-блок в конце файла")
-	}
-
-	// Удаление паддинга
-	if true {
-		fileInfo, err := decFile.Stat()
-		if err != nil {
-			return fmt.Errorf("Ошибка Stat: <%w>", err)
-		}
-		fileSize := fileInfo.Size()
-
-		if fileSize > 0 {
-			paddingByte := make([]byte, 1)
-			n, err := decFile.ReadAt(paddingByte, fileSize-1)
-			if err != nil || n != 1 {
-				return fmt.Errorf("Ошибка чтения последнего байта: <%w>", err)
-			}
-
-			padding := paddingByte[0]
-			if int(padding) > aes.BlockSize || padding == 0 || fileSize < int64(padding) {
-				return ErrInvalidPadding
-			}
-
-			if err := decFile.Truncate(fileSize - int64(padding)); err != nil {
-				return fmt.Errorf("Ошибка Truncate: <%w>", err)
-			}
-		}
-	}
-
-	// Удаление зашифрованного файла
-	return os.Remove(encFilePath)
 }
 
 //
@@ -568,7 +443,7 @@ func LayerRequestLoginPasswordByDecrypt(resp *pb.RequestLoginPasswordByNameRespo
 //
 
 // Передача запроса
-func layerRequestRequestTextNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+func layerRequestTextNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -810,4 +685,263 @@ func LayerRequestBankCardByNameDecrypt(resp *pb.RequestBankCardByNameResponse, k
 	}
 
 	return rxData, nil
+}
+
+//
+// --- RequestFileNames ---
+//
+
+// Передача запроса
+func layerRequestFileNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос у сервера информации.
+	emptyRequest := &emptypb.Empty{}
+	resp, err := client.RequestFileName(
+		ctx,
+		emptyRequest,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Функция client.RequestTextName, вернула ошибку: <%v>", err)
+	}
+
+	// Получение данных ответа.
+	for _, v := range resp.EntriesName {
+		rxData = append(rxData, v)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+//
+// --- RequestFileInfo ---
+//
+
+// Передача запроса
+func layerRequestFileInfoTx(client proto.PasswordManagerClient, tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос.
+	req := &pb.RequestFileInfoRequest{
+		IdClient: idClient,
+		Name:     nameFile,
+	}
+	resp, err := client.RequestFileInfo(
+		ctx,
+		req,
+	)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("Функция client.RequestFileInfo, вернула ошибку: <%v>", err)
+	}
+
+	// Получение данных ответа.
+	fileName = resp.Name
+	fileHash = resp.Hash
+	fileSize = resp.Size
+
+	// Результат.
+	return fileName, fileHash, fileSize, nil
+}
+
+// Проверка имён.
+func layerRequestFileInfoCheck(fileName, rxFileName string) error {
+
+	if fileName != rxFileName {
+		return fmt.Errorf("Нет соответствия имён файлов. Ожидалось:<%s>, а принято:<%s>", fileName, rxFileName)
+	}
+
+	return nil
+}
+
+//
+// --- RequestFileByName ---
+//
+
+// Приём файла.
+func layerRequestFileByNameRx(s *server, data *dataRequestFile, chProcess chan<- float32) (err error) {
+
+	needRestoreState := false // Признак необходимости воостановления состояния, при ошибке.
+	var tempFileName string   // Имя временного файла.
+
+	// Обработка перед выходом.
+	defer func(needRestoreState bool, fileName, tempFileName string, errProcess error) {
+		if errRestore := deferProcessRestoreByError(needRestoreState, fileName, tempFileName, errProcess); errRestore != nil {
+			err = fmt.Errorf("функция deferProcessRestoreByError, вернула ошибку:<%w>, при ошибку процесса:<%w>", errRestore, errProcess)
+		}
+	}(needRestoreState, data.fileName, tempFileName, err)
+
+	// Запрос файла у сервера.
+	srcFileHash, err := requestFile(s, data, chProcess)
+	if err != nil {
+		return fmt.Errorf("Функция requestFile, вернула ошибку: <%w>", err)
+	}
+
+	// Вычисление хэша принятого файла.
+	rxFileHash, err := hashFile(data.fileName)
+	if err != nil {
+		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
+	}
+
+	// Проверка результата.
+	if err := checkResultRequestFile(data.fileName, rxFileHash, srcFileHash); err != nil {
+
+		// Удаление файла, если проверка не пройдена.
+		if errRemove := os.Remove(data.fileName); errRemove != nil {
+			return fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, data.fileName, err)
+		}
+		return fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, data.fileName)
+	}
+
+	return nil
+}
+
+// Изменение имени существующего файла.
+func layerRequestFileByNameCreateTemp(fileName string) (tempFileName string, err error) {
+
+	if isFileExists(fileName) {
+		tempFileName, err = changeFileName(fileName, "-temp")
+		if err != nil {
+			return "", fmt.Errorf("функция changeFileName, вернула ошибку:<%w>", err)
+		}
+	}
+
+	return tempFileName, nil
+}
+
+// Удаление временного файла.
+func layerRequestFileByNameRemoveTemp(tempFileName string) error {
+
+	if isFileExists(tempFileName) {
+		if err := os.Remove(tempFileName); err != nil {
+			return fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>, при успешном приёме", err, tempFileName)
+		}
+	}
+
+	return nil
+}
+
+// Расшифровка файла.
+func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error) {
+
+	defer func(encFilePath string) {
+		if errDel := deleteFile(encFilePath); errDel != nil {
+			errDel = fmt.Errorf("Ошибка: <%w> при удалении файла: <%s>. Базовая ошибка:<%v>", errDel, encFilePath, err)
+		}
+	}(encFilePath)
+
+	encFile, err := os.Open(encFilePath)
+	if err != nil {
+		return err
+	}
+	defer encFile.Close()
+
+	// Создание расшифрованного файла
+	decFileExt := path.Ext(encFilePath)
+	decFileName := path.Base(encFilePath)
+	decFileName = strings.TrimSuffix(decFileName, decFileExt)
+	decFileName = strings.TrimSuffix(decFileName, "-enc")
+
+	decFileName = decFileName + decFileExt
+
+	// Предварительное удаление файла, если существует.
+	if isFileExists(decFileName) {
+		if err := deleteFile(decFileName); err != nil {
+			return fmt.Errorf("Ошибка при удалении файла: <%s>", decFileName)
+		}
+	}
+
+	outputFile, err := os.Create(decFileName)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return err
+	}
+
+	// Читаем IV (первые 16 байт)
+	iv := make([]byte, aes.BlockSize)
+	n, err := encFile.Read(iv)
+	if err != nil || n != aes.BlockSize {
+		return fmt.Errorf("не удалось прочитать IV")
+	}
+
+	stream := cipher.NewCBCDecrypter(block, iv)
+
+	buffer := make([]byte, 4096)
+	var leftover []byte
+
+	for {
+		n, err := encFile.Read(buffer)
+		if n == 0 {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		chunk := append(leftover, buffer[:n]...)
+
+		// Если данные не кратны 16 Б, оставляем остаток
+		remainder := len(chunk) % aes.BlockSize
+		if remainder != 0 {
+			leftover = chunk[len(chunk)-remainder:]
+			chunk = chunk[:len(chunk)-remainder]
+		} else {
+			leftover = nil
+		}
+
+		if len(chunk) == 0 {
+			continue
+		}
+
+		// Расшифровываем
+		plaintext := make([]byte, len(chunk))
+		stream.CryptBlocks(plaintext, chunk)
+
+		// Пишем расшифрованные данные
+		if _, err := outputFile.Write(plaintext); err != nil {
+			return err
+		}
+	}
+
+	// Обрабатываем остаток (последний блок с паддингом)
+	if len(leftover) > 0 {
+		plaintext := make([]byte, len(leftover))
+		stream.CryptBlocks(plaintext, leftover)
+
+		// Удаляем PKCS#7 паддинг
+		padding := plaintext[len(plaintext)-1]
+		if padding == 0 || int(padding) > aes.BlockSize || len(plaintext) < int(padding) {
+			return ErrInvalidPadding
+		}
+
+		for i := len(plaintext) - int(padding); i < len(plaintext); i++ {
+			if plaintext[i] != padding {
+				return ErrInvalidPadding
+			}
+		}
+
+		plaintext = plaintext[:len(plaintext)-int(padding)]
+		if _, err := outputFile.Write(plaintext); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -75,6 +75,24 @@ var (
 	// В аргументе fileName, нет данных.
 	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
 
+	// В аргументе tokenAuth, нет данных.
+	EmptyDataArgumentTokenAuth = errors.New("в аргументе <tokenAuth>, нет данных")
+
+	// В аргументе clientID, нет данных.
+	EmptyDataArgumentClientID = errors.New("в аргументе <clientID>, нет данных")
+
 	// Не удалось извлечь метаданные из контекста ответа
 	ErrMetadata = errors.New("не удалось извлечь метаданные из контекста ответа")
+
+	// В аргументе rxFileHash, нет данных.
+	EmptyDataArgumentRxFileHash = errors.New("в аргументе <rxFileHash>, нет данных")
+
+	// В аргументе srcFileHash, нет данных.
+	EmptyDataArgumentSrcFileHash = errors.New("в аргументе <srcFileHash>, нет данных")
+
+	// В аргументе rxToken, нет данных.
+	EmptyDataArgumentRxToken = errors.New("в аргументе <rxToken>, нет данных")
+
+	// В аргументе secretKey, нет данных.
+	EmptyDataArgumentSecretKey = errors.New("в аргументе <secretKey>, нет данных")
 )

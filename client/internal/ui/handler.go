@@ -89,6 +89,8 @@ type status struct {
 	backUp                       int  // Статус процесса создания резервной копии.
 	pushContainer                int  // Статус процесса передачи в контейнер.
 	popContainer                 int  // Статус процесса извлечения из контейнера.
+	fileTx                       int  // Статус процесса передачи файла на сервер
+	fileRx                       int  // Статус процесса приёма файла от сервера
 }
 
 // Для навигации по экранам.
@@ -153,6 +155,8 @@ type mutex struct {
 	statusRestore       sync.Mutex // для статуса процесса приёма.
 	statusPushContainer sync.Mutex // для статуса процесса передачи в контейнер.
 	statusPopContainer  sync.Mutex // для статуса процесса извлечения из контейнера.
+	statusFileTx        sync.Mutex // для статуса процесса передачи файла на сервер.
+	statusFileRx        sync.Mutex // для статуса процесса приёма файла от сервера.
 }
 
 // Отправка-приём файлов.
@@ -174,6 +178,7 @@ type handlerUI struct {
 	mutex      mutex              // мьютексы.
 	txrx       txrx               // данные по Tx-Rx файлов.
 	clientName string             // имя клиента.
+	tokenAuth  string             // токен аутентификации.
 }
 
 var inst *handlerUI
@@ -208,7 +213,9 @@ func new(conf *udt.Configuration) *handlerUI {
 				statusPushContainer: sync.Mutex{},
 				statusPopContainer:  sync.Mutex{},
 			},
-			txrx: txrx{},
+			txrx:       txrx{},
+			clientName: "",
+			tokenAuth:  "",
 		}
 	})
 	return inst
@@ -1434,40 +1441,97 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+K")
 
-	switch c.view.activeView {
-	case viewBinaryData: // Окно работы с файлами
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		if c.getStatusPopContainer() == stageNotActive && c.getStatusPushContainer() == stageNotActive {
+		switch c.view.activeView {
+		case viewBinaryData: // Окно работы с файлами
 
-			c.updateStatusPopContainer(stageActive)
+			if c.getStatusPopContainer() == stageNotActive && c.getStatusPushContainer() == stageNotActive {
 
-			c.txrx.passedKB = 0
-			c.txrx.percentTxRx = 0
-			c.txrx.totalSizeKB = 0
+				c.updateStatusPopContainer(stageActive)
 
-			// Чтение буфера.
-			v, err := gui.View("fieldShowFor")
-			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
-				return nil
+				c.txrx.passedKB = 0
+				c.txrx.percentTxRx = 0
+				c.txrx.totalSizeKB = 0
+
+				// Чтение буфера.
+				v, err := gui.View("fieldShowFor")
+				if err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+					return nil
+				}
+				nameFile := v.ViewBuffer()
+				nameFile = strings.ReplaceAll(nameFile, "\n", "")
+
+				// Получение файла из хранилища.
+				chErr := make(chan error)
+				chDone := make(chan struct{})
+				chData := make(chan []byte)
+				chPercent := make(chan float64)
+				chBreak := make(chan struct{})
+
+				// Чтение файла.
+				go c.conf.Container.GetFileFromContainer(nameFile, c.secret.secretKey, chPercent, chErr, chDone, chData, chBreak)
+
+				// Приём данных и сборка файла.
+				go bufferProcessPopContainer(nameFile, c, chPercent, chErr, chDone, chData, chBreak)
 			}
-			nameFile := v.ViewBuffer()
-			nameFile = strings.ReplaceAll(nameFile, "\n", "")
-
-			// Получение файла из хранилища.
-			chErr := make(chan error)
-			chDone := make(chan struct{})
-			chData := make(chan []byte)
-			chPercent := make(chan float64)
-			chBreak := make(chan struct{})
-
-			// Чтение файла.
-			go c.conf.Container.GetFileFromContainer(nameFile, c.secret.secretKey, chPercent, chErr, chDone, chData, chBreak)
-
-			// Приём данных и сборка файла.
-			go bufferProcessPopContainer(nameFile, c, chPercent, chErr, chDone, chData, chBreak)
 		}
+		return nil
 	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		switch c.view.activeView {
+		case viewBinaryData: // Окно работы с файлами
+
+			if c.getStatusFileRx() == stageNotActive && c.getStatusFileTx() == stageNotActive {
+
+				// Установка признака, что процесс приёма активный.
+				c.updateStatusFileRx(stageActive)
+
+				// Чтение имени запрашиваемого файла.
+				v, err := gui.View("fieldShowFor")
+				if err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+					return nil
+				}
+				fileName := v.ViewBuffer()
+				fileName = strings.ReplaceAll(fileName, "\n", "")
+
+				// Запрос у сервера информации по файлу.
+				_, _, rxFileSize, err := c.conf.Server.RequestFileInfo(c.tokenAuth, c.clientName, fileName)
+				if err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestFileInfo, вернула ошибку: <%v>", err))
+					return nil
+				}
+
+				rxFileSize = rxFileSize / 1024 // Получение КБайт
+
+				// Подготовка данных для реализации запроса файла.
+				if err := c.conf.Server.InitDataRequestFileByName(fileName, c.tokenAuth, c.clientName, rxFileSize, 0, c.secret.secretKey); err != nil {
+					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция InitDataRequestFileByName, вернула ошибку: <%v>", err))
+					return nil
+				}
+
+				chProcess := make(chan float32)
+				chErr := make(chan error)
+				chDone := make(chan struct{})
+
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: запуск процесса получения файла: <%s>", fileName))
+
+				// Приём файла.
+				go c.conf.Server.RequestFileByName(chProcess, chErr, chDone)
+
+				// Приём данных процесса.
+				go bufferProcessRxFileByName(c, chProcess, chErr, chDone)
+			}
+		}
+		return nil
+	}
+
 	return nil
 }
 
@@ -2501,9 +2565,14 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 
 	c.updateStatusPopContainer(stageNotActive)
 	c.updateStatusPushContainer(stageNotActive)
+	c.updateStatusFileRx(stageNotActive)
+	c.updateStatusFileTx(stageNotActive)
 
-	c.status.readFilePassed = false
+	c.status.readFilePassed = false // Для локального режима
 	c.status.readFileSUCCESS = false
+
+	c.status.readNameFilePassed = false // Для удалённого режима
+	c.status.readNameFileSUCCESS = false
 
 	c.status.delFilePassed = false
 	c.status.delFileSUCCESS = false
@@ -2780,6 +2849,21 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Если режим - удалённый
 	if c.conf.Flag.Mode == flags.ModeRemote {
 
+		c.status.readNameFilePassed = true // Установка признака, что был запущен процесс получения имён банковских карт.
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Запрос у сервера имен записей
+		rxData, err := c.conf.Server.RequestFileNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		if err != nil {
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestFileNames, вернула ошибку: <%v>", err))
+			c.status.readNameFileSUCCESS = false
+		} else {
+			c.data.namesFile = rxData // передача результата
+			c.conf.PtrLoggerFile.Write("Debug: данные банковской карты, успешно прочитаны")
+			c.status.readNameFileSUCCESS = true
+		}
 	}
 
 	// Установка фокуса.
@@ -3327,6 +3411,42 @@ func (c *handlerUI) updateStatusPopContainer(st int) {
 	defer c.mutex.statusPopContainer.Unlock()
 
 	c.status.popContainer = st
+}
+
+// Получение текущего статуса процесса передачи файла на сервер, в режиме - удалённый.
+func (c *handlerUI) getStatusFileTx() int {
+
+	c.mutex.statusFileTx.Lock()
+	defer c.mutex.statusFileTx.Unlock()
+
+	return c.status.fileTx
+}
+
+// Обновление статуса процесса передачи файла на сервер, в режиме - удалённый.
+func (c *handlerUI) updateStatusFileTx(st int) {
+
+	c.mutex.statusFileTx.Lock()
+	defer c.mutex.statusFileTx.Unlock()
+
+	c.status.fileTx = st
+}
+
+// Получение текущего статуса процесса приёма файла от сервера, в режиме - удалённый.
+func (c *handlerUI) getStatusFileRx() int {
+
+	c.mutex.statusFileRx.Lock()
+	defer c.mutex.statusFileRx.Unlock()
+
+	return c.status.fileRx
+}
+
+// Обновление статуса процесса приёма файла от сервера, в режиме - удалённый.
+func (c *handlerUI) updateStatusFileRx(st int) {
+
+	c.mutex.statusFileRx.Lock()
+	defer c.mutex.statusFileRx.Unlock()
+
+	c.status.fileRx = st
 }
 
 // Получение текущего статуса процесса передачи.

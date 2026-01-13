@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/proto"
@@ -11,19 +12,27 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// Мьютексы.
+type mutexes struct {
+	processTxFile sync.Mutex // Проценты передачи файла.
+	processRxFile sync.Mutex // Проценты приёма файла.
+}
+
 // Представление сервера.
 type server struct {
-	ip       string                   // ip сервера
-	port     string                   // port сервера
-	client   pb.PasswordManagerClient // клиент
-	connect  *grpc.ClientConn         // коннект
-	tokenSrv string                   // токен сервера
+	ip         string                   // ip сервера.
+	port       string                   // port сервера.
+	client     pb.PasswordManagerClient // клиент.
+	connect    *grpc.ClientConn         // коннект.
+	tokenSrv   string                   // токен сервера.
+	mtx        mutexes                  // мьютексы.
+	dataRxFile dataRequestFile          // данные для приёма файла.
 }
 
 // Интерфейс действий.
 type ActionsI interface {
 	ConnectClose() error
-	AuthenticationContext(ctx context.Context, userName, userPwd string) error
+	AuthenticationContext(ctx context.Context, userName, userPwd string) (tokenAuth string, err error)
 	SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error
 	SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error
 	SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error
@@ -34,6 +43,10 @@ type ActionsI interface {
 	RequestTextByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxText, err error)
 	RequestBankCardNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
 	RequestBankCardByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxBankCard, err error)
+	RequestFileNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) (rxData []string, err error)
+	RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error)
+	RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
+	InitDataRequestFileByName(fileName, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -69,6 +82,11 @@ func New(ip, port string) (act ServerI, err error) {
 		client:   client,
 		connect:  conn,
 		tokenSrv: "",
+		mtx: mutexes{
+			processTxFile: sync.Mutex{},
+			processRxFile: sync.Mutex{},
+		},
+		dataRxFile: dataRequestFile{},
 	}
 
 	return inst, nil
@@ -86,17 +104,17 @@ func (s *server) ConnectClose() error {
 }
 
 // Аутентификация.
-func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd string) error {
+func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd string) (tokenAuth string, err error) {
 
 	// Проверка аргументов.
 	if userName == "" {
-		return EmptyDataArgumentUserName
+		return "", EmptyDataArgumentUserName
 	}
 	if userPwd == "" {
-		return EmptyDataArgumentUserPwd
+		return "", EmptyDataArgumentUserPwd
 	}
 	if s.client == nil {
-		return NilPtrConnect
+		return "", NilPtrConnect
 	}
 
 	//
@@ -106,7 +124,7 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 	// Создание метаданных с токеном.
 	txMD, secretKey, nameToken, err := createTokenForAuthentication()
 	if err != nil {
-		return fmt.Errorf("функция createTokenForAuthentication, вернула ошибку: <%w>", err)
+		return "", fmt.Errorf("функция createTokenForAuthentication, вернула ошибку: <%w>", err)
 	}
 
 	// --- Запрос
@@ -126,7 +144,7 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 	// Запрос регистрации пользователя.
 	res, err := s.client.Authentication(ctx, req, grpc.Header(&header))
 	if err != nil {
-		return fmt.Errorf("функция client.Authentication, вернула ошибку: <%w>", err)
+		return "", fmt.Errorf("функция client.Authentication, вернула ошибку: <%w>", err)
 	}
 
 	// --- Получение отправленного токена.
@@ -134,13 +152,13 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 	// Получение токена из метаданных ответа.
 	token := header[nameToken]
 	if len(token) == 0 || token[0] == "" {
-		return MissingTokenData
+		return "", MissingTokenData
 	}
 	rxToken := token[0]
 
 	// Проверка токена.
 	if err := checkToken(rxToken, secretKey); err != nil {
-		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
+		return "", fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
 	}
 
 	// --- Получение токена регистрации.
@@ -148,10 +166,10 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 	s.tokenSrv = res.Token
 
 	if s.tokenSrv == "" {
-		return MissingTokenSrvData
+		return "", MissingTokenSrvData
 	}
 
-	return nil
+	return s.tokenSrv, nil
 }
 
 // Передача логин/пароль.
@@ -427,7 +445,7 @@ func (s *server) RequestLoginPasswordByName(ctx context.Context, tokenAuth, idCl
 func (s *server) RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
 
 	// Запрос у сервера имён записей для логин/пароль.
-	enRxData, err := layerRequestRequestTextNamesTx(s.client, tokenAuth, idClient)
+	enRxData, err := layerRequestTextNamesTx(s.client, tokenAuth, idClient)
 	if err != nil {
 		return nil, fmt.Errorf("Функция layerRequestRequestTextNamesTx, вернула ошибку: <%w>", err)
 	}
@@ -511,12 +529,112 @@ func (s *server) RequestBankCardByName(ctx context.Context, tokenAuth, idClient,
 	return rxData, nil
 }
 
+// Запрос у сервера имён файлов
+func (s *server) RequestFileNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) (rxData []string, err error) {
+
+	// Запрос.
+	rxData, err = layerRequestFileNamesTx(s.client, tokenAuth, idClient)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRequestFileNamesTx, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return rxData, nil
+}
+
+// Запрос у сервера хэш файла
+func (s *server) RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error) {
+
+	// Запрос.
+	fileName, fileHash, fileSize, err = layerRequestFileInfoTx(s.client, tokenAuth, idClient, nameFile)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("Функция layerRequestFileInfoTx, вернула ошибку: <%w>", err)
+	}
+
+	// Проверка имён
+	if err := layerRequestFileInfoCheck(nameFile, fileName); err != nil {
+		return "", "", 0, fmt.Errorf("Функция layerRequestFileInfoCheck, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return fileName, fileHash, fileSize, nil
+}
+
+// Запрос файла у сервера. Для запуска как горутина.
+func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}) {
+
+	defer func() {
+		close(chProcess)
+		close(chErr)
+		close(chDone)
+	}()
+
+	// Создание резервной копии файла. Если он существует.
+	tempFileName, err := layerRequestFileByNameCreateTemp(s.dataRxFile.fileName)
+	if err != nil {
+		chErr <- fmt.Errorf("Функция layerRequestFileByNameCreateTemp, вернула ошибку: <%w>", err)
+		return
+	}
+	// Удаление резервной копии.
+	defer func(tempFileName string) {
+		if err := layerRequestFileByNameRemoveTemp(tempFileName); err != nil {
+			chErr <- fmt.Errorf("Функция layerRequestFileByNameRemoveTemp, вернула ошибку: <%w>", err)
+			return
+		}
+	}(tempFileName)
+
+	// Получение файла.
+	if err := layerRequestFileByNameRx(s, &s.dataRxFile, chProcess); err != nil {
+		chErr <- fmt.Errorf("Функция layerRequestFileByNameRx, вернула ошибку: <%w>", err)
+		return
+	}
+
+	// Расшифровка принятого файла.
+	if err := layerRequestFileByNameDecrypt(s.dataRxFile.fileName, s.dataRxFile.secretKey); err != nil {
+		chErr <- fmt.Errorf("Функция layerRequestFileByNameDecrypt, вернула ошибку: <%w>", err)
+		return
+	}
+
+	// Признак успешного завершения процесса.
+	chDone <- struct{}{}
+}
+
+// Инициализация данных, для процесса приёма файла.
+func (s *server) InitDataRequestFileByName(fileName, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error {
+
+	// Проверка аргументов
+	if fileName == "" {
+		return EmptyDataArgumentFileName
+	}
+	if tokenAuth == "" {
+		return EmptyDataArgumentTokenAuth
+	}
+	if clientID == "" {
+		return EmptyDataArgumentClientID
+	}
+	if len(secretKey) != 32 {
+		return NotCorrectLenData
+	}
+
+	// Данные
+	s.dataRxFile = dataRequestFile{
+		fileName:    fileName,
+		tokenAuth:   tokenAuth,
+		clientID:    clientID,
+		sizeReqFile: sizeReqFile,
+		sizePassed:  sizePassed,
+		secretKey:   secretKey,
+	}
+
+	return nil
+}
+
 //
 // --- токен ---
 //
 
 // Получение токена аутентификации.
-func (s server) GetTokenAuthentication() string {
+func (s *server) GetTokenAuthentication() string {
 	return s.tokenSrv
 }
 

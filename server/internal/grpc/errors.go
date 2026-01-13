@@ -35,4 +35,10 @@ var (
 
 	// В аргументе subjectName, нет данных.
 	EmptyDataArgumentSubjectName = errors.New("в аргументе <subjectName>, нет данных")
+
+	// нет данных idClient.
+	EmptyDataIDClient = errors.New("нет данных <idClient>")
+
+	// нет данных fileName.
+	EmptyDataFileNAme = errors.New("нет данных <fileName>")
 )

@@ -1306,6 +1306,118 @@ func (x *RequestBankCardByNameResponse) GetCreatedAt() string {
 	return ""
 }
 
+type RequestFileInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestFileInfoRequest) Reset() {
+	*x = RequestFileInfoRequest{}
+	mi := &file_proto_client_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestFileInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestFileInfoRequest) ProtoMessage() {}
+
+func (x *RequestFileInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestFileInfoRequest.ProtoReflect.Descriptor instead.
+func (*RequestFileInfoRequest) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *RequestFileInfoRequest) GetIdClient() string {
+	if x != nil {
+		return x.IdClient
+	}
+	return ""
+}
+
+func (x *RequestFileInfoRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RequestFileInfoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Hash          string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`
+	Size          int64                  `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestFileInfoResponse) Reset() {
+	*x = RequestFileInfoResponse{}
+	mi := &file_proto_client_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestFileInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestFileInfoResponse) ProtoMessage() {}
+
+func (x *RequestFileInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestFileInfoResponse.ProtoReflect.Descriptor instead.
+func (*RequestFileInfoResponse) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *RequestFileInfoResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RequestFileInfoResponse) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
+func (x *RequestFileInfoResponse) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
 type RequestFileNameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntriesName   []string               `protobuf:"bytes,1,rep,name=EntriesName,proto3" json:"EntriesName,omitempty"`
@@ -1315,7 +1427,7 @@ type RequestFileNameResponse struct {
 
 func (x *RequestFileNameResponse) Reset() {
 	*x = RequestFileNameResponse{}
-	mi := &file_proto_client_proto_msgTypes[23]
+	mi := &file_proto_client_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1327,7 +1439,7 @@ func (x *RequestFileNameResponse) String() string {
 func (*RequestFileNameResponse) ProtoMessage() {}
 
 func (x *RequestFileNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_client_proto_msgTypes[23]
+	mi := &file_proto_client_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1340,7 +1452,7 @@ func (x *RequestFileNameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestFileNameResponse.ProtoReflect.Descriptor instead.
 func (*RequestFileNameResponse) Descriptor() ([]byte, []int) {
-	return file_proto_client_proto_rawDescGZIP(), []int{23}
+	return file_proto_client_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *RequestFileNameResponse) GetEntriesName() []string {
@@ -1353,14 +1465,14 @@ func (x *RequestFileNameResponse) GetEntriesName() []string {
 type RequestFileByNameRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	FileName      string                 `protobuf:"bytes,2,opt,name=fileName,proto3" json:"fileName,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RequestFileByNameRequest) Reset() {
 	*x = RequestFileByNameRequest{}
-	mi := &file_proto_client_proto_msgTypes[24]
+	mi := &file_proto_client_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1372,7 +1484,7 @@ func (x *RequestFileByNameRequest) String() string {
 func (*RequestFileByNameRequest) ProtoMessage() {}
 
 func (x *RequestFileByNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_client_proto_msgTypes[24]
+	mi := &file_proto_client_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1385,7 +1497,7 @@ func (x *RequestFileByNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestFileByNameRequest.ProtoReflect.Descriptor instead.
 func (*RequestFileByNameRequest) Descriptor() ([]byte, []int) {
-	return file_proto_client_proto_rawDescGZIP(), []int{24}
+	return file_proto_client_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RequestFileByNameRequest) GetIdClient() string {
@@ -1395,9 +1507,9 @@ func (x *RequestFileByNameRequest) GetIdClient() string {
 	return ""
 }
 
-func (x *RequestFileByNameRequest) GetName() string {
+func (x *RequestFileByNameRequest) GetFileName() string {
 	if x != nil {
-		return x.Name
+		return x.FileName
 	}
 	return ""
 }
@@ -1412,7 +1524,7 @@ type RequestFileByNameResponse struct {
 
 func (x *RequestFileByNameResponse) Reset() {
 	*x = RequestFileByNameResponse{}
-	mi := &file_proto_client_proto_msgTypes[25]
+	mi := &file_proto_client_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1424,7 +1536,7 @@ func (x *RequestFileByNameResponse) String() string {
 func (*RequestFileByNameResponse) ProtoMessage() {}
 
 func (x *RequestFileByNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_client_proto_msgTypes[25]
+	mi := &file_proto_client_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1437,7 +1549,7 @@ func (x *RequestFileByNameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestFileByNameResponse.ProtoReflect.Descriptor instead.
 func (*RequestFileByNameResponse) Descriptor() ([]byte, []int) {
-	return file_proto_client_proto_rawDescGZIP(), []int{25}
+	return file_proto_client_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RequestFileByNameResponse) GetFileName() string {
@@ -1538,15 +1650,22 @@ const file_proto_client_proto_rawDesc = "" +
 	"\x04numb\x18\x03 \x01(\tR\x04numb\x12\x14\n" +
 	"\x05valid\x18\x04 \x01(\tR\x05valid\x12\x12\n" +
 	"\x04code\x18\x05 \x01(\tR\x04code\x12\x1c\n" +
-	"\tcreatedAt\x18\x06 \x01(\tR\tcreatedAt\";\n" +
-	"\x17RequestFileNameResponse\x12 \n" +
-	"\vEntriesName\x18\x01 \x03(\tR\vEntriesName\"J\n" +
-	"\x18RequestFileByNameRequest\x12\x1a\n" +
+	"\tcreatedAt\x18\x06 \x01(\tR\tcreatedAt\"H\n" +
+	"\x16RequestFileInfoRequest\x12\x1a\n" +
 	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"Q\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"U\n" +
+	"\x17RequestFileInfoResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04hash\x18\x02 \x01(\tR\x04hash\x12\x12\n" +
+	"\x04size\x18\x03 \x01(\x03R\x04size\";\n" +
+	"\x17RequestFileNameResponse\x12 \n" +
+	"\vEntriesName\x18\x01 \x03(\tR\vEntriesName\"R\n" +
+	"\x18RequestFileByNameRequest\x12\x1a\n" +
+	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x1a\n" +
+	"\bfileName\x18\x02 \x01(\tR\bfileName\"Q\n" +
 	"\x19RequestFileByNameResponse\x12\x1a\n" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\fR\acontent2\xde\v\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent2\xb4\f\n" +
 	"\x0fPasswordManager\x126\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12V\n" +
 	"\x0fLocalBackupFile\x12\x1f.manager.LocalBackupFileRequest\x1a .manager.LocalBackupFileResponse(\x01\x12Y\n" +
@@ -1563,7 +1682,8 @@ const file_proto_client_proto_rawDesc = "" +
 	"\x0fRequestTextName\x12\x16.google.protobuf.Empty\x1a .manager.RequestTextNameResponse\x12Z\n" +
 	"\x11RequestTextByName\x12!.manager.RequestTextByNameRequest\x1a\".manager.RequestTextByNameResponse\x12S\n" +
 	"\x13RequestBankCardName\x12\x16.google.protobuf.Empty\x1a$.manager.RequestBankCardNameResponse\x12f\n" +
-	"\x15RequestBankCardByName\x12%.manager.RequestBankCardByNameRequest\x1a&.manager.RequestBankCardByNameResponse\x12K\n" +
+	"\x15RequestBankCardByName\x12%.manager.RequestBankCardByNameRequest\x1a&.manager.RequestBankCardByNameResponse\x12T\n" +
+	"\x0fRequestFileInfo\x12\x1f.manager.RequestFileInfoRequest\x1a .manager.RequestFileInfoResponse\x12K\n" +
 	"\x0fRequestFileName\x12\x16.google.protobuf.Empty\x1a .manager.RequestFileNameResponse\x12\\\n" +
 	"\x11RequestFileByName\x12!.manager.RequestFileByNameRequest\x1a\".manager.RequestFileByNameResponse0\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
@@ -1579,7 +1699,7 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_proto_client_proto_goTypes = []any{
 	(*LocalBackupFileRequest)(nil),             // 0: manager.LocalBackupFileRequest
 	(*LocalBackupFileResponse)(nil),            // 1: manager.LocalBackupFileResponse
@@ -1604,51 +1724,55 @@ var file_proto_client_proto_goTypes = []any{
 	(*RequestBankCardNameResponse)(nil),        // 20: manager.RequestBankCardNameResponse
 	(*RequestBankCardByNameRequest)(nil),       // 21: manager.RequestBankCardByNameRequest
 	(*RequestBankCardByNameResponse)(nil),      // 22: manager.RequestBankCardByNameResponse
-	(*RequestFileNameResponse)(nil),            // 23: manager.RequestFileNameResponse
-	(*RequestFileByNameRequest)(nil),           // 24: manager.RequestFileByNameRequest
-	(*RequestFileByNameResponse)(nil),          // 25: manager.RequestFileByNameResponse
-	(*emptypb.Empty)(nil),                      // 26: google.protobuf.Empty
+	(*RequestFileInfoRequest)(nil),             // 23: manager.RequestFileInfoRequest
+	(*RequestFileInfoResponse)(nil),            // 24: manager.RequestFileInfoResponse
+	(*RequestFileNameResponse)(nil),            // 25: manager.RequestFileNameResponse
+	(*RequestFileByNameRequest)(nil),           // 26: manager.RequestFileByNameRequest
+	(*RequestFileByNameResponse)(nil),          // 27: manager.RequestFileByNameResponse
+	(*emptypb.Empty)(nil),                      // 28: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
 	4,  // 0: manager.LocalFilesInfoResponse.fileInfo:type_name -> manager.FileInfo
-	26, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	28, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
 	0,  // 2: manager.PasswordManager.LocalBackupFile:input_type -> manager.LocalBackupFileRequest
 	2,  // 3: manager.PasswordManager.LocalRestoreFile:input_type -> manager.LocalRestoreFileRequest
-	26, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
+	28, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
 	6,  // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
 	7,  // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
 	9,  // 7: manager.PasswordManager.SendLoginPassword:input_type -> manager.SendLoginPasswordRequest
 	10, // 8: manager.PasswordManager.SendText:input_type -> manager.SendTextRequest
 	11, // 9: manager.PasswordManager.SendBankCard:input_type -> manager.SendBankCardRequest
 	12, // 10: manager.PasswordManager.SendFile:input_type -> manager.SendFileRequest
-	26, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
+	28, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
 	15, // 12: manager.PasswordManager.RequestLoginPasswordByName:input_type -> manager.RequestLoginPasswordByNameRequest
-	26, // 13: manager.PasswordManager.RequestTextName:input_type -> google.protobuf.Empty
+	28, // 13: manager.PasswordManager.RequestTextName:input_type -> google.protobuf.Empty
 	18, // 14: manager.PasswordManager.RequestTextByName:input_type -> manager.RequestTextByNameRequest
-	26, // 15: manager.PasswordManager.RequestBankCardName:input_type -> google.protobuf.Empty
+	28, // 15: manager.PasswordManager.RequestBankCardName:input_type -> google.protobuf.Empty
 	21, // 16: manager.PasswordManager.RequestBankCardByName:input_type -> manager.RequestBankCardByNameRequest
-	26, // 17: manager.PasswordManager.RequestFileName:input_type -> google.protobuf.Empty
-	24, // 18: manager.PasswordManager.RequestFileByName:input_type -> manager.RequestFileByNameRequest
-	26, // 19: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1,  // 20: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
-	3,  // 21: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
-	5,  // 22: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
-	26, // 23: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
-	8,  // 24: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
-	26, // 25: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
-	26, // 26: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
-	26, // 27: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
-	13, // 28: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
-	14, // 29: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
-	16, // 30: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
-	17, // 31: manager.PasswordManager.RequestTextName:output_type -> manager.RequestTextNameResponse
-	19, // 32: manager.PasswordManager.RequestTextByName:output_type -> manager.RequestTextByNameResponse
-	20, // 33: manager.PasswordManager.RequestBankCardName:output_type -> manager.RequestBankCardNameResponse
-	22, // 34: manager.PasswordManager.RequestBankCardByName:output_type -> manager.RequestBankCardByNameResponse
-	23, // 35: manager.PasswordManager.RequestFileName:output_type -> manager.RequestFileNameResponse
-	25, // 36: manager.PasswordManager.RequestFileByName:output_type -> manager.RequestFileByNameResponse
-	19, // [19:37] is the sub-list for method output_type
-	1,  // [1:19] is the sub-list for method input_type
+	23, // 17: manager.PasswordManager.RequestFileInfo:input_type -> manager.RequestFileInfoRequest
+	28, // 18: manager.PasswordManager.RequestFileName:input_type -> google.protobuf.Empty
+	26, // 19: manager.PasswordManager.RequestFileByName:input_type -> manager.RequestFileByNameRequest
+	28, // 20: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1,  // 21: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
+	3,  // 22: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
+	5,  // 23: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
+	28, // 24: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
+	8,  // 25: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
+	28, // 26: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
+	28, // 27: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
+	28, // 28: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
+	13, // 29: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
+	14, // 30: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
+	16, // 31: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
+	17, // 32: manager.PasswordManager.RequestTextName:output_type -> manager.RequestTextNameResponse
+	19, // 33: manager.PasswordManager.RequestTextByName:output_type -> manager.RequestTextByNameResponse
+	20, // 34: manager.PasswordManager.RequestBankCardName:output_type -> manager.RequestBankCardNameResponse
+	22, // 35: manager.PasswordManager.RequestBankCardByName:output_type -> manager.RequestBankCardByNameResponse
+	24, // 36: manager.PasswordManager.RequestFileInfo:output_type -> manager.RequestFileInfoResponse
+	25, // 37: manager.PasswordManager.RequestFileName:output_type -> manager.RequestFileNameResponse
+	27, // 38: manager.PasswordManager.RequestFileByName:output_type -> manager.RequestFileByNameResponse
+	20, // [20:39] is the sub-list for method output_type
+	1,  // [1:20] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1665,7 +1789,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"os"
+	"path"
 	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/proto"
@@ -627,4 +629,122 @@ func layerRequestBankCardByNameTx(txData TxBankCard) (*pb.RequestBankCardByNameR
 	}
 
 	return resp, nil
+}
+
+//
+// --- RequestFileName ---
+//
+
+// Получение имён файлов.
+func layerRequestFileNameScanDir(dir string) (fileNames []string, err error) {
+
+	// Чтение содержимого директории
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Сбор имён файлов
+	for _, file := range files {
+		if !file.IsDir() { // отсев дирекотрий
+			fileNames = append(fileNames, file.Name())
+		}
+	}
+
+	return fileNames, nil
+}
+
+// Подготовка ответа.
+func layerRequestFileNameTx(fileNames []string) (*pb.RequestFileNameResponse, error) {
+
+	resp := &pb.RequestFileNameResponse{
+		EntriesName: make([]string, 0, len(fileNames)),
+	}
+
+	// Заполнение
+	for _, v := range fileNames {
+		resp.EntriesName = append(resp.EntriesName, v)
+	}
+
+	return resp, nil
+}
+
+//
+// --- RequestFileInfo ---
+//
+
+// Получение токена из запроса.
+func layerRequestFileInfoToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerRequestFileInfoRx(req *pb.RequestFileInfoRequest) (idClient, fileName string, err error) {
+
+	idClient = req.IdClient
+	fileName = req.Name
+
+	if idClient == "" {
+		return "", "", EmptyDataIDClient
+	}
+
+	if fileName == "" {
+		return "", "", EmptyDataFileNAme
+	}
+
+	return idClient, fileName, nil
+}
+
+// Логика обработчика.
+func layerRequestFileInfo(filePath string) (data fileInfo, err error) {
+
+	// Получение размера файла.
+	data.size, err = sizeFile(filePath)
+	if err != nil {
+		return fileInfo{}, fmt.Errorf("Функция sizeFile, вернула ошибку: <%w>", err)
+	}
+
+	// Получение хэш файла.
+	data.hash, err = hashFile(filePath)
+	if err != nil {
+		return fileInfo{}, fmt.Errorf("Функция hashFile, вернула ошибку: <%w>", err)
+	}
+
+	// Получение имени файла.
+	data.name = path.Base(filePath)
+
+	return data, nil
+}
+
+// Подготовка ответа.
+func layerRequestFileInfoTx(data fileInfo) (res *pb.RequestFileInfoResponse, err error) {
+
+	r := &pb.RequestFileInfoResponse{
+		Name: data.name,
+		Hash: data.hash,
+		Size: data.size,
+	}
+
+	return r, nil
 }

@@ -64,3 +64,13 @@ type TxFile struct {
 type TxFileResp struct {
 	FileName string // название файла
 }
+
+// Представление данных для запроса файла
+type dataRequestFile struct {
+	fileName    string
+	tokenAuth   string
+	clientID    string
+	sizeReqFile int64
+	sizePassed  int64
+	secretKey   [32]byte
+}

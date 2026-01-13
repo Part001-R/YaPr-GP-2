@@ -791,7 +791,7 @@ func bankCardByIndex(c *handlerUI) (el bankCard) {
 	return el
 }
 
-// Получение данных afqkf по индексу. Возвращается запись.
+// Получение данных файла по индексу. Возвращается запись.
 //
 // Параметры:
 //
@@ -799,6 +799,16 @@ func bankCardByIndex(c *handlerUI) (el bankCard) {
 func fileByIndex(c *handlerUI) string {
 
 	return c.data.files[c.index.file]
+}
+
+// Получение данных файла по индексу. Возвращается запись.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func fileNameByIndex(c *handlerUI) string {
+
+	return c.data.namesFile[c.index.file]
 }
 
 // Увеличение значения индекса для логин/пароль массива.
@@ -881,6 +891,18 @@ func incrIndexBankCard(c *handlerUI) {
 func incrIndexFile(c *handlerUI) {
 
 	if c.index.file < len(c.data.files)-1 {
+		c.index.file++
+	}
+}
+
+// Увеличение значения индекса для массива файлов.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func incrIndexNamesFile(c *handlerUI) {
+
+	if c.index.file < len(c.data.namesFile)-1 {
 		c.index.file++
 	}
 }
@@ -1826,126 +1848,256 @@ func indicatorViewBankCardData(g *gocui.Gui, c *handlerUI) error {
 //	с - указатель на конфигурацию.
 func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 
-	// Добавление файла в контейнер.
-	statusPushContainer := c.getStatusPushContainer()
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	if statusPushContainer != stageNotActive {
-		name := "Save"
-		btnSave, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
-		}
-		if btnSave == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
+		// Добавление файла в контейнер.
+		statusPushContainer := c.getStatusPushContainer()
 
-		switch statusPushContainer {
-		case stageNotActive:
-			btnSave.FgColor = gocui.ColorWhite
-		case stageActive:
-			btnSave.FgColor = gocui.ColorYellow
-		case stageOk:
-			btnSave.FgColor = gocui.ColorGreen
-		case stageFault:
-			btnSave.FgColor = gocui.ColorRed
-		}
-	}
+		if statusPushContainer != stageNotActive {
+			name := "Save"
+			btnSave, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
+			}
+			if btnSave == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
 
-	// Извлечение файла из контейнера.
-	statusPopContainer := c.getStatusPopContainer()
-
-	if statusPopContainer != stageNotActive {
-		name := "Extraction"
-		btnExtration, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
-		}
-		if btnExtration == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			switch statusPushContainer {
+			case stageNotActive:
+				btnSave.FgColor = gocui.ColorWhite
+			case stageActive:
+				btnSave.FgColor = gocui.ColorYellow
+			case stageOk:
+				btnSave.FgColor = gocui.ColorGreen
+			case stageFault:
+				btnSave.FgColor = gocui.ColorRed
+			}
 		}
 
-		switch statusPopContainer {
-		case stageNotActive:
-			btnExtration.FgColor = gocui.ColorWhite
-		case stageActive:
-			btnExtration.FgColor = gocui.ColorYellow
-		case stageOk:
-			btnExtration.FgColor = gocui.ColorGreen
-		case stageFault:
-			btnExtration.FgColor = gocui.ColorRed
-		}
-	}
+		// Извлечение файла из контейнера.
+		statusPopContainer := c.getStatusPopContainer()
 
-	// Есть установлен признак удаления файла из контейнера.
-	if c.status.delFilePassed {
-		name := "DeleteElement"
+		if statusPopContainer != stageNotActive {
+			name := "Extraction"
+			btnExtration, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
+			}
+			if btnExtration == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
 
-		element, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
-		}
-		if element == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-
-		if c.status.delFileSUCCESS {
-			element.FgColor = gocui.ColorGreen
-		} else {
-			element.FgColor = gocui.ColorRed
+			switch statusPopContainer {
+			case stageNotActive:
+				btnExtration.FgColor = gocui.ColorWhite
+			case stageActive:
+				btnExtration.FgColor = gocui.ColorYellow
+			case stageOk:
+				btnExtration.FgColor = gocui.ColorGreen
+			case stageFault:
+				btnExtration.FgColor = gocui.ColorRed
+			}
 		}
 
-		c.status.delFilePassed = false
-		c.status.delFileSUCCESS = false
-	}
+		// Есть установлен признак удаления файла из контейнера.
+		if c.status.delFilePassed {
+			name := "DeleteElement"
 
-	// Если чтение файлов контейнера выполнено.
-	if c.status.readFilePassed {
-		name := "indicatorReadStatus"
+			element, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+			}
+			if element == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
 
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+			if c.status.delFileSUCCESS {
+				element.FgColor = gocui.ColorGreen
+			} else {
+				element.FgColor = gocui.ColorRed
+			}
+
+			c.status.delFilePassed = false
+			c.status.delFileSUCCESS = false
 		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+
+		// Если чтение файлов контейнера выполнено.
+		if c.status.readFilePassed {
+			name := "indicatorReadStatus"
+
+			indicator, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+			}
+			if indicator == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
+			if c.status.readFileSUCCESS {
+
+				indicator.Clear()
+				indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.files))))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка чтения."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+
+			c.status.readFilePassed = false  // Для разовой отработки при открытии экрана.
+			c.status.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
 		}
 
-		if c.status.readFileSUCCESS {
+		//
+		// --- Индикатор процентов ---
+		//
+
+		if statusPushContainer != stageNotActive || statusPopContainer != stageNotActive {
+
+			name := "indicatorPercent"
+			indicator, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
+			}
+			if indicator == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
 
 			indicator.Clear()
-			indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.files))))
-			indicator.FgColor = gocui.ColorGreen
-			indicator.BgColor = gocui.ColorDefault
-		} else {
+			indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
+		}
+
+		return nil
+	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		// Передача файла на сервер.
+		statusTx := c.getStatusFileTx()
+
+		if statusTx != stageNotActive {
+			name := "Save"
+			btnSave, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
+			}
+			if btnSave == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
+			switch statusTx {
+			case stageNotActive:
+				btnSave.FgColor = gocui.ColorWhite
+			case stageActive:
+				btnSave.FgColor = gocui.ColorYellow
+			case stageOk:
+				btnSave.FgColor = gocui.ColorGreen
+			case stageFault:
+				btnSave.FgColor = gocui.ColorRed
+			}
+		}
+
+		// Приём файла от сервера.
+		statusRx := c.getStatusFileRx()
+
+		if statusRx != stageNotActive {
+			name := "Extraction"
+			btnExtration, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
+			}
+			if btnExtration == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
+			switch statusRx {
+			case stageNotActive:
+				btnExtration.FgColor = gocui.ColorWhite
+			case stageActive:
+				btnExtration.FgColor = gocui.ColorYellow
+			case stageOk:
+				btnExtration.FgColor = gocui.ColorGreen
+			case stageFault:
+				btnExtration.FgColor = gocui.ColorRed
+			}
+		}
+
+		// Есть установлен признак удаления файла на сервере.
+		if c.status.delFilePassed {
+			name := "DeleteElement"
+
+			element, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+			}
+			if element == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
+			if c.status.delFileSUCCESS {
+				element.FgColor = gocui.ColorGreen
+			} else {
+				element.FgColor = gocui.ColorRed
+			}
+
+			c.status.delFilePassed = false
+			c.status.delFileSUCCESS = false
+		}
+
+		// Если чтение имён файлов выполнено.
+		if c.status.readNameFilePassed {
+			name := "indicatorReadStatus"
+
+			indicator, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Фнукция View, вернула ошибку: <%w>", err)
+			}
+			if indicator == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
+			if c.status.readNameFileSUCCESS {
+
+				indicator.Clear()
+				indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.namesFile))))
+				indicator.FgColor = gocui.ColorGreen
+				indicator.BgColor = gocui.ColorDefault
+			} else {
+				indicator.Clear()
+				indicator.Write([]byte("Ошибка чтения."))
+				indicator.FgColor = gocui.ColorRed
+				indicator.BgColor = gocui.ColorDefault
+			}
+
+			c.status.readNameFilePassed = false  // Для разовой отработки при открытии экрана.
+			c.status.readNameFileSUCCESS = false // Для разовой отработки при открытии экрана.
+		}
+
+		//
+		// --- Индикатор процентов ---
+		//
+
+		if statusTx != stageNotActive || statusRx != stageNotActive {
+
+			name := "indicatorPercent"
+			indicator, err := g.View(name)
+			if err != nil {
+				return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
+			}
+			if indicator == nil {
+				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
+			}
+
 			indicator.Clear()
-			indicator.Write([]byte("Ошибка чтения."))
-			indicator.FgColor = gocui.ColorRed
-			indicator.BgColor = gocui.ColorDefault
+			indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
 		}
-
-		c.status.readFilePassed = false  // Для разовой отработки при открытии экрана.
-		c.status.readFileSUCCESS = false // Для разовой отработки при открытии экрана.
+		return nil
 	}
-
-	//
-	// --- Индикатор процентов ---
-	//
-
-	if statusPushContainer != stageNotActive || statusPopContainer != stageNotActive {
-
-		name := "indicatorPercent"
-		indicator, err := g.View(name)
-		if err != nil {
-			return fmt.Errorf("Функция View, вернула ошибку: <%w>", err)
-		}
-		if indicator == nil {
-			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
-		}
-
-		indicator.Clear()
-		indicator.Write([]byte(fmt.Sprintf("Выполнено: %.2f%%", c.getPercentTxRx())))
-	}
-
 	return nil
 }
 
@@ -2446,6 +2598,48 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 					return
 				}
 			}
+		}
+	}
+}
+
+// Приём данных процесса получения файла от сервера.
+func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr <-chan error, rxChDone <-chan struct{}) {
+
+	// Обработка каналов.
+	for {
+		select {
+		// Проценты процесса.
+		case percent, ok := <-rxChProcess:
+			if !ok {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Проент выполнения: <%.2f>", percent)) // ---------------------------------------------------
+
+				c.updateStatusFileRx(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChProcess")
+				return
+			}
+			c.setPercentTxRx(float32(percent))
+
+			// Ошибка.
+		case err, ok := <-rxChErr:
+			if !ok {
+				c.updateStatusFileRx(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChErr")
+				return
+			}
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса приёма файла от сервера:<%v>", err))
+			c.updateStatusFileRx(stageFault)
+			return
+
+			// Приём выполнен.
+		case _, ok := <-rxChDone:
+			if !ok {
+				c.updateStatusFileRx(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChDone")
+				return
+			}
+			c.updateStatusFileRx(stageOk)
+			c.conf.PtrLoggerFile.Write("Info: файл успешно принят")
+			return
 		}
 	}
 }
@@ -3187,33 +3381,72 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 // Логика перевода фокуса в окне viewBinaryData. Возвращается ошибка.
 func doShowNextElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
-	if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		c.updateStatusPopContainer(stageNotActive)
-		c.updateStatusPushContainer(stageNotActive)
+		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
 
-		if len(c.data.files) == 0 {
-			return nil
+			c.updateStatusPopContainer(stageNotActive)
+			c.updateStatusPushContainer(stageNotActive)
+
+			if len(c.data.files) == 0 {
+				return nil
+			}
+
+			el := fileByIndex(c) // получение записи по индексу
+			incrIndexFile(c)     // увеличение значения индекса
+
+			// отображение содержимого поля Код.
+			fieldCode, err := gui.View("fieldShowFor")
+			if err != nil || fieldCode == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				return nil
+			}
+			if el != "" {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(el))
+
+			} else {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(""))
+			}
 		}
-
-		el := fileByIndex(c) // получение записи по индексу
-		incrIndexFile(c)     // увеличение значения индекса
-
-		// отображение содержимого поля Код.
-		fieldCode, err := gui.View("fieldShowFor")
-		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
-		}
-		if el != "" {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(el))
-
-		} else {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(""))
-		}
+		return nil
 	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		if c.getStatusFileTx() != stageActive && c.getStatusFileRx() != stageActive {
+
+			c.updateStatusFileTx(stageNotActive)
+			c.updateStatusFileRx(stageNotActive)
+
+			if len(c.data.namesFile) == 0 {
+				return nil
+			}
+
+			el := fileNameByIndex(c) // получение записи по индексу
+			incrIndexNamesFile(c)    // увеличение значения индекса
+
+			// отображение содержимого поля Код.
+			fieldCode, err := gui.View("fieldShowFor")
+			if err != nil || fieldCode == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				return nil
+			}
+			if el != "" {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(el))
+
+			} else {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(""))
+			}
+		}
+		return nil
+	}
+
 	return nil
 }
 
@@ -3635,30 +3868,68 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 // Логика перевода фокуса в окне viewBinaryData. Возвращается ошибка.
 func doShowPrevElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
-	if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
 
-		c.updateStatusPopContainer(stageNotActive)
-		c.updateStatusPushContainer(stageNotActive)
+			c.updateStatusPopContainer(stageNotActive)
+			c.updateStatusPushContainer(stageNotActive)
 
-		decrIndexFile(c)     // уменьшение значения индекса
-		el := fileByIndex(c) // получение записи по индексу
+			decrIndexFile(c)     // уменьшение значения индекса
+			el := fileByIndex(c) // получение записи по индексу
 
-		// отображение содержимого.
-		fieldCode, err := gui.View("fieldShowFor")
-		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
-			return nil
+			// отображение содержимого.
+			fieldCode, err := gui.View("fieldShowFor")
+			if err != nil || fieldCode == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				return nil
+			}
+			if el != "" {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(el))
+
+			} else {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(""))
+			}
 		}
-		if el != "" {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(el))
 
-		} else {
-			fieldCode.Clear()
-			fieldCode.Write([]byte(""))
-		}
+		return nil
 	}
 
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		if c.getStatusFileTx() != stageActive && c.getStatusFileRx() != stageActive {
+
+			c.updateStatusFileTx(stageNotActive)
+			c.updateStatusFileRx(stageNotActive)
+
+			if len(c.data.namesFile) == 0 {
+				return nil
+			}
+
+			decrIndexFile(c)         // уменьшение значения индекса
+			el := fileNameByIndex(c) // получение записи по индексу
+
+			// отображение содержимого.
+			fieldCode, err := gui.View("fieldShowFor")
+			if err != nil || fieldCode == nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				return nil
+			}
+			if el != "" {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(el))
+
+			} else {
+				fieldCode.Clear()
+				fieldCode.Write([]byte(""))
+			}
+		}
+
+		return nil
+	}
 	return nil
 }
 
@@ -3976,10 +4247,12 @@ func doAuthenticationUserModeRemote(c *handlerUI) error {
 	defer cancel()
 
 	// Выполнение запроса.
-	err := c.conf.Server.AuthenticationContext(ctx, userName, userPwd)
+	tokenAuth, err := c.conf.Server.AuthenticationContext(ctx, userName, userPwd)
 	if err != nil {
 		return fmt.Errorf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err)
 	}
+
+	c.tokenAuth = tokenAuth
 
 	return nil
 }

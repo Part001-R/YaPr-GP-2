@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -11,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -301,4 +304,215 @@ func hashFile(fileName string) (string, error) {
 
 	hash := hasher.Sum(nil)
 	return hex.EncodeToString(hash), nil
+}
+
+// Воостановление состояния файлов процесса restore, при ошибке в последовательности. Возвращается ошибка.
+func deferProcessRestoreByError(dooRestore bool, fileName, tempFileName string, errProcess error) error {
+
+	if errProcess != nil {
+		// Удаление принятого файла.
+		if isFileExists(fileName) && dooRestore {
+			if err := os.Remove(fileName); err != nil {
+				return fmt.Errorf("Error: ошибка:<%v>, при удалении файла:<%s> по ошибке процесса:<%v>", err, fileName, err)
+			}
+		}
+		// Восстановление имени у исходного файла.
+		if isFileExists(tempFileName) && dooRestore {
+			if err := restoreFileName(tempFileName, "-temp"); err != nil {
+				return fmt.Errorf("Error: ошибка:<%v>, при восстановлении файла:<%s> по ошибке процесса:<%v>", err, tempFileName, err)
+			}
+		}
+	}
+	return nil
+}
+
+// Воссстановление имени файла. Возвращается ошибка.
+func restoreFileName(fileName string, suffix string) (err error) {
+
+	// Проверка, существует ли файл.
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		return fmt.Errorf("файл с именем:<%s>, не найден", fileName)
+	}
+
+	// Исходные данные.
+	ext := filepath.Ext(fileName)
+	name := strings.TrimSuffix(fileName, ext)
+
+	// Восстановление
+	name = strings.TrimSuffix(name, suffix)
+
+	// Формирование нового имени.
+	newFileName := fmt.Sprintf("%s%s", name, ext)
+
+	// Переименование файла.
+	err = os.Rename(fileName, newFileName)
+	if err != nil {
+		return fmt.Errorf("ошибка:<%w> переименования файла:<%s>", err, fileName)
+	}
+
+	return nil
+}
+
+// Приём файла.
+func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rxFileHash string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", data.tokenAuth)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.RequestFileByNameRequest{
+		IdClient: data.clientID,
+		FileName: data.fileName,
+	}
+	stream, err := s.client.RequestFileByName(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("Функция client.RequestFileByName, вернула ошибку: <%w>", err)
+	}
+
+	// Предварительное удаление, если такой файл уже существует.
+	if isFileExists(data.fileName) {
+		if err := os.Remove(data.fileName); err != nil {
+			return "", fmt.Errorf("ошибка удаления файла: <%w>", err)
+		}
+	}
+
+	// Создание файла для записи
+	file, err := os.Create(data.fileName)
+	if err != nil {
+		return "", fmt.Errorf("не удалось создать файл <%s>: <%w>", data.fileName, err)
+	}
+	defer file.Close()
+
+	// Чтение потоком
+	for {
+		res, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return "", fmt.Errorf("Функция stream.Recv, вернула ошибку: <%w>", err)
+		}
+		if res.FileName != data.fileName {
+			return "", fmt.Errorf("Приняты данные для другого файла: <%s>", res.FileName)
+		}
+
+		// Обновление статистики процесса
+		updateDataTxRxProcess(s, chProcess, len(res.Content), data)
+
+		// Запись данных в файл
+		if _, err := file.Write(res.Content); err != nil {
+			return "", fmt.Errorf("ошибка при записи в файл <%s>: <%w>", data.fileName, err)
+		}
+	}
+
+	// Получение трейлера после завершения потока
+	rxTrailer := stream.Trailer()
+	if hash, ok := rxTrailer["hash"]; ok {
+		rxFileHash = hash[0]
+	} else {
+		return "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", data.fileName)
+	}
+
+	// Результат
+	return rxFileHash, nil
+}
+
+// Добавление превикса к имени имени файла. Возвращается новое имя и ошибка.
+func changeFileName(fileName string, suffix string) (newFileName string, err error) {
+
+	// Проверка, существует ли файл.
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		return "", fmt.Errorf("файл с именем:<%s>, не найден", fileName)
+	}
+
+	// Исходные данные.
+	ext := filepath.Ext(fileName)
+	name := strings.TrimSuffix(fileName, ext)
+
+	// Новое имя.
+	newFileName = fmt.Sprintf("%s%s%s", name, suffix, ext)
+
+	// Проверка существование файла по новому имени.
+	// Если есть - удаляется.
+	_, err = os.Stat(newFileName)
+	if err == nil {
+		if err := os.Remove(newFileName); err != nil {
+			return "", fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>", err, newFileName)
+		}
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("ошибка:<%w> при проверке существования файла:<%s>", err, newFileName)
+	}
+
+	// Переименование файла.
+	err = os.Rename(fileName, newFileName)
+	if err != nil {
+		return "", fmt.Errorf("ошибка:<%w> переименования файла:<%s>", err, fileName)
+	}
+
+	return newFileName, nil
+}
+
+// Сохранение файла.
+func saveRxDataFile(content []byte, fileName string) error {
+
+	if err := os.WriteFile(fileName, content, 0644); err != nil {
+		return fmt.Errorf("Функция os.WriteFile, вернула ошибку: <%v>", err)
+	}
+
+	return nil
+}
+
+// Проверка ответа от сервера.
+func checkResultRequestFile(fileName, rxFileHash, srcFileHash string) error {
+
+	// Проверка аргументов.
+	if fileName == "" {
+		return EmptyDataArgumentFileName
+	}
+	if rxFileHash == "" {
+		return EmptyDataArgumentRxFileHash
+	}
+	if srcFileHash == "" {
+		return EmptyDataArgumentSrcFileHash
+	}
+
+	// Анализ данных ответа от сервера.
+	rxFileHash, err := hashFile(fileName)
+	if err != nil {
+		return fmt.Errorf("Функция hashFile, вернула ошибку:<%w>", err)
+	}
+	if srcFileHash != rxFileHash {
+		return fmt.Errorf("Для файла:<%s>, нет соответствия хэша. Ожидался:<%s>, а принято:<%s>", fileName, srcFileHash, rxFileHash)
+	}
+
+	return nil
+}
+
+// Вычисление процента выполнения.
+//
+// Параметры:
+//
+//	c - конфигурация.
+//	b - количество переданных байт.
+func updateDataTxRxProcess(s *server, chProcess chan<- float32, b int, data *dataRequestFile) {
+
+	s.mtx.processTxFile.Lock()
+	defer s.mtx.processTxFile.Unlock()
+
+	// Получение КБайт из Байт.
+	volumeKB := b / 1024
+
+	// Обновление данных накопителя.
+	data.sizePassed += int64(volumeKB)
+
+	// Вычисление процентов.
+	if data.sizeReqFile > 0 {
+		chProcess <- float32(float64(data.sizePassed) / float64(data.sizeReqFile) * 100.0)
+	} else {
+		chProcess <- 0
+	}
 }

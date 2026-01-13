@@ -36,6 +36,7 @@ const (
 	PasswordManager_RequestTextByName_FullMethodName          = "/manager.PasswordManager/RequestTextByName"
 	PasswordManager_RequestBankCardName_FullMethodName        = "/manager.PasswordManager/RequestBankCardName"
 	PasswordManager_RequestBankCardByName_FullMethodName      = "/manager.PasswordManager/RequestBankCardByName"
+	PasswordManager_RequestFileInfo_FullMethodName            = "/manager.PasswordManager/RequestFileInfo"
 	PasswordManager_RequestFileName_FullMethodName            = "/manager.PasswordManager/RequestFileName"
 	PasswordManager_RequestFileByName_FullMethodName          = "/manager.PasswordManager/RequestFileByName"
 )
@@ -60,6 +61,7 @@ type PasswordManagerClient interface {
 	RequestTextByName(ctx context.Context, in *RequestTextByNameRequest, opts ...grpc.CallOption) (*RequestTextByNameResponse, error)
 	RequestBankCardName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestBankCardNameResponse, error)
 	RequestBankCardByName(ctx context.Context, in *RequestBankCardByNameRequest, opts ...grpc.CallOption) (*RequestBankCardByNameResponse, error)
+	RequestFileInfo(ctx context.Context, in *RequestFileInfoRequest, opts ...grpc.CallOption) (*RequestFileInfoResponse, error)
 	RequestFileName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestFileNameResponse, error)
 	RequestFileByName(ctx context.Context, in *RequestFileByNameRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RequestFileByNameResponse], error)
 }
@@ -247,6 +249,16 @@ func (c *passwordManagerClient) RequestBankCardByName(ctx context.Context, in *R
 	return out, nil
 }
 
+func (c *passwordManagerClient) RequestFileInfo(ctx context.Context, in *RequestFileInfoRequest, opts ...grpc.CallOption) (*RequestFileInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestFileInfoResponse)
+	err := c.cc.Invoke(ctx, PasswordManager_RequestFileInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *passwordManagerClient) RequestFileName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestFileNameResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RequestFileNameResponse)
@@ -296,6 +308,7 @@ type PasswordManagerServer interface {
 	RequestTextByName(context.Context, *RequestTextByNameRequest) (*RequestTextByNameResponse, error)
 	RequestBankCardName(context.Context, *emptypb.Empty) (*RequestBankCardNameResponse, error)
 	RequestBankCardByName(context.Context, *RequestBankCardByNameRequest) (*RequestBankCardByNameResponse, error)
+	RequestFileInfo(context.Context, *RequestFileInfoRequest) (*RequestFileInfoResponse, error)
 	RequestFileName(context.Context, *emptypb.Empty) (*RequestFileNameResponse, error)
 	RequestFileByName(*RequestFileByNameRequest, grpc.ServerStreamingServer[RequestFileByNameResponse]) error
 	mustEmbedUnimplementedPasswordManagerServer()
@@ -355,6 +368,9 @@ func (UnimplementedPasswordManagerServer) RequestBankCardName(context.Context, *
 }
 func (UnimplementedPasswordManagerServer) RequestBankCardByName(context.Context, *RequestBankCardByNameRequest) (*RequestBankCardByNameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RequestBankCardByName not implemented")
+}
+func (UnimplementedPasswordManagerServer) RequestFileInfo(context.Context, *RequestFileInfoRequest) (*RequestFileInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestFileInfo not implemented")
 }
 func (UnimplementedPasswordManagerServer) RequestFileName(context.Context, *emptypb.Empty) (*RequestFileNameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RequestFileName not implemented")
@@ -642,6 +658,24 @@ func _PasswordManager_RequestBankCardByName_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PasswordManager_RequestFileInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestFileInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).RequestFileInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_RequestFileInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).RequestFileInfo(ctx, req.(*RequestFileInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PasswordManager_RequestFileName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -729,6 +763,10 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestBankCardByName",
 			Handler:    _PasswordManager_RequestBankCardByName_Handler,
+		},
+		{
+			MethodName: "RequestFileInfo",
+			Handler:    _PasswordManager_RequestFileInfo_Handler,
 		},
 		{
 			MethodName: "RequestFileName",

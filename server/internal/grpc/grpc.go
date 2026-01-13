@@ -28,8 +28,10 @@ const (
 
 // Статусы процессов.
 type statusSrv struct {
-	isBackUp  int32 // Признак Активности процесса BackUp (клиент передаёт данные).
-	isRestore int32 // Признак Активности процесса Restore (клиент принимает данные).
+	backUp  int32 // Признак активности процесса BackUp (клиент передаёт данные).
+	restore int32 // Признак активности процесса Restore (клиент принимает данные).
+	rxFile  int32 // Признак активности процесса приёма файла от клиента.
+	txFile  int32 // Признак активности процесса передаче клиенту файла.
 }
 
 // grpc
@@ -53,8 +55,8 @@ func New(l *zap.Logger, s domain.StorageI, f *flags.Config) *Manager {
 			UnimplementedPasswordManagerServer: pb.UnimplementedPasswordManagerServer{},
 			logger:                             l,
 			status: statusSrv{
-				isBackUp:  0,
-				isRestore: 0,
+				backUp:  0,
+				restore: 0,
 			},
 			storage:   s,
 			token:     "",
@@ -925,6 +927,156 @@ func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBank
 	return resp, nil
 }
 
+// Получение имён файлов.
+func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestFileNameResponse, err error) {
+
+	s.logger.Info("Принят запрос имён файлов")
+
+	//Получение имён файлов.
+	rxData, err := layerRequestFileNameScanDir(flags.NameSubDirFiles)
+	if err != nil {
+		s.logger.Error("Ошибка чтения имён файлов", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка чтения имён файлов")
+	}
+
+	// Формирование ответа
+	resp, err = layerRequestFileNameTx(rxData)
+	if err != nil {
+		s.logger.Error("Ошибка подготовки ответа", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка чтения имён файлов")
+	}
+
+	// Результат
+	s.logger.Info("Запрос имён файлов, обработан")
+	return resp, nil
+}
+
+// Обработчик передачи файлов.
+func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.PasswordManager_RequestFileByNameServer) error {
+
+	s.logger.Info("Принят запрос на передачу файла.")
+
+	// Проверка активности процесса приёма файла
+	if s.GetStatusRx() == stageActive {
+		return status.Error(codes.PermissionDenied, "Идёт процесс приёма файла")
+	}
+
+	// Установка признака активности процесса передачи файла.
+	if err := s.UpdateStatusTx(stageActive); err != nil {
+		return status.Error(codes.PermissionDenied, "ошибка обновления статуса")
+	}
+
+	// Извлечение метаданных из контекста
+	md, ok := metadata.FromIncomingContext(stream.Context())
+	if !ok {
+		return status.Error(codes.InvalidArgument, "ошибка извлечения заголовков")
+	}
+
+	// Получение значения токена
+	token := md.Get("token")
+	if len(token) == 0 {
+		return status.Error(codes.Unauthenticated, "токен не передан")
+	}
+
+	//
+	// Логика
+	//
+
+	reqFileName := req.FileName
+
+	reqFilePath := s.flag.NameSubDirFiles + "/" + reqFileName // добавление директории размещения файла
+
+	fileContent, err := os.ReadFile(reqFilePath)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("Запрошенный файл <%s>, отсутствует", req.FileName))
+	}
+
+	fileHash, err := hashFile(reqFilePath)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("Ошибка вычисления хэша:<%v>, для файла:<%s> отсутствует", err, reqFilePath))
+	}
+
+	// Передача файла через stream.
+	size := 1024
+
+	for i := 0; i < len(fileContent); i += size {
+		end := i + size
+		if end > len(fileContent) {
+			end = len(fileContent)
+		}
+
+		if err := stream.Send(&pb.RequestFileByNameResponse{
+			FileName: reqFileName,
+			Content:  fileContent[i:end],
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Добавление метаданных Trailer
+	mdTrailer := metadata.Pairs("hash", fileHash, "token", token[0])
+	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
+		s.logger.Info("ошибка установки трейлера, для файла", zap.String("имя", reqFileName))
+		return status.Error(codes.Aborted, fmt.Sprintf("ошибка установки трейлера, для файла:<%s>", reqFileName))
+	}
+
+	s.logger.Info("Клиенту отправлен файл", zap.String("имя", reqFileName), zap.String("хэш", fileHash))
+
+	// Сброс статуса.
+	if err := s.UpdateStatusTx(stageNotActive); err != nil {
+		return status.Error(codes.Internal, "Ошибка обновления статуса")
+	}
+
+	s.logger.Info("Файл успешно отправлен")
+
+	return nil
+}
+
+// Обработчик информации по файлу.
+func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRequest) (resp *pb.RequestFileInfoResponse, err error) {
+
+	s.logger.Info("Принят запрос на информацию по файлу.")
+
+	// Получение токена аутентификации.
+	rxToken, err := layerRequestFileInfoToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена аутентификации", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "ошибка получения токена")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	_, fileName, err := layerRequestFileInfoRx(req)
+	if err != nil {
+		s.logger.Error("ошибка в данных запроса", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "ошибка в данных запроса")
+	}
+
+	// Логика обработчика.
+	filePath := s.flag.NameSubDirFiles + "/" + fileName
+	dataFile, err := layerRequestFileInfo(filePath)
+	if err != nil {
+		s.logger.Error("ошибка сбора информации", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка при сборе информации")
+	}
+
+	// Формирование ответа.
+	resp, err = layerRequestFileInfoTx(dataFile)
+	if err != nil {
+		s.logger.Error("ошибка формирования ответа", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка формирования ответа")
+	}
+
+	s.logger.Info("Запрос данных файла, обработан успешно.")
+
+	return resp, nil
+}
+
 //
 // Интерцепторы.
 //
@@ -973,34 +1125,68 @@ func (s *Manager) AuthInterceptorStream(srv interface{}, ss grpc.ServerStream, i
 
 // Получение значения статуса isBackUp. Возвращается текущее значение статуса.
 func (s *Manager) GetStatusBackUp() int32 {
-	return atomic.LoadInt32(&s.status.isBackUp)
+	return atomic.LoadInt32(&s.status.backUp)
 }
 
 // Обновление значения статуса isBackUp. Возвращается ошибка.
 func (s *Manager) UpdateStatusBackUp(stage int32) error {
 
-	if s.status.isBackUp != stageActive && s.status.isBackUp != stageNotActive {
+	if stage != stageActive && stage != stageNotActive {
 		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
 	}
 
-	atomic.StoreInt32(&s.status.isBackUp, stage)
+	atomic.StoreInt32(&s.status.backUp, stage)
 
 	return nil
 }
 
 // Получение значения статуса isRestore. Возвращается текущее значение статуса.
 func (s *Manager) GetStatusRestore() int32 {
-	return atomic.LoadInt32(&s.status.isRestore)
+	return atomic.LoadInt32(&s.status.restore)
 }
 
 // Обновление значения статуса isRestore. Возвращается ошибка.
 func (s *Manager) UpdateStatusRestore(stage int32) error {
 
-	if s.status.isRestore != stageActive && s.status.isRestore != stageNotActive {
+	if stage != stageActive && stage != stageNotActive {
 		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
 	}
 
-	atomic.StoreInt32(&s.status.isRestore, stage)
+	atomic.StoreInt32(&s.status.restore, stage)
+
+	return nil
+}
+
+// Получение значения статуса приёма файла от клиента. Возвращается текущее значение статуса.
+func (s *Manager) GetStatusRx() int32 {
+	return atomic.LoadInt32(&s.status.txFile)
+}
+
+// Обновление значения статуса приёма файла от клиента. Возвращается ошибка.
+func (s *Manager) UpdateStatusRx(stage int32) error {
+
+	if stage != stageActive && stage != stageNotActive {
+		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	}
+
+	atomic.StoreInt32(&s.status.txFile, stage)
+
+	return nil
+}
+
+// Получение значения статуса передачи файла клиенту. Возвращается текущее значение статуса.
+func (s *Manager) GetStatusTx() int32 {
+	return atomic.LoadInt32(&s.status.txFile)
+}
+
+// Обновление значения статуса передачи файла клиенту. Возвращается ошибка.
+func (s *Manager) UpdateStatusTx(stage int32) error {
+
+	if stage != stageActive && stage != stageNotActive {
+		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	}
+
+	atomic.StoreInt32(&s.status.txFile, stage)
 
 	return nil
 }
