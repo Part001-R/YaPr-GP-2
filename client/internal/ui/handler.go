@@ -1040,10 +1040,12 @@ func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 		if c.getStatusBackUp() != stageActive &&
 			c.getStatusRestore() != stageActive &&
 			c.getStatusPopContainer() != stageActive &&
-			c.getStatusPushContainer() != stageActive {
+			c.getStatusPushContainer() != stageActive &&
+			c.getStatusFileRx() != stageActive &&
+			c.getStatusFileTx() != stageActive {
 			break
 		}
-		time.Sleep(100 * time.Millisecond) // Ограничить использование ЦПУ.
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	return gocui.ErrQuit

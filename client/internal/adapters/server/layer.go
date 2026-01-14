@@ -208,23 +208,23 @@ func layerSendFileEncrypt(filePath string, key [32]byte) (encFilePath string, er
 }
 
 // Передача файла на сервер.
-func layerSendFileTx(client proto.PasswordManagerClient, filePath, tokenAuth, idClient string) (rxHash string, err error) {
+func layerSendFileTx(s *server, chProcess chan<- float32) (rxHash string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Установка метаданных с токеном
-	md := metadata.Pairs("token", tokenAuth)
+	md := metadata.Pairs("token", s.tokenSrv)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	// Инициализация стрима для передачи файла
-	stream, err := client.SendFile(ctx)
+	stream, err := s.client.SendFile(ctx)
 	if err != nil {
 		return "", fmt.Errorf("ошибка создания stream, для передачи данных: <%w>", err)
 	}
 
 	// Открытие файла для отправки
-	file, err := os.Open(filePath)
+	file, err := os.Open(s.dataTxFile.filePath)
 	if err != nil {
 		return "", fmt.Errorf("ошибка открытия файла передачи: <%w>", err)
 	}
@@ -239,7 +239,7 @@ func layerSendFileTx(client proto.PasswordManagerClient, filePath, tokenAuth, id
 	buf := make([]byte, 1024)
 
 	// Получение имени и тапа файла из полного пути
-	fileName := filepath.Base(filePath)
+	fileName := filepath.Base(s.dataTxFile.filePath)
 
 	for {
 		n, err := reader.Read(buf)
@@ -250,10 +250,13 @@ func layerSendFileTx(client proto.PasswordManagerClient, filePath, tokenAuth, id
 			break
 		}
 
+		// Обновление статистики процесса
+		updateDataTxProcess(s, chProcess, len(buf[:n]), &s.dataTxFile)
+
 		req := &pb.SendFileRequest{
 			FileName: fileName,
 			Content:  buf[:n],
-			IdClient: idClient,
+			IdClient: s.dataTxFile.clientID,
 		}
 
 		if err := stream.Send(req); err != nil {
@@ -269,7 +272,7 @@ func layerSendFileTx(client proto.PasswordManagerClient, filePath, tokenAuth, id
 
 	// Проверка имени файла из ответа.
 	if path.Base(resp.FileName) != path.Base(fileName) {
-		return "", fmt.Errorf("нет соответствия имени файла в ответе. Ожидалось:<%s>, а принято:<%s>", filePath, resp.FileName)
+		return "", fmt.Errorf("нет соответствия имени файла в ответе. Ожидалось:<%s>, а принято:<%s>", fileName, resp.FileName)
 	}
 
 	// Получение трейлера хэша
@@ -277,7 +280,7 @@ func layerSendFileTx(client proto.PasswordManagerClient, filePath, tokenAuth, id
 	if hash, ok := rxTrailer["hash"]; ok {
 		rxHash = hash[0]
 	} else {
-		return "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша для файла: <%s>", filePath)
+		return "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша для файла: <%s>", fileName)
 	}
 
 	// Результат

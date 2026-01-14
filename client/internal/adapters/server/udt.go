@@ -74,3 +74,13 @@ type dataRequestFile struct {
 	sizePassed  int64
 	secretKey   [32]byte
 }
+
+// Представление данных для передачи файла
+type dataSendFile struct {
+	filePath     string
+	tokenAuth    string
+	clientID     string
+	sizeSendFile int64
+	sizePassed   int64
+	secretKey    [32]byte
+}

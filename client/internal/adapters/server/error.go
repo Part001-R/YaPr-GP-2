@@ -75,6 +75,9 @@ var (
 	// В аргументе fileName, нет данных.
 	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
 
+	// В аргументе filePath, нет данных.
+	EmptyDataArgumentFilePath = errors.New("в аргументе <filePath>, нет данных")
+
 	// В аргументе tokenAuth, нет данных.
 	EmptyDataArgumentTokenAuth = errors.New("в аргументе <tokenAuth>, нет данных")
 

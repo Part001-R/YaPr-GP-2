@@ -27,6 +27,7 @@ type server struct {
 	tokenSrv   string                   // токен сервера.
 	mtx        mutexes                  // мьютексы.
 	dataRxFile dataRequestFile          // данные для приёма файла.
+	dataTxFile dataSendFile             // данные для передачи файла.
 }
 
 // Интерфейс действий.
@@ -36,7 +37,7 @@ type ActionsI interface {
 	SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error
 	SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error
 	SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error
-	SendFile(fileName, tokenSrv, idClient string, key [32]byte) error
+	SendFile(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
 	RequestLoginPasswordNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
 	RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error)
 	RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
@@ -47,6 +48,7 @@ type ActionsI interface {
 	RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error)
 	RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
 	InitDataRequestFileByName(fileName, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error
+	InitDataSendFile(filePath, tokenAuth, clientID string, sizeSendFile, sizePassed int64, secretKey [32]byte) error
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -362,39 +364,39 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 }
 
 // Передача файла.
-func (s *server) SendFile(fileName, tokenSrv, idClient string, key [32]byte) error {
+func (s *server) SendFile(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}) {
 
-	// Проверка аргументов.
-	if fileName == "" {
-		return EmptyDataArgumentFileName
-	}
-	if s.client == nil {
-		return NilPtrConnect
-	}
+	defer func() {
+		close(chProcess)
+		close(chErr)
+		close(chDone)
+	}()
 
 	// Создание зашифрованной версии файла.
-	enNameFile, err := layerSendFileEncrypt(fileName, key)
+	enNameFile, err := layerSendFileEncrypt(s.dataTxFile.filePath, s.dataTxFile.secretKey)
 	if err != nil {
-		return fmt.Errorf("Функция layerSendFileEncrypt, вернула ошибку: <%w>", err)
+		chErr <- fmt.Errorf("Функция layerSendFileEncrypt, вернула ошибку: <%w>", err)
 	}
 
 	// Передача файла.
-	rxHash, err := layerSendFileTx(s.client, enNameFile, tokenSrv, idClient)
+	s.dataTxFile.filePath = enNameFile
+
+	rxHash, err := layerSendFileTx(s, chProcess)
 	if err != nil {
-		return fmt.Errorf("Функция layerSendFileTx, вернула ошибку: <%w>", err)
+		chErr <- fmt.Errorf("Функция layerSendFileTx, вернула ошибку: <%w>", err)
 	}
 
-	// Вычисление хеша переданного файла
+	// Проверка хэш.
 	if err := layerSendFileCheckHash(enNameFile, rxHash); err != nil {
-		return fmt.Errorf("Функция layerSendFileCheckHash, вернула ошибку: <%w>", err)
+		chErr <- fmt.Errorf("Функция layerSendFileCheckHash, вернула ошибку: <%w>", err)
 	}
 
 	// Удаление созданного зашифрованного файла
 	if err := layerSendFileRemove(enNameFile); err != nil {
-		return fmt.Errorf("Функция layerSendFileRemove, вернула ошибку: <%w>", err)
+		chErr <- fmt.Errorf("Функция layerSendFileRemove, вернула ошибку: <%w>", err)
 	}
 
-	return nil
+	chDone <- struct{}{}
 }
 
 // Запрос у сервера имён записей для логин/пароль
@@ -624,6 +626,36 @@ func (s *server) InitDataRequestFileByName(fileName, tokenAuth, clientID string,
 		sizeReqFile: sizeReqFile,
 		sizePassed:  sizePassed,
 		secretKey:   secretKey,
+	}
+
+	return nil
+}
+
+// Инициализация данных, для процесса приёма файла.
+func (s *server) InitDataSendFile(filePath, tokenAuth, clientID string, sizeSendFile, sizePassed int64, secretKey [32]byte) error {
+
+	// Проверка аргументов
+	if filePath == "" {
+		return EmptyDataArgumentFilePath
+	}
+	if tokenAuth == "" {
+		return EmptyDataArgumentTokenAuth
+	}
+	if clientID == "" {
+		return EmptyDataArgumentClientID
+	}
+	if len(secretKey) != 32 {
+		return NotCorrectLenData
+	}
+
+	// Данные
+	s.dataTxFile = dataSendFile{
+		filePath:     filePath,
+		tokenAuth:    tokenAuth,
+		clientID:     clientID,
+		sizeSendFile: sizeSendFile,
+		sizePassed:   0,
+		secretKey:    secretKey,
 	}
 
 	return nil

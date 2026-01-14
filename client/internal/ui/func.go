@@ -2230,7 +2230,7 @@ func totalFileSize(files []string) (int64, error) {
 	for _, filename := range files {
 		fileInfo, err := os.Stat(filename)
 		if err != nil {
-			return 0, fmt.Errorf("Ошибка получения данных по файлу: <%s>", filename)
+			return 0, fmt.Errorf("Ошибка получения данных по файлу: <%w>", err)
 		}
 
 		// Проверка переполнения.
@@ -2243,6 +2243,21 @@ func totalFileSize(files []string) (int64, error) {
 	}
 
 	return totalSize, nil
+}
+
+// Определение размера в в КБайт. Возвращается общий размер и ошибка.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
+func fileSize(filePath string) (int64, error) {
+
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("Ошибка получения данных по файлу: <%w>", err)
+	}
+
+	return fileInfo.Size() / 1024, nil
 }
 
 // Вычисление процента выполнения.
@@ -2611,8 +2626,6 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 		// Проценты процесса.
 		case percent, ok := <-rxChProcess:
 			if !ok {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("--- Проент выполнения: <%.2f>", percent)) // ---------------------------------------------------
-
 				c.updateStatusFileRx(stageNotActive)
 				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChProcess")
 				return
@@ -2639,6 +2652,46 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 			}
 			c.updateStatusFileRx(stageOk)
 			c.conf.PtrLoggerFile.Write("Info: файл успешно принят")
+			return
+		}
+	}
+}
+
+// Приём данных процесса передачи файла на сервера.
+func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr <-chan error, txChDone <-chan struct{}) {
+
+	// Обработка каналов.
+	for {
+		select {
+		// Проценты процесса.
+		case percent, ok := <-txChProcess:
+			if !ok {
+				c.updateStatusFileTx(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала txChProcess")
+				return
+			}
+			c.setPercentTxRx(float32(percent))
+
+			// Ошибка.
+		case err, ok := <-txChErr:
+			if !ok {
+				c.updateStatusFileTx(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала txChErr")
+				return
+			}
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса передачи файла на сервер:<%v>", err))
+			c.updateStatusFileTx(stageFault)
+			return
+
+			// Отправка выполнена.
+		case _, ok := <-txChDone:
+			if !ok {
+				c.updateStatusFileTx(stageNotActive)
+				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала txChDone")
+				return
+			}
+			c.updateStatusFileTx(stageOk)
+			c.conf.PtrLoggerFile.Write("Info: файл успешно отправлен")
 			return
 		}
 	}
@@ -2684,14 +2737,37 @@ func doStoreViewBinaryData(c *handlerUI) error {
 	// Если режим - удалённый
 	if c.conf.Flag.Mode == flags.ModeRemote {
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
+		if c.getStatusFileRx() == stageNotActive && c.getStatusFileTx() == stageNotActive {
 
-		if err := c.conf.Server.SendFile(c.typed.dataPathSrc, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция Server.SendFile, вернула ошибку: <%v>", err))
-			return nil
+			// Установка признака, что процесс передачи активный.
+			c.updateStatusFileTx(stageActive)
+			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
+
+			// Получение размера файла.
+			fileSize, err := fileSize(c.typed.dataPathSrc)
+			if err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция fileSize, вернула ошибку:<%v>", err))
+				c.updateStatusFileTx(stageFault)
+				return nil
+			}
+
+			// Инициализация данных процесса передачи.
+			if err := c.conf.Server.InitDataSendFile(c.typed.dataPathSrc, c.tokenAuth, c.clientName, fileSize, 0, c.secret.secretKey); err != nil {
+				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция InitDataSendFile, вернула ошибку:<%v>", err))
+				c.updateStatusFileTx(stageFault)
+				return nil
+			}
+
+			chProcess := make(chan float32)
+			chErr := make(chan error)
+			chDone := make(chan struct{})
+
+			// Передача файла.
+			go c.conf.Server.SendFile(chProcess, chErr, chDone)
+
+			// Приём данных процесса.
+			go bufferProcessTxFileByName(c, chProcess, chErr, chDone)
 		}
-
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Завершен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
 	}
 
 	return nil

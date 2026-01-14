@@ -401,7 +401,7 @@ func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rx
 		}
 
 		// Обновление статистики процесса
-		updateDataTxRxProcess(s, chProcess, len(res.Content), data)
+		updateDataRxProcess(s, chProcess, len(res.Content), data)
 
 		// Запись данных в файл
 		if _, err := file.Write(res.Content); err != nil {
@@ -498,7 +498,32 @@ func checkResultRequestFile(fileName, rxFileHash, srcFileHash string) error {
 //
 //	c - конфигурация.
 //	b - количество переданных байт.
-func updateDataTxRxProcess(s *server, chProcess chan<- float32, b int, data *dataRequestFile) {
+func updateDataRxProcess(s *server, chProcess chan<- float32, b int, data *dataRequestFile) {
+
+	s.mtx.processRxFile.Lock()
+	defer s.mtx.processRxFile.Unlock()
+
+	// Получение КБайт из Байт.
+	volumeKB := b / 1024
+
+	// Обновление данных накопителя.
+	data.sizePassed += int64(volumeKB)
+
+	// Вычисление процентов.
+	if data.sizeReqFile > 0 {
+		chProcess <- float32(float64(data.sizePassed) / float64(data.sizeReqFile) * 100.0)
+	} else {
+		chProcess <- 0
+	}
+}
+
+// Вычисление процента выполнения.
+//
+// Параметры:
+//
+//	c - конфигурация.
+//	b - количество переданных байт.
+func updateDataTxProcess(s *server, chProcess chan<- float32, b int, data *dataSendFile) {
 
 	s.mtx.processTxFile.Lock()
 	defer s.mtx.processTxFile.Unlock()
@@ -510,8 +535,8 @@ func updateDataTxRxProcess(s *server, chProcess chan<- float32, b int, data *dat
 	data.sizePassed += int64(volumeKB)
 
 	// Вычисление процентов.
-	if data.sizeReqFile > 0 {
-		chProcess <- float32(float64(data.sizePassed) / float64(data.sizeReqFile) * 100.0)
+	if data.sizeSendFile > 0 {
+		chProcess <- float32(float64(data.sizePassed) / float64(data.sizeSendFile) * 100.0)
 	} else {
 		chProcess <- 0
 	}
