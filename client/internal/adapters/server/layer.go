@@ -13,12 +13,157 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+//
+// --- backUp ---
+//
+
+// Создание токена.
+func layerBackUpCreateToken() (secretKey, token string, err error) {
+
+	// Создание ключа.
+	secretKey, err = generateRandomString(50)
+	if err != nil {
+		return "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+	}
+
+	// Создание токена.
+	timeValidToken := time.Duration(72 * time.Hour)
+	token, err = createToken("clientManager", secretKey, timeValidToken)
+	if err != nil {
+		return "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return secretKey, token, nil
+}
+
+// Передача файла.
+func layerBackUpTxFile(s *server, fileName, token string, chProcess chan<- float32, lgr *logfile.LogFile) (resp *pb.LocalBackupFileResponse, rxHash, rxToken string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", token)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Инициация стрима для загрузки файла
+	stream, err := s.client.LocalBackupFile(ctx)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("ошибка создания stream, для передачи данных: <%w>", err)
+	}
+
+	// Открытие файла для отправки
+	file, err := os.Open(fileName)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("ошибка открытия файла передачи: <%w>", err)
+	}
+	defer func() {
+		if errCl := file.Close(); errCl != nil {
+			err = fmt.Errorf("Error: Ошибка закрытия подключения к файлу: <%w>. Базовая ошибка: <%w>", err, errCl)
+		}
+	}()
+
+	// Чтение файла по частям
+	reader := bufio.NewReader(file)
+	buf := make([]byte, 1024)
+
+	for {
+		n, err := reader.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				return nil, "", "", fmt.Errorf("ошибка при чтении файла: <%w>", err)
+			}
+			break
+		}
+
+		req := &pb.LocalBackupFileRequest{
+			FileName: fileName,
+			Content:  buf[:n],
+		}
+
+		if err := stream.Send(req); err != nil {
+			return nil, "", "", fmt.Errorf("ошибка отправки данных файла: <%w>", err)
+		}
+
+		// Обновление статистики процесса.
+		updateDataBackUpRestoreProcess(s, chProcess, n)
+	}
+
+	// Закрытие потока передачи и ожидание ответа от сервера.
+	resp, err = stream.CloseAndRecv()
+	if err != nil {
+		return nil, "", "", fmt.Errorf("ошибка получения ответа от сервера: <%w>", err)
+	}
+
+	// Получение трейлера хэша
+	rxTrailer := stream.Trailer()
+	if hash, ok := rxTrailer["hash"]; ok {
+		rxHash = hash[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", fileName)
+	}
+
+	if token, ok := rxTrailer["token"]; ok {
+		rxToken = token[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными токена, для файла: <%s>", fileName)
+	}
+
+	// Результат.
+	return resp, rxHash, rxToken, nil
+}
+
+// Проверка результата.
+func layerBackUpCheckResult(resp *proto.LocalBackupFileResponse, txFileName, txFileHash, rxFileHash, rxToken, secretKey string) error {
+
+	// Проверка аргументов.
+	if resp == nil {
+		return NilPtrArgumentResp
+	}
+	if txFileName == "" {
+		return EmptyDataArgumentTxFileName
+	}
+	if txFileHash == "" {
+		return EmptyDataArgumentTxFileHash
+	}
+	if rxFileHash == "" {
+		return EmptyDataArgumentRxFileHash
+	}
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
+	}
+
+	// Проверка содержимого ответа сервера.
+	respFileName := resp.FileName
+
+	if txFileName != respFileName {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s>. Ожидалось имя:<%s>, а принято:<%s>", txFileName, txFileName, respFileName)
+	}
+	if txFileHash != rxFileHash {
+		return fmt.Errorf("ошибка подтверждения сервером, для файла:<%s> Ожидался хэш:<%s>, а принято:<%s>", txFileName, txFileHash, rxFileHash)
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
 
 //
 // --- SendLoginPassword ---
@@ -944,6 +1089,237 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 		if _, err := outputFile.Write(plaintext); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+//
+// --- RestoreRequestFilesInfo ---
+//
+
+// Создание токена.
+func layerRestoreRequestFilesInfoCreateToken() (secretKey, token string, err error) {
+
+	// Создание ключа.
+	secretKey, err = generateRandomString(50)
+	if err != nil {
+		return "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+	}
+
+	// Создание токена.
+	timeValidToken := time.Duration(72 * time.Hour)
+	token, err = createToken("clientManager", secretKey, timeValidToken)
+	if err != nil {
+		return "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return secretKey, token, nil
+}
+
+// Запрос.
+func layerRestoreRequestFilesInfoRequest(client proto.PasswordManagerClient, token string) (files []InfoByFiles, rxToken string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", token)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	var trailer metadata.MD
+
+	// Запрос у сервера информации по файлам.
+	emptyRequest := &emptypb.Empty{}
+	infoResp, err := client.LocalFilesInfo(
+		ctx,
+		emptyRequest,
+		grpc.Trailer(&trailer),
+	)
+	if err != nil {
+		return nil, "", fmt.Errorf("Функция client.FilesInfo, вернула ошибку: <%v>", err)
+	}
+
+	// Получение трейлера
+	if trailer != nil {
+		val, ok := trailer["token"]
+		if !ok {
+			return nil, "", ErrMetadata
+		}
+		rxToken = val[0]
+	}
+
+	// Обработка результата запроса.
+	for _, f := range infoResp.FileInfo {
+		var el InfoByFiles
+
+		el.Name = f.FileName
+		el.Volume = f.Size
+
+		files = append(files, el)
+	}
+
+	// Результат.
+	return files, rxToken, nil
+}
+
+// Проверка токена.
+func layerRestoreRequestFilesInfoCheckToken(rxToken, secretKey string) error {
+
+	// Проверка аргументов.
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- Restore ---
+//
+
+// Создание токена.
+func layerRestoreCreateToken() (secretKey, token string, err error) {
+
+	// Создание ключа.
+	secretKey, err = generateRandomString(50)
+	if err != nil {
+		return "", "", fmt.Errorf("функция generateRandomString, вернула ошибку: <%w>", err)
+	}
+
+	// Создание токена.
+	timeValidToken := time.Duration(72 * time.Hour)
+	token, err = createToken("clientManager", secretKey, timeValidToken)
+	if err != nil {
+		return "", "", fmt.Errorf("функция createToken, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return secretKey, token, nil
+}
+
+// Проверка ответа от сервера.
+func layerReqFilesCheckResult(rxToken, secretKey string) error {
+
+	// Проверка аргументов.
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+// Приём файла.
+func layerRestoreRxFile(s *server, fileName, token string, chProcess chan<- float32) (content []byte, rxFileHash, rxToken string, err error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", token)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.LocalRestoreFileRequest{FileName: fileName}
+	stream, err := s.client.LocalRestoreFile(ctx, req)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("Функция client.RestoreFile, вернула ошибку: <%w>", err)
+	}
+
+	// Чтение потоком.
+	for {
+		res, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, "", "", fmt.Errorf("Функция stream.Recv, вернула ошибку: <%w>", err)
+		}
+		if res.FileName != fileName {
+			return nil, "", "", fmt.Errorf("Приняты данные для другого файла: <%s>", res.FileName)
+		}
+
+		// Обновление статистики процесса.
+		updateDataBackUpRestoreProcess(s, chProcess, len(res.Content))
+
+		content = append(content, res.Content...)
+	}
+
+	// Получение трейлера после завершения потока
+	rxTrailer := stream.Trailer()
+	if hash, ok := rxTrailer["hash"]; ok {
+		rxFileHash = hash[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", fileName)
+	}
+	if token, ok := rxTrailer["token"]; ok {
+		rxToken = token[0]
+	} else {
+		return nil, "", "", fmt.Errorf("Сервер не предоставил трейлер с данными токена, для файла: <%s>", fileName)
+	}
+
+	// Результат
+	return content, rxFileHash, rxToken, nil
+}
+
+// Сохранение файла.
+func layerRestoreSaveFile(content []byte, fileName string) error {
+
+	if err := os.WriteFile(fileName, content, 0644); err != nil {
+		return fmt.Errorf("Функция os.WriteFile, вернула ошибку: <%v>", err)
+	}
+
+	return nil
+}
+
+// Проверка ответа от сервера.
+func layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretKey string) error {
+
+	// Проверка аргументов.
+	if fileName == "" {
+		return EmptyDataArgumentFileName
+	}
+	if rxFileHash == "" {
+		return EmptyDataArgumentRxFileHash
+	}
+	if srcFileHash == "" {
+		return EmptyDataArgumentSrcFileHash
+	}
+	if rxToken == "" {
+		return EmptyDataArgumentRxToken
+	}
+	if secretKey == "" {
+		return EmptyDataArgumentSecretKey
+	}
+
+	// Анализ данных ответа от сервера.
+	rxFileHash, err := hashFile(fileName)
+	if err != nil {
+		return fmt.Errorf("Функция hashFile, вернула ошибку:<%w>", err)
+	}
+	if srcFileHash != rxFileHash {
+		return fmt.Errorf("Для файла:<%s>, нет соответствия хэша. Ожидался:<%s>, а принято:<%s>", fileName, srcFileHash, rxFileHash)
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken, secretKey); err != nil {
+		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
 	}
 
 	return nil

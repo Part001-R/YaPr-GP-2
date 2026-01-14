@@ -155,7 +155,7 @@ func layerBackUpTxFile(client proto.PasswordManagerClient, fileName, token strin
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка при закрытии подключения к файлу: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка при закрытии подключения к файлу: <%v>", err))
 		}
 	}()
 

@@ -120,7 +120,7 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения: <%v>", err))
 		}
 	}()
 
@@ -2316,58 +2316,25 @@ func requestFilesInfo(client proto.PasswordManagerClient, c *handlerUI) error {
 	return nil
 }
 
-// Процесс backUp.
-func doBackupProcess(filesList []string, c *handlerUI) {
-
-	// Подключение к серверу.
-	client, conn, err := connectSrv(c)
-	if err != nil {
-		c.updateStatusRestore(stageFault)
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
-		return
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-		}
-	}()
-
-	// Передача файлов.
-	for _, f := range filesList {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запуск процесса резервного копирования <%s>", f))
-
-		if err := backUp(c, f, client); err != nil {
-			c.updateStatusBackUp(stageFault)
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка backUp:<%v>, файла:<%s> ", err, f))
-			return
-		}
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Резервное копирование <%s>, выполнено", f))
-
-	}
-
-	// Установка признака, что процесс выполнен.
-	c.updateStatusBackUp(stageOk)
-}
-
 // Процесс restrore.
 func doRestoreProcess(filesList []string, c *handlerUI) {
 
 	// Подключение к серверу.
 	client, conn, err := connectSrv(c)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
 		c.updateStatusRestore(stageFault)
 		return
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
 		}
 	}()
 
 	// Запрос у сервера информации по файлам (имя, размер), которые будут приняты.
 	if err := requestFilesInfo(client, c); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция requestFilesInfo, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция requestFilesInfo, вернула ошибку: <%v>", err))
 		c.updateStatusRestore(stageFault)
 		return
 	}
@@ -2375,11 +2342,11 @@ func doRestoreProcess(filesList []string, c *handlerUI) {
 	// Получение файлов.
 	for _, f := range filesList {
 		if err := restore(c, f, client); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка restore: <%v>, при приёме: <%s> ", err, f))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка restore: <%v>, при приёме: <%s> ", err, f))
 			c.updateStatusRestore(stageFault)
 			return
 		}
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Восстановление файла <%s>, выполнено", f))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Восстановление файла <%s>, выполнено", f))
 	}
 
 	// Установка признака, что восстановление выполнено.
@@ -2499,7 +2466,7 @@ func deferProcessRestoreByError(dooRestore bool, fileName, tempFileName string, 
 func bufferProcessPushContainer(c *handlerUI, rxChProcess <-chan float64, rxChErr <-chan error, rxChOk <-chan struct{}) {
 
 	defer func() {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Завершён процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Завершён процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
 	}()
 
 	for {
@@ -2516,7 +2483,7 @@ func bufferProcessPushContainer(c *handlerUI, rxChProcess <-chan float64, rxChEr
 				c.updateStatusPushContainer(stageNotActive)
 				return
 			}
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса добавления файла в контейнер:<%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка процесса добавления файла в контейнер:<%v>", err))
 			c.updateStatusPushContainer(stageFault)
 			return
 
@@ -2536,14 +2503,14 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 	fullNameFile := c.typed.dataPathTrg + nameFile
 
 	defer func(fileName, fullNameFile string, file *os.File, fileExist bool) {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Завершён процесс извлечения из контейнера файла:<%s>", fileName))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Завершён процесс извлечения из контейнера файла:<%s>", fileName))
 		close(txChBreak)
 
 		// Закрытие подключения к файлу
 		if fileExist {
 			if err := file.Close(); err != nil {
 				c.updateStatusPopContainer(stageFault)
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка:<%v>, при закрытии подключения к файлу:<%s>", err, fullNameFile))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка:<%v>, при закрытии подключения к файлу:<%s>", err, fullNameFile))
 				return
 			}
 		}
@@ -2553,7 +2520,7 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 	// Проверка существования файла.
 	if isFileExists(fullNameFile) {
 		c.updateStatusPopContainer(stageFault)
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Warn: Файл:<%s>, уже существует", fullNameFile))
+		c.conf.LgrFile.Write(fmt.Sprintf("Warn: Файл:<%s>, уже существует", fullNameFile))
 		fileExists = true
 
 		txChBreak <- struct{}{} // Передача сигнала - прекратить процесс.
@@ -2564,7 +2531,7 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 		outFile, err = os.Create(fullNameFile)
 		if err != nil {
 			c.updateStatusPopContainer(stageFault)
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Не удалось создать файл:<%s>, ошибка:<%v>", fullNameFile, err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Не удалось создать файл:<%s>, ошибка:<%v>", fullNameFile, err))
 			return
 		}
 	}
@@ -2575,7 +2542,7 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 		case percent, ok := <-rxChProcess:
 			if !ok {
 				c.updateStatusPopContainer(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChProcess")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChProcess")
 				return
 			}
 			c.setPercentTxRx(float32(percent))
@@ -2583,17 +2550,17 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 		case err, ok := <-rxChErr:
 			if !ok {
 				c.updateStatusPopContainer(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChErr")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChErr")
 				return
 			}
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса извлечения файла из контейнера:<%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка процесса извлечения файла из контейнера:<%v>", err))
 			c.updateStatusPopContainer(stageFault)
 			return
 
 		case _, ok := <-rxChDone:
 			if !ok {
 				c.updateStatusPopContainer(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChDone")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
 				return
 			}
 			c.updateStatusPopContainer(stageOk)
@@ -2603,12 +2570,12 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 		case data, ok := <-rxChData:
 			if !ok {
 				c.updateStatusPopContainer(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChData")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChData")
 				return
 			}
 			if !fileExists {
 				if _, err := outFile.Write(data); err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Не удалось записать данные в файл:<%s>, ошибка:<%v>", fullNameFile, err))
+					c.conf.LgrFile.Write(fmt.Sprintf("Error: Не удалось записать данные в файл:<%s>, ошибка:<%v>", fullNameFile, err))
 					c.updateStatusPopContainer(stageFault)
 					return
 				}
@@ -2627,7 +2594,7 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 		case percent, ok := <-rxChProcess:
 			if !ok {
 				c.updateStatusFileRx(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChProcess")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChProcess")
 				return
 			}
 			c.setPercentTxRx(float32(percent))
@@ -2636,10 +2603,10 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 		case err, ok := <-rxChErr:
 			if !ok {
 				c.updateStatusFileRx(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChErr")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChErr")
 				return
 			}
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса приёма файла от сервера:<%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка процесса приёма файла от сервера:<%v>", err))
 			c.updateStatusFileRx(stageFault)
 			return
 
@@ -2647,11 +2614,11 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 		case _, ok := <-rxChDone:
 			if !ok {
 				c.updateStatusFileRx(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала rxChDone")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
 				return
 			}
 			c.updateStatusFileRx(stageOk)
-			c.conf.PtrLoggerFile.Write("Info: файл успешно принят")
+			c.conf.LgrFile.Write("Info: файл успешно принят")
 			return
 		}
 	}
@@ -2667,7 +2634,7 @@ func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr
 		case percent, ok := <-txChProcess:
 			if !ok {
 				c.updateStatusFileTx(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала txChProcess")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала txChProcess")
 				return
 			}
 			c.setPercentTxRx(float32(percent))
@@ -2676,10 +2643,10 @@ func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr
 		case err, ok := <-txChErr:
 			if !ok {
 				c.updateStatusFileTx(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала txChErr")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала txChErr")
 				return
 			}
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка процесса передачи файла на сервер:<%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка процесса передачи файла на сервер:<%v>", err))
 			c.updateStatusFileTx(stageFault)
 			return
 
@@ -2687,11 +2654,11 @@ func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr
 		case _, ok := <-txChDone:
 			if !ok {
 				c.updateStatusFileTx(stageNotActive)
-				c.conf.PtrLoggerFile.Write("Error: Неожиданное закрытие канала txChDone")
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала txChDone")
 				return
 			}
 			c.updateStatusFileTx(stageOk)
-			c.conf.PtrLoggerFile.Write("Info: файл успешно отправлен")
+			c.conf.LgrFile.Write("Info: файл успешно отправлен")
 			return
 		}
 	}
@@ -2705,7 +2672,7 @@ func doStoreViewBinaryData(c *handlerUI) error {
 		if c.getStatusPopContainer() == stageNotActive && c.getStatusPushContainer() == stageNotActive {
 
 			c.updateStatusPushContainer(stageActive)
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
+			c.conf.LgrFile.Write(fmt.Sprintf("Info: Запущен процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
 
 			// Сброс
 			c.txrx.passedKB = 0
@@ -2717,7 +2684,7 @@ func doStoreViewBinaryData(c *handlerUI) error {
 
 			c.txrx.totalSizeKB, err = totalFileSize(files)
 			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
 				c.updateStatusBackUp(stageFault)
 				return nil
 			}
@@ -2741,19 +2708,19 @@ func doStoreViewBinaryData(c *handlerUI) error {
 
 			// Установка признака, что процесс передачи активный.
 			c.updateStatusFileTx(stageActive)
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запущен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
+			c.conf.LgrFile.Write(fmt.Sprintf("Info: Запущен процесс передачи на сервер файла:<%s>", c.typed.dataPathSrc))
 
 			// Получение размера файла.
 			fileSize, err := fileSize(c.typed.dataPathSrc)
 			if err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция fileSize, вернула ошибку:<%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция fileSize, вернула ошибку:<%v>", err))
 				c.updateStatusFileTx(stageFault)
 				return nil
 			}
 
 			// Инициализация данных процесса передачи.
 			if err := c.conf.Server.InitDataSendFile(c.typed.dataPathSrc, c.tokenAuth, c.clientName, fileSize, 0, c.secret.secretKey); err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция InitDataSendFile, вернула ошибку:<%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция InitDataSendFile, вернула ошибку:<%v>", err))
 				c.updateStatusFileTx(stageFault)
 				return nil
 			}
@@ -2788,50 +2755,50 @@ func doStoreViewBankCardData(c *handlerUI) error {
 		// Шифрование данных
 		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
 			return nil
 		}
 		encrOwner, err := encrypt(c.typed.dataOwner, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataOwner: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataOwner: <%v>", err))
 			return nil
 		}
 		encrNumb, err := encrypt(c.typed.dataNumb, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataNumb: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataNumb: <%v>", err))
 			return nil
 		}
 		encrValid, err := encrypt(c.typed.dataValidDate, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataValidDate: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataValidDate: <%v>", err))
 			return nil
 		}
 		encrCode, err := encrypt(c.typed.dataCode, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataCode: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataCode: <%v>", err))
 			return nil
 		}
 		tn := time.Now().UTC()
 		strT := tn.Format(time.RFC3339)
 		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
 			return nil
 		}
 
 		// Проверка номера банковской карты на валидность.
 		if !checkCardNumber(c.typed.dataNumb) {
-			c.conf.PtrLoggerFile.Write("Error: номер карты, не прошел проверку")
+			c.conf.LgrFile.Write("Error: номер карты, не прошел проверку")
 			return nil
 		}
 
 		// Добавление зашифрованных данных в БД.
 		if err := c.conf.DataBase.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Debug: карта добавлена в БД")
+		c.conf.LgrFile.Write("Debug: карта добавлена в БД")
 		c.status.addBankCardSUCCESS = true
 	}
 
@@ -2860,11 +2827,11 @@ func doStoreViewBankCardData(c *handlerUI) error {
 		token := c.conf.Server.GetTokenAuthentication()
 
 		if err := c.conf.Server.SendBankCard(ctx, txData, token, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция SendBankCard, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция SendBankCard, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Info: банковская карта, успешно передана на сервер")
+		c.conf.LgrFile.Write("Info: банковская карта, успешно передана на сервер")
 		c.status.addBankCardSUCCESS = true
 	}
 
@@ -2886,28 +2853,28 @@ func doStoreViewTextData(c *handlerUI) error {
 		// Шифрование данных
 		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
 			return nil
 		}
 		encrText, err := encrypt(c.typed.dataText, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataText: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataText: <%v>", err))
 			return nil
 		}
 		tn := time.Now().UTC()
 		strT := tn.Format(time.RFC3339)
 		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
 			return nil
 		}
 		// Добавление зашифрованных данных в БД.
 		if err := c.conf.DataBase.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Debug: текст добавлен в БД")
+		c.conf.LgrFile.Write("Debug: текст добавлен в БД")
 		c.status.addTextSUCCESS = true
 	}
 
@@ -2933,11 +2900,11 @@ func doStoreViewTextData(c *handlerUI) error {
 		token := c.conf.Server.GetTokenAuthentication()
 
 		if err := c.conf.Server.SendText(ctx, txData, token, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция SendText, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция SendText, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Info: текст, успешно передан на сервер")
+		c.conf.LgrFile.Write("Info: текст, успешно передан на сервер")
 		c.status.addTextSUCCESS = true
 	}
 
@@ -2959,34 +2926,34 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 		// Шифрование данных
 		encrFor, err := encrypt(c.typed.dataFor, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataFor: <%v>", err))
 			return nil
 		}
 		encrLogin, err := encrypt(c.typed.dataLogin, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataLogin: <%v>", err))
 			return nil
 		}
 		encrPassword, err := encrypt(c.typed.dataPassword, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого dataPassword: <%v>", err))
 			return nil
 		}
 		tn := time.Now().UTC()
 		strT := tn.Format(time.RFC3339)
 		encrCreatedAt, err := encrypt(strT, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка шифрования содержимого времени создания: <%v>", err))
 			return nil
 		}
 
 		// Добавление зашифрованных данных в БД.
 		if err := c.conf.DataBase.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Info: пара логин/пароль добавлена в БД")
+		c.conf.LgrFile.Write("Info: пара логин/пароль добавлена в БД")
 		c.status.addLoginPaaswordSUCCESS = true
 	}
 
@@ -3013,11 +2980,11 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 		token := c.conf.Server.GetTokenAuthentication()
 
 		if err := c.conf.Server.SendLoginPassword(ctx, txData, token, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция SendLoginPassword, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция SendLoginPassword, вернула ошибку: <%v>", err))
 			return nil
 		}
 
-		c.conf.PtrLoggerFile.Write("Info: пара логин/пароль, успешно передана на сервер")
+		c.conf.LgrFile.Write("Info: пара логин/пароль, успешно передана на сервер")
 		c.status.addLoginPaaswordSUCCESS = true
 	}
 
@@ -3040,7 +3007,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if el.name != "" {
@@ -3055,7 +3022,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Login.
 		fieldLogin, err := gui.View("fieldShowLogin")
 		if err != nil || fieldLogin == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
 			return nil
 		}
 		if el.login != "" {
@@ -3070,7 +3037,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Password.
 		fieldPassword, err := gui.View("fieldShowPassword")
 		if err != nil || fieldPassword == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
 			return nil
 		}
 		if el.password != "" {
@@ -3093,7 +3060,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		name := nameLoginPasswordByIndex(c) // получение имени записи по индексу
 		incrIndexNamesloginPassword(c)      // увеличение значения индекса
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных логин/пароль по имени: <%s>", name))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Запрос данных логин/пароль по имени: <%s>", name))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -3101,7 +3068,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// Запрос логин/пароль у сервера, по имени записи
 		rxData, err := c.conf.Server.RequestLoginPasswordByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestLoginPasswordByName, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция RequestLoginPasswordByName, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -3110,7 +3077,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if rxData.For != "" {
@@ -3125,7 +3092,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Login.
 		fieldLogin, err := gui.View("fieldShowLogin")
 		if err != nil || fieldLogin == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
 			return nil
 		}
 		if rxData.Login != "" {
@@ -3140,7 +3107,7 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Password.
 		fieldPassword, err := gui.View("fieldShowPassword")
 		if err != nil || fieldPassword == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
 			return nil
 		}
 		if rxData.Password != "" {
@@ -3172,7 +3139,7 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if el.name != "" {
@@ -3187,7 +3154,7 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Login.
 		fieldText, err := gui.View("fieldShowText")
 		if err != nil || fieldText == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
 			return nil
 		}
 		if el.text != "" {
@@ -3212,7 +3179,7 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		name := nameTextByIndex(c) // получение записи по индексу
 		incrIndexNamesText(c)      // увеличение значения индекса
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных текста по имени: <%s>", name))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Запрос данных текста по имени: <%s>", name))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -3220,7 +3187,7 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// Запрос текста у сервера, по имени записи
 		rxData, err := c.conf.Server.RequestTextByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestTextByName, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция RequestTextByName, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -3229,7 +3196,7 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if rxData.For != "" {
@@ -3244,7 +3211,7 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Login.
 		fieldText, err := gui.View("fieldShowText")
 		if err != nil || fieldText == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
 			return nil
 		}
 		if rxData.Text != "" {
@@ -3278,7 +3245,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Для.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if el.name != "" {
@@ -3293,7 +3260,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Владелец.
 		fieldOwner, err := gui.View("fieldShowOwner")
 		if err != nil || fieldOwner == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
 			return nil
 		}
 		if el.owner != "" {
@@ -3308,7 +3275,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Номер.
 		fieldNumb, err := gui.View("fieldShowNumber")
 		if err != nil || fieldNumb == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
 			return nil
 		}
 		if el.numb != "" {
@@ -3323,7 +3290,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Валидность.
 		fieldValid, err := gui.View("fieldShowValid")
 		if err != nil || fieldValid == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
 			return nil
 		}
 		if el.valid != "" {
@@ -3338,7 +3305,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Код.
 		fieldCode, err := gui.View("fieldShowCode")
 		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
 			return nil
 		}
 		if el.code != "" {
@@ -3361,7 +3328,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		name := nameBankCardByIndex(c) // получение записи по индексу
 		incrIndexNamesBankCard(c)      // увеличение значения индекса
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных банковской карты по имени: <%s>", name))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Запрос данных банковской карты по имени: <%s>", name))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -3369,7 +3336,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// Запрос банковской карты у сервера, по имени записи
 		rxData, err := c.conf.Server.RequestBankCardByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestBankCardByName, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция RequestBankCardByName, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -3378,7 +3345,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Для.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if rxData.For != "" {
@@ -3393,7 +3360,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Владелец.
 		fieldOwner, err := gui.View("fieldShowOwner")
 		if err != nil || fieldOwner == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
 			return nil
 		}
 		if rxData.Owner != "" {
@@ -3408,7 +3375,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Номер.
 		fieldNumb, err := gui.View("fieldShowNumber")
 		if err != nil || fieldNumb == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
 			return nil
 		}
 		if rxData.Numb != "" {
@@ -3423,7 +3390,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Валидность.
 		fieldValid, err := gui.View("fieldShowValid")
 		if err != nil || fieldValid == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
 			return nil
 		}
 		if rxData.Valid != "" {
@@ -3438,7 +3405,7 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Код.
 		fieldCode, err := gui.View("fieldShowCode")
 		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
 			return nil
 		}
 		if rxData.Code != "" {
@@ -3475,7 +3442,7 @@ func doShowNextElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 			// отображение содержимого поля Код.
 			fieldCode, err := gui.View("fieldShowFor")
 			if err != nil || fieldCode == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 				return nil
 			}
 			if el != "" {
@@ -3508,7 +3475,7 @@ func doShowNextElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 			// отображение содержимого поля Код.
 			fieldCode, err := gui.View("fieldShowFor")
 			if err != nil || fieldCode == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 				return nil
 			}
 			if el != "" {
@@ -3538,7 +3505,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if el.name != "" {
@@ -3553,7 +3520,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Login.
 		fieldLogin, err := gui.View("fieldShowLogin")
 		if err != nil || fieldLogin == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
 			return nil
 		}
 		if el.login != "" {
@@ -3568,7 +3535,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Password.
 		fieldPassword, err := gui.View("fieldShowPassword")
 		if err != nil || fieldPassword == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
 			return nil
 		}
 		if el.password != "" {
@@ -3589,7 +3556,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		name := nameLoginPasswordByIndex(c) // получение имени записи по индексу
 		decrIndexloginPassword(c)           // увеличение значения индекса
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных логин/пароль по имени: <%s>", name))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Запрос данных логин/пароль по имени: <%s>", name))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -3597,7 +3564,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// Запрос логин/пароль у сервера, по имени записи
 		rxData, err := c.conf.Server.RequestLoginPasswordByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestLoginPasswordByName, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция RequestLoginPasswordByName, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -3606,7 +3573,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if rxData.For != "" {
@@ -3621,7 +3588,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Login.
 		fieldLogin, err := gui.View("fieldShowLogin")
 		if err != nil || fieldLogin == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
 			return nil
 		}
 		if rxData.Login != "" {
@@ -3636,7 +3603,7 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 		// отображение содержимого поля Password.
 		fieldPassword, err := gui.View("fieldShowPassword")
 		if err != nil || fieldPassword == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
 			return nil
 		}
 		if rxData.Password != "" {
@@ -3666,7 +3633,7 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if el.name != "" {
@@ -3681,7 +3648,7 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Login.
 		fieldText, err := gui.View("fieldShowText")
 		if err != nil || fieldText == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
 			return nil
 		}
 		if el.text != "" {
@@ -3701,7 +3668,7 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		decrIndexNamesText(c)      // уменьшение значения индекса
 		name := nameTextByIndex(c) // получение записи по индексу
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных текста по имени: <%s>", name))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Запрос данных текста по имени: <%s>", name))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -3709,7 +3676,7 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// Запрос текста у сервера, по имени записи
 		rxData, err := c.conf.Server.RequestTextByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestTextByName, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция RequestTextByName, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -3718,7 +3685,7 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if name != "" {
@@ -3733,7 +3700,7 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля текст.
 		fieldText, err := gui.View("fieldShowText")
 		if err != nil || fieldText == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
 			return nil
 		}
 		if rxData.Text != "" {
@@ -3761,7 +3728,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if el.name != "" {
@@ -3776,7 +3743,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Владелец.
 		fieldOwner, err := gui.View("fieldShowOwner")
 		if err != nil || fieldOwner == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
 			return nil
 		}
 		if el.owner != "" {
@@ -3791,7 +3758,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Номер.
 		fieldNumb, err := gui.View("fieldShowNumber")
 		if err != nil || fieldNumb == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
 			return nil
 		}
 		if el.numb != "" {
@@ -3806,7 +3773,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Валидность.
 		fieldValid, err := gui.View("fieldShowValid")
 		if err != nil || fieldValid == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
 			return nil
 		}
 		if el.valid != "" {
@@ -3821,7 +3788,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Код.
 		fieldCode, err := gui.View("fieldShowCode")
 		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
 			return nil
 		}
 		if el.code != "" {
@@ -3846,7 +3813,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		decrIndexBankCardName(c)       // уменьшение значения индекса
 		name := nameBankCardByIndex(c) // Получение значения по индексу
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Запрос данных банковской карты по имени: <%s>", name))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Запрос данных банковской карты по имени: <%s>", name))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -3854,7 +3821,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// Запрос банковской карты у сервера, по имени записи
 		rxData, err := c.conf.Server.RequestBankCardByName(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, name, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция RequestBankCardByName, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция RequestBankCardByName, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -3863,7 +3830,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
 		if rxData.For != "" {
@@ -3878,7 +3845,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Владелец.
 		fieldOwner, err := gui.View("fieldShowOwner")
 		if err != nil || fieldOwner == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
 			return nil
 		}
 		if rxData.Owner != "" {
@@ -3893,7 +3860,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Номер.
 		fieldNumb, err := gui.View("fieldShowNumber")
 		if err != nil || fieldNumb == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
 			return nil
 		}
 		if rxData.Numb != "" {
@@ -3908,7 +3875,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Валидность.
 		fieldValid, err := gui.View("fieldShowValid")
 		if err != nil || fieldValid == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
 			return nil
 		}
 		if rxData.Valid != "" {
@@ -3923,7 +3890,7 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		// отображение содержимого поля Код.
 		fieldCode, err := gui.View("fieldShowCode")
 		if err != nil || fieldCode == nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
 			return nil
 		}
 		if rxData.Code != "" {
@@ -3957,7 +3924,7 @@ func doShowPrevElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 			// отображение содержимого.
 			fieldCode, err := gui.View("fieldShowFor")
 			if err != nil || fieldCode == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 				return nil
 			}
 			if el != "" {
@@ -3991,7 +3958,7 @@ func doShowPrevElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 			// отображение содержимого.
 			fieldCode, err := gui.View("fieldShowFor")
 			if err != nil || fieldCode == nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 				return nil
 			}
 			if el != "" {
@@ -4017,7 +3984,7 @@ func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
 	v, err := gui.View("fieldShowFor")
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
 		return nil
 	}
 	textEl := v.Buffer() // Получаем содержимое поля ввода
@@ -4025,7 +3992,7 @@ func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
 	textEl, err = encrypt(textEl, c.secret.secretKey)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
 		return nil
 	}
 
@@ -4034,12 +4001,12 @@ func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 	defer cancel()
 
 	if err := c.conf.DataBase.DelDataLoginPasswordContext(ctx, textEl); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
 		return nil
 	}
 
 	c.status.delLoginPaaswordSUCCESS = true
-	c.conf.PtrLoggerFile.Write(("Debug: данные логин/пароль, успешно удалены"))
+	c.conf.LgrFile.Write(("Debug: данные логин/пароль, успешно удалены"))
 
 	return nil
 }
@@ -4052,7 +4019,7 @@ func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
 	v, err := gui.View("fieldShowFor")
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
 		return nil
 	}
 	textEl := v.Buffer() // Получаем содержимое поля ввода
@@ -4060,7 +4027,7 @@ func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
 	textEl, err = encrypt(textEl, c.secret.secretKey)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
 		return nil
 	}
 
@@ -4069,12 +4036,12 @@ func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 	defer cancel()
 
 	if err := c.conf.DataBase.DelTextContext(ctx, textEl); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
 		return nil
 	}
 
 	c.status.delTextSUCCESS = true
-	c.conf.PtrLoggerFile.Write(("Debug: данные текста, успешно удалены"))
+	c.conf.LgrFile.Write(("Debug: данные текста, успешно удалены"))
 
 	return nil
 }
@@ -4087,7 +4054,7 @@ func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
 	v, err := gui.View("fieldShowFor")
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
 		return nil
 	}
 	textEl := v.Buffer() // Получаем содержимое поля ввода
@@ -4095,7 +4062,7 @@ func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
 	textEl, err = encrypt(textEl, c.secret.secretKey)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
 		return nil
 	}
 
@@ -4104,12 +4071,12 @@ func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 	defer cancel()
 
 	if err := c.conf.DataBase.DelBankCardContext(ctx, textEl); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
 		return nil
 	}
 
 	c.status.delBankCardSUCCESS = true
-	c.conf.PtrLoggerFile.Write(("Debug: данные карты, успешно удалены"))
+	c.conf.LgrFile.Write(("Debug: данные карты, успешно удалены"))
 
 	return nil
 }
@@ -4128,7 +4095,7 @@ func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 		// Чтение буфера.
 		v, err := gui.View("fieldShowFor")
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
 			return nil
 		}
 		name := v.ViewBuffer()
@@ -4136,7 +4103,7 @@ func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
 		// Удаление файла.
 		if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
 			return nil
 		}
 		c.status.delFileSUCCESS = true
@@ -4148,7 +4115,7 @@ func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 // Регистрации пользователя в режиме - Локальный.
 func doRegistrationUserLocal(c *handlerUI) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+W")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+W")
 
 	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
 	c.status.addUserPassed = false  // сброс признака, что процедура регистрации быд запущена.
@@ -4186,7 +4153,7 @@ func doRegistrationUserLocal(c *handlerUI) error {
 	c.status.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
 	c.status.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
 
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: выполнена регистрация пользователя с именем: <%s>", userName))
+	c.conf.LgrFile.Write(fmt.Sprintf("Info: выполнена регистрация пользователя с именем: <%s>", userName))
 
 	return nil
 }
@@ -4194,13 +4161,13 @@ func doRegistrationUserLocal(c *handlerUI) error {
 // Регистрации пользователя в режиме - Удалённый.
 func doRegistrationUserRemote(c *handlerUI) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+W")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+W")
 
 	c.status.addUserSUCCESS = false // сброс признака успешности регистрации пользователя.
 	c.status.addUserPassed = false  // сброс признака, что процедура регистрации была запущена.
 	c.status.addUserRegBusy = false // сброс признака, что в системе уже есть зарегистрированный пользователь.
 
-	c.conf.PtrLoggerFile.Write("Запущен процесс регистрации пользователя. Режим -удалённый.")
+	c.conf.LgrFile.Write("Запущен процесс регистрации пользователя. Режим -удалённый.")
 
 	// Проверка аргументов
 	if c == nil {
@@ -4214,7 +4181,7 @@ func doRegistrationUserRemote(c *handlerUI) error {
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения: <%v>", err))
 		}
 	}()
 
@@ -4260,7 +4227,7 @@ func doRegistrationUserRemote(c *handlerUI) error {
 	c.status.addUserPassed = true  // установка признака, что процедура регистрации была запущена.
 	c.status.addUserSUCCESS = true // установка признака, что пользователь зарегистрировался в системе.
 
-	c.conf.PtrLoggerFile.Write("Регистрация пользователя на удалённом сервере, выполнена. Режим - удалённый.")
+	c.conf.LgrFile.Write("Регистрация пользователя на удалённом сервере, выполнена. Режим - удалённый.")
 
 	return nil
 }
@@ -4361,4 +4328,111 @@ func DecryptRxLoginPasswordByName(rxData server.RxLoginPassword, key [32]byte) (
 	}
 
 	return data, nil
+}
+
+// Буфер процесса BackUp
+func bufferProcessBackUp(c *handlerUI, rxChProcess <-chan float32, rxChErr <-chan error, rxChDone <-chan struct{}) {
+
+	// Обработка каналов.
+	for {
+		select {
+		// Проценты процесса.
+		case percent, ok := <-rxChProcess:
+			if !ok {
+				c.updateStatusBackUp(stageNotActive)
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChProcess")
+				return
+			}
+			c.setPercentTxRx(float32(percent))
+
+			// Ошибка.
+		case err, ok := <-rxChErr:
+			if !ok {
+				c.updateStatusBackUp(stageNotActive)
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChErr")
+				return
+			}
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка процесса BackUp:<%v>", err))
+			c.updateStatusBackUp(stageFault)
+			return
+
+			// Приём выполнен.
+		case _, ok := <-rxChDone:
+			if !ok {
+				c.updateStatusBackUp(stageNotActive)
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
+				return
+			}
+			c.updateStatusBackUp(stageOk)
+			c.conf.LgrFile.Write("Info: BackUp выполнен")
+			return
+		}
+	}
+}
+
+// Буфер процесса Restore
+func bufferProcessRestore(c *handlerUI, rxChProcess <-chan float32, rxChErr <-chan error, rxChDone <-chan struct{}) {
+
+	// Обработка каналов.
+	for {
+		select {
+		// Проценты процесса.
+		case percent, ok := <-rxChProcess:
+			if !ok {
+				c.updateStatusRestore(stageNotActive)
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChProcess")
+				return
+			}
+			c.setPercentTxRx(float32(percent))
+
+			// Ошибка.
+		case err, ok := <-rxChErr:
+			if !ok {
+				c.updateStatusRestore(stageNotActive)
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChErr")
+				return
+			}
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка процесса BackUp:<%v>", err))
+			c.updateStatusRestore(stageFault)
+			return
+
+			// Приём выполнен.
+		case _, ok := <-rxChDone:
+			if !ok {
+				c.updateStatusRestore(stageNotActive)
+				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
+				return
+			}
+			c.updateStatusRestore(stageOk)
+			c.conf.LgrFile.Write("Info: Restore выполнен")
+			return
+		}
+	}
+}
+
+// Проверка соответствия списков файлов.
+func chechRxNameFiles(rxList, wantList []string) error {
+
+	// Проверка аргументов.
+	if len(rxList) == 0 {
+		return EmptyDataArgumentRxList
+	}
+	if len(wantList) == 0 {
+		return EmptyDataArgumentWantList
+	}
+
+	// Проверка содержимого.
+	if rxList[0] == wantList[0] {
+		if rxList[1] == wantList[1] {
+			return nil
+		}
+	}
+	if rxList[0] == wantList[1] {
+		if rxList[1] == wantList[0] {
+			return nil
+		}
+	}
+
+	// Проверка не пройдена.
+	return fmt.Errorf("Нет соответствия имён файлов. Нужно:<%v>, а принято:<%v>", wantList, rxList)
 }

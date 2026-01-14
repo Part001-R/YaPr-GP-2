@@ -541,3 +541,28 @@ func updateDataTxProcess(s *server, chProcess chan<- float32, b int, data *dataS
 		chProcess <- 0
 	}
 }
+
+// Вычисление процента выполнения.
+//
+// Параметры:
+//
+//	c - конфигурация.
+//	b - количество переданных байт.
+func updateDataBackUpRestoreProcess(s *server, chProcess chan<- float32, b int) {
+
+	s.mtx.processBackUpRestore.Lock()
+	defer s.mtx.processBackUpRestore.Unlock()
+
+	// Получение КБайт из Байт.
+	volumeKB := b / 1024
+
+	// Обновление данных накопителя.
+	s.dataRestore.sizePassed += int64(volumeKB)
+
+	// Вычисление процентов.
+	if s.dataRestore.totalSizeFiles > 0 {
+		chProcess <- float32(float64(s.dataRestore.sizePassed) / float64(s.dataRestore.totalSizeFiles) * 100.0)
+	} else {
+		chProcess <- 0
+	}
+}

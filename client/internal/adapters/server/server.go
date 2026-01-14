@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"google.golang.org/grpc"
@@ -14,24 +16,33 @@ import (
 
 // Мьютексы.
 type mutexes struct {
-	processTxFile sync.Mutex // Проценты передачи файла.
-	processRxFile sync.Mutex // Проценты приёма файла.
+	processTxFile        sync.Mutex // Процесс передачи файла.
+	processRxFile        sync.Mutex // Процесс приёма файла.
+	processBackUpRestore sync.Mutex // Процесс BackUp/Restore.
+
 }
 
 // Представление сервера.
 type server struct {
-	ip         string                   // ip сервера.
-	port       string                   // port сервера.
-	client     pb.PasswordManagerClient // клиент.
-	connect    *grpc.ClientConn         // коннект.
-	tokenSrv   string                   // токен сервера.
-	mtx        mutexes                  // мьютексы.
-	dataRxFile dataRequestFile          // данные для приёма файла.
-	dataTxFile dataSendFile             // данные для передачи файла.
+	ip          string                   // ip сервера.
+	port        string                   // port сервера.
+	client      pb.PasswordManagerClient // клиент.
+	connect     *grpc.ClientConn         // коннект.
+	tokenSrv    string                   // токен сервера.
+	mtx         mutexes                  // мьютексы.
+	dataRxFile  dataRequestFile          // данные для приёма файла.
+	dataTxFile  dataSendFile             // данные для передачи файла.
+	dataBackUp  dataBackUp               // данные для процесса BackUp.
+	dataRestore dataRestore              // данные для процесса BackUp.
 }
 
 // Интерфейс действий.
 type ActionsI interface {
+	InitDataBackUp(listFiles []string, sizeSendFile int64, secretKey [32]byte) error
+	BackUp(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile)
+	InitDataRestore(listFiles []InfoByFiles) error
+	RestoreRequestFilesInfo() (data []InfoByFiles, err error)
+	Restore(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile)
 	ConnectClose() error
 	AuthenticationContext(ctx context.Context, userName, userPwd string) (tokenAuth string, err error)
 	SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error
@@ -85,10 +96,14 @@ func New(ip, port string) (act ServerI, err error) {
 		connect:  conn,
 		tokenSrv: "",
 		mtx: mutexes{
-			processTxFile: sync.Mutex{},
-			processRxFile: sync.Mutex{},
+			processTxFile:        sync.Mutex{},
+			processRxFile:        sync.Mutex{},
+			processBackUpRestore: sync.Mutex{},
 		},
-		dataRxFile: dataRequestFile{},
+		dataRxFile:  dataRequestFile{},
+		dataTxFile:  dataSendFile{},
+		dataBackUp:  dataBackUp{},
+		dataRestore: dataRestore{},
 	}
 
 	return inst, nil
@@ -659,6 +674,191 @@ func (s *server) InitDataSendFile(filePath, tokenAuth, clientID string, sizeSend
 	}
 
 	return nil
+}
+
+// Режим - локальный. Резервное копирование файлов на сервер.
+func (s *server) BackUp(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile) {
+
+	defer func() {
+		close(chProcess)
+		close(chErr)
+		close(chDone)
+	}()
+
+	// Создание токена.
+	secretKey, txToken, err := layerBackUpCreateToken()
+	if err != nil {
+		chErr <- fmt.Errorf("функция layerBackUpCreateToken, вернула ошибку:<%w>", err)
+	}
+
+	// Передача файлов.
+	for _, txFileName := range s.dataBackUp.listFiles {
+
+		// Передача файла на сервер.
+		resp, rxFileHash, rxToken, err := layerBackUpTxFile(s, txFileName, txToken, chProcess, lgr)
+		if err != nil {
+			chErr <- fmt.Errorf("Функция layerBackUpTxFile, вернула ошибку: <%w>", err)
+		}
+
+		// Вычисление хэша переданного файла.
+		txFileHash, err := hashFile(txFileName)
+		if err != nil {
+			chErr <- fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
+		}
+
+		// Проверка результата.
+		if err := layerBackUpCheckResult(resp, txFileName, txFileHash, rxFileHash, rxToken, secretKey); err != nil {
+			chErr <- fmt.Errorf("Функция layerBackUpCheckResult, вернула ошибку: <%w>", err)
+		}
+	}
+
+	chDone <- struct{}{}
+}
+
+// Инициализация данных, для процесса BackUp.
+func (s *server) InitDataBackUp(listFiles []string, sizeSendFile int64, secretKey [32]byte) error {
+
+	// Проверка аргументов
+	if len(listFiles) != 2 {
+		return NotCorrectLenLestFiles
+	}
+	if sizeSendFile <= 0 {
+		return EmptyDataArgumentSizeSendFile
+	}
+	if len(secretKey) != 32 {
+		return NotCorrectLenData
+	}
+
+	// Инициализация.
+	s.dataBackUp.listFiles = listFiles
+	s.dataBackUp.secretKey = secretKey
+	s.dataBackUp.sizeSendFile = sizeSendFile
+
+	return nil
+}
+
+// Режим - локальный. Восстановление файлов из сервера.
+func (s *server) Restore(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile) {
+
+	defer func() {
+		close(chProcess)
+		close(chErr)
+		close(chDone)
+	}()
+
+	// Создание токена.
+	secretKey, txToken, err := layerRestoreCreateToken()
+	if err != nil {
+		chErr <- fmt.Errorf("функция layerRestoreCreateToken, вернула ошибку:<%w>", err)
+	}
+
+	// Получение файлов.
+	for _, fileInfo := range s.dataRestore.listFiles {
+
+		needRestoreState := false // Признак необходимости воостановления состояния, при ошибке.
+		var tempFileName string   // Имя временного файла.
+
+		// Обработка перед выходом.
+		defer func(needRestoreState bool, fileName, tempFileName string, errProcess error) {
+			if errRestore := deferProcessRestoreByError(needRestoreState, fileName, tempFileName, errProcess); errRestore != nil {
+				err = fmt.Errorf("функция deferProcessRestoreByError, вернула ошибку:<%w>, при ошибку процесса:<%w>", errRestore, errProcess)
+				return
+			}
+		}(needRestoreState, fileInfo.Name, tempFileName, err)
+
+		// Запрос файла у сервера.
+		content, srcFileHash, rxToken, err := layerRestoreRxFile(s, fileInfo.Name, txToken, chProcess)
+		if err != nil {
+			chErr <- fmt.Errorf("Функция layerRestoreRxFile, вернула ошибку: <%w>", err)
+			return
+		}
+
+		// Изменение имени существующего файла, чтобы в случае ошибки, не потерять данные.
+		if isFileExists(fileInfo.Name) {
+			tempFileName, err = changeFileName(fileInfo.Name, "-temp")
+			if err != nil {
+				chErr <- fmt.Errorf("функция changeFileName, вернула ошибку:<%w>", err)
+				return
+			}
+			needRestoreState = true
+		}
+
+		// Сохранение принятых данных в файл.
+		if err := layerRestoreSaveFile(content, fileInfo.Name); err != nil {
+			chErr <- fmt.Errorf("Функция layerRestoreSaveFile, вернула ошибку: <%w>", err)
+			return
+		}
+
+		// Вычисление хэша принятого файла.
+		rxFileHash, err := hashFile(fileInfo.Name)
+		if err != nil {
+			chErr <- fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
+			return
+		}
+
+		// Проверка результата.
+		if err := layerRestoreCheckResult(fileInfo.Name, rxFileHash, srcFileHash, rxToken, secretKey); err != nil {
+
+			// Удаление файла, если проверка не пройдена.
+			if errRemove := os.Remove(fileInfo.Name); errRemove != nil {
+				chErr <- fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, fileInfo.Name, err)
+				return
+			}
+			chErr <- fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, fileInfo.Name)
+			return
+		}
+
+		// Файл успешно принят.
+		// Удаление резервного файла, если он существует.
+		if isFileExists(tempFileName) {
+			if err := os.Remove(tempFileName); err != nil {
+				chErr <- fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>, при успешном приёме", err, fileInfo.Name)
+				return
+			}
+		}
+	}
+
+	chDone <- struct{}{}
+}
+
+// Инициализация данных, для процесса Restore.
+func (s *server) InitDataRestore(listFiles []InfoByFiles) error {
+
+	s.dataRestore = dataRestore{}
+
+	s.dataRestore.listFiles = listFiles
+
+	// Формирование общего размера в КБайт
+	for _, f := range listFiles {
+		s.dataRestore.totalSizeFiles += f.Volume
+	}
+	s.dataRestore.totalSizeFiles /= 1024
+
+	return nil
+}
+
+// Запрос у сервера информации по файлам, которые будут приняты при Restore.
+func (s *server) RestoreRequestFilesInfo() (data []InfoByFiles, err error) {
+
+	// Создание токена.
+	secretKey, token, err := layerRestoreRequestFilesInfoCreateToken()
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRestoreRequestFilesInfoCreateToken, вернула ошибку: <%w>", err)
+	}
+
+	// Запрос.
+	rxData, rxToken, err := layerRestoreRequestFilesInfoRequest(s.client, token)
+	if err != nil {
+		return nil, fmt.Errorf("Функция layerRestoreRequestFilesInfoRequest, вернула ошибку: <%w>", err)
+	}
+
+	// Проверка токена.
+	if err := layerRestoreRequestFilesInfoCheckToken(rxToken, secretKey); err != nil {
+		return nil, fmt.Errorf("Функция layerRestoreRequestFilesInfoCheckToken, вернула ошибку: <%w>", err)
+	}
+
+	// Результат.
+	return rxData, nil
 }
 
 //

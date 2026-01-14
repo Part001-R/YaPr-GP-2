@@ -98,4 +98,19 @@ var (
 
 	// В аргументе secretKey, нет данных.
 	EmptyDataArgumentSecretKey = errors.New("в аргументе <secretKey>, нет данных")
+
+	// В аргументе resp, нет данных.
+	NilPtrArgumentResp = errors.New("в аргументе <resp>, нет данных")
+
+	// В аргументе txFileName, нет данных.
+	EmptyDataArgumentTxFileName = errors.New("в аргументе <txFileName>, нет данных")
+
+	// В аргументе txFileHash, нет данных.
+	EmptyDataArgumentTxFileHash = errors.New("в аргументе <txFileHash>, нет данных")
+
+	// Некорректные данные в аргументе listFiles.
+	NotCorrectLenLestFiles = errors.New("в аргументе <listFiles>, нет данных")
+
+	// В аргументе sizeSendFile, нет данных.
+	EmptyDataArgumentSizeSendFile = errors.New("в аргументе <sizeSendFile>, нет данных")
 )

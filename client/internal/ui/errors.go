@@ -86,4 +86,10 @@ var (
 
 	// Токены не эквивалентны
 	NotEqualTokens = errors.New("nокены не эквивалентны")
+
+	// Нет данных в аргументе rxList
+	EmptyDataArgumentRxList = errors.New("Нет данных в аргументе rxList")
+
+	// Нет данных в аргументе wantList
+	EmptyDataArgumentWantList = errors.New("Нет данных в аргументе wantList")
 )

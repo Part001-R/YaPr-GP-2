@@ -135,7 +135,7 @@ func Run(conf *udt.Configuration) error {
 
 	for _, name := range listElement {
 		if err := g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, instUI.handleEnter); err != nil {
-			conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка обработки нажатия Enter: <%v>, на элементе: <%s>", err, name))
+			conf.LgrFile.Write(fmt.Sprintf("Error: ошибка обработки нажатия Enter: <%v>, на элементе: <%s>", err, name))
 			return fmt.Errorf("Error: ошибка обработки нажатия Enter: <%w>, на элементе: <%s>", err, name)
 		}
 	}
@@ -157,11 +157,11 @@ func Run(conf *udt.Configuration) error {
 	}()
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Ошибка MainLoop: <%v>", err))
+		conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка MainLoop: <%v>", err))
 		return fmt.Errorf("Error: Ошибка MainLoop: <%v>", err)
 	}
 
 	// Завершение работы.
-	conf.PtrLoggerFile.Write("Info: CLI UI завершил работу")
+	conf.LgrFile.Write("Info: CLI UI завершил работу")
 	return nil
 }

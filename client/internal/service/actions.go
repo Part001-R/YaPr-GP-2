@@ -18,7 +18,7 @@ func actions(conf *udt.Configuration) error {
 		return fmt.Errorf("функция CheckConf, вернула ошибку: <%w>", err)
 	}
 
-	conf.PtrLoggerFile.Write("Info: Запуск CLI UI")
+	conf.LgrFile.Write("Info: Запуск CLI UI")
 
 	// Запуск CLI UI
 	if err := ui.Run(conf); err != nil {

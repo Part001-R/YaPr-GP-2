@@ -9,6 +9,7 @@ import (
 
 	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/container"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
 	service "github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
@@ -276,7 +277,7 @@ func layoutRemote(g *gocui.Gui) error {
 // Главное окно.
 func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+H")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+H")
 
 	// Запрет активности при активности процессов передачи файлов.
 	if c.status.backUp == stageActive || c.status.restore == stageActive {
@@ -287,7 +288,7 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 
 	// Удаление видов.
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция deleteViews вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция deleteViews вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews вернула ошибку: <%w>", err)
 	}
 
@@ -298,7 +299,7 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 	// Отображение главного меню.
 	err := layoutLocal(g)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция layout вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция layout вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция layout вернула ошибку: <%w>", err)
 	}
 	c.view.activeView = viewMain // Установка признака активного окна
@@ -308,7 +309,7 @@ func (c *handlerUI) showMain(g *gocui.Gui, v *gocui.View) error {
 // Регистрация.
 func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+A")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+A")
 
 	// Ограничение вызова окна.
 	if c.view.activeView == viewAutentification ||
@@ -336,7 +337,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
 	// Удаляем все зависимые виды (включая поля ввода).
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -347,7 +348,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера регистрации.
 	loginView, err := g.SetView(viewRegistration, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	loginView.Title = "Регистрация"
@@ -360,7 +361,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("Login", 50, 2, inputWidth+1, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Логин"
@@ -377,7 +378,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("Password-1", 50, 7, inputWidth+1, inputHeight+1+6); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Пароль"
@@ -394,7 +395,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("Password-2", 50, 10, inputWidth+1, inputHeight+1+9); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Подтверждение"
@@ -418,7 +419,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX := 58
 	v, err := g.SetView("indicator-match", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	v.Frame = false
@@ -430,7 +431,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX = 43
 	v, err = g.SetView("indicator-registration", indicatorX, indicatorY, indicatorX+80, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	v.Frame = false
@@ -444,7 +445,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	//
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -456,7 +457,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -468,7 +469,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -480,7 +481,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -492,7 +493,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("DoRegistration", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -505,7 +506,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 
@@ -518,7 +519,7 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 // Аутентификация.
 func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+B")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+B")
 
 	// Ограничение вызова окна.
 	if c.view.activeView == viewAutentification ||
@@ -544,7 +545,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
 	// Удаляем все зависимые виды (включая поля ввода)
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -555,7 +556,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера регистрации
 	loginView, err := g.SetView(viewAutentification, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	loginView.Title = "Аутентификация"
@@ -567,7 +568,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	//
 	if v, err := g.SetView("Login", 50, 2, inputWidth+1, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Логин"
@@ -584,7 +585,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("Password-1", 50, 7, inputWidth+1, inputHeight+1+6); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Пароль"
@@ -608,7 +609,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX := 58
 	v, err := g.SetView("indicator-match", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	v.Frame = false
@@ -621,7 +622,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -633,7 +634,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -645,7 +646,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -657,7 +658,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -670,7 +671,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("DoAuthentication", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -683,7 +684,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	layoutInitialized = true
@@ -691,17 +692,17 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	c.view.activeView = viewAutentification // Установка признака активного окна
 
 	// Проверка запуска в режиме - удалённый. Подключение и создание/обновление экземпляра.
-	if c.conf.Flag.Mode == flags.ModeRemote {
+	//if c.conf.Flag.Mode == flags.ModeRemote {
 
-		srv, err := server.New(c.typed.ip, c.typed.port)
-		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Не удалось создать экземпляр сервера: <%v>", err))
-			return fmt.Errorf("Не удалось создать экземпляр сервера: <%v>", err)
-		}
-		service.NewServer(srv)
-
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Соединение с сервером установлено: <%v>", err))
+	srv, err := server.New(c.typed.ip, c.typed.port)
+	if err != nil {
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: Не удалось создать экземпляр сервера: <%v>", err))
+		return fmt.Errorf("Не удалось создать экземпляр сервера: <%v>", err)
 	}
+	service.NewServer(srv)
+
+	c.conf.LgrFile.Write(fmt.Sprintf("Info: Соединение с сервером установлено: <%v>", err))
+	//}
 
 	return nil
 }
@@ -709,7 +710,7 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 // Настройки.
 func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+D")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+D")
 
 	// Ограничение вызова окна.
 	if c.view.activeView == viewAutentification ||
@@ -730,7 +731,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
 	// Удаляем все зависимые виды (включая поля ввода)
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -741,7 +742,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера регистрации
 	view, err := g.SetView(viewSettings, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Настройки"
@@ -751,7 +752,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 	// Поля ввода
 	if v, err := g.SetView("IP", 50, 2, inputWidth+1, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Title = "IP"
@@ -774,7 +775,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("Port", 50, 7, inputWidth+1, inputHeight+1+6); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Title = "Порт"
@@ -802,7 +803,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 	// Пояснение по навигации.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -814,7 +815,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -826,7 +827,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -838,7 +839,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -851,7 +852,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("TestConnect", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Editable = false
@@ -864,7 +865,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%v>", err)
 	}
 	layoutInitialized = true
@@ -877,7 +878,7 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 // Перевод фокуса.
 func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажат Tab")
+	c.conf.LgrFile.Write("Info: Нажат Tab")
 
 	// Перевод фокуса
 	switch c.view.activeView {
@@ -973,7 +974,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 
 	_, err := g.SetCurrentView(c.view.currentFocus)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Ошибка в функции SetCurrentView: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Ошибка в функции SetCurrentView: <%v>", err))
 		return fmt.Errorf("Ошибка в функции SetCurrentView: <%w>", err)
 	}
 
@@ -1007,7 +1008,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 	for _, name := range fields {
 		view, err := g.View(name)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		if view != nil {
@@ -1018,7 +1019,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 	// Установка курсора в конец текущей строки
 	currentView, err := g.View(c.view.currentFocus)
 	if err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Ошибка в функции View: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Ошибка в функции View: <%v>", err))
 		return fmt.Errorf("Ошибка в функции View: <%w>", err)
 	}
 	if currentView != nil {
@@ -1033,7 +1034,7 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 // Выход.
 func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+C")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+C")
 
 	// Ожидание завершения активных процессов.
 	for {
@@ -1054,7 +1055,7 @@ func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 // Обработка нажатия Enter.
 func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажат Enter")
+	c.conf.LgrFile.Write("Info: Нажат Enter")
 
 	// Запрет активности при активности процессов передачи файлов.
 	if c.status.backUp == stageActive || c.status.restore == stageActive {
@@ -1066,63 +1067,63 @@ func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 	// Окно регистрации.
 	case viewRegistration:
 		if err := enterViewRegistration(v, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewRegistration, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewRegistration, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewRegistration, вернула ошибку: <%v>", err)
 		}
 
 	// Окно аутентификации.
 	case viewAutentification:
 		if err := enterViewAutentification(v, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewAutentification, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewAutentification, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewAutentification, вернула ошибку: <%v>", err)
 		}
 
 	// Окно настроек.
 	case viewSettings:
 		if err := enterViewSettings(v, g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewSettings, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewSettings, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewSettings, вернула ошибку: <%v>", err)
 		}
 
 	// Окно с запросом дополнительного ключа шифрования.
 	case viewRequestSecretKey:
 		if err := enterViewRequestSecretKey(v, g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewRequestSecretKey, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewRequestSecretKey, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewRequestSecretKey, вернула ошибку: <%v>", err)
 		}
 
 	// Окно с выбором типа данных.
 	case viewSelectType:
 		if err := enterViewSelectType(v, g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewSelectType, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewSelectType, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewSelectType, вернула ошибку: <%v>", err)
 		}
 
 	// Окно взаимодействия с логин/пароль.
 	case viewLoginPasswordData:
 		if err := enterViewLoginPasswordData(v, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewLoginPasswordData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewLoginPasswordData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно взаимодействия с текстом.
 	case viewTextData:
 		if err := enterViewTextData(v, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewTextData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewTextData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewTextData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно взаимодействия с банковскими картами.
 	case viewBankCardData:
 		if err := enterViewBankCardData(v, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewBankCardData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewBankCardData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно взаимодействия с файлами.
 	case viewBinaryData:
 		if err := enterViewBinaryData(v, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция enterViewBinaryData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция enterViewBinaryData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция enterViewBinaryData, вернула ошибку: <%v>", err)
 		}
 
@@ -1140,49 +1141,49 @@ func (c *handlerUI) indicators(g *gocui.Gui) error {
 	// Окно регистрации.
 	case viewRegistration:
 		if err := indicatorViewRegistration(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewRegistration, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewRegistration, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewRegistration, вернула ошибку: <%w>", err)
 		}
 
 	// Окно настроек.
 	case viewSettings:
 		if err := indicatorViewSettings(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewSettings, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewSettings, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewSettings, вернула ошибку: <%v>", err)
 		}
 
 	// Окно логин/пароль
 	case viewLoginPasswordData:
 		if err := indicatorViewLoginPasswordData(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewLoginPasswordData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewLoginPasswordData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно текста.
 	case viewTextData:
 		if err := indicatorViewTextData(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewTextData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewTextData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewTextData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно банковских карт.
 	case viewBankCardData:
 		if err := indicatorViewBankCardData(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно файлов.
 	case viewBinaryData:
 		if err := indicatorViewBinaryData(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewBankCardData, вернула ошибку: <%v>", err)
 		}
 
 	// Окно выбора типов.
 	case viewSelectType:
 		if err := indicatorViewSelectType(g, c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция indicatorViewSelectType, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция indicatorViewSelectType, вернула ошибку: <%v>", err))
 			return fmt.Errorf("Error: Функция indicatorViewSelectType, вернула ошибку: <%v>", err)
 		}
 
@@ -1194,7 +1195,7 @@ func (c *handlerUI) indicators(g *gocui.Gui) error {
 // Проверка связи с сервером.
 func (c *handlerUI) testConnect(g *gocui.Gui, _ *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+N")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+N")
 
 	// Запуск проверки связи с сервером.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1204,13 +1205,13 @@ func (c *handlerUI) testConnect(g *gocui.Gui, _ *gocui.View) error {
 	ok, err := pingContext(ctx, c)
 	if err != nil {
 		c.status.checkConnectStatus = false
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция pingContext, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция pingContext, вернула ошибку: <%v>", err))
 		return nil
 	}
 
 	// Результат.
 	c.status.checkConnectStatus = ok
-	c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: проверка связи с %s:%s пройдена", c.typed.ip, c.typed.port))
+	c.conf.LgrFile.Write(fmt.Sprintf("Info: проверка связи с %s:%s пройдена", c.typed.ip, c.typed.port))
 	return nil
 }
 
@@ -1242,7 +1243,7 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 	if c.conf.Flag.Mode == flags.ModeLocal {
 		err := doRegistrationUserLocal(c)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doRegistrationUserLocal, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция doRegistrationUserLocal, вернула ошибку: <%v>", err))
 			return nil
 		}
 	}
@@ -1251,7 +1252,7 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 	if c.conf.Flag.Mode == flags.ModeRemote {
 		err := doRegistrationUserRemote(c)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doRegistrationUserRemote, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция doRegistrationUserRemote, вернула ошибку: <%v>", err))
 			return nil
 		}
 	}
@@ -1262,7 +1263,7 @@ func (c *handlerUI) doRegistrationUser(gui *gocui.Gui, v *gocui.View) error {
 // Запуск процесса аутентификации пользователя.
 func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+L")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+L")
 
 	// Если окно аутентификации.
 	if c.view.activeView == viewAutentification {
@@ -1270,19 +1271,19 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 		// Если режим - локальный.
 		if c.conf.Flag.Mode == flags.ModeLocal {
 			if err := doAuthenticationUserModeLocal(c); err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doAuthenticationUserModeLocal, вернуля ошибку: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: функция doAuthenticationUserModeLocal, вернуля ошибку: <%v>", err))
 				return nil
 			}
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию. Режим - локальный", c.typed.login))
+			c.conf.LgrFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию. Режим - локальный", c.typed.login))
 		}
 
 		// Если режим - удалённый.
 		if c.conf.Flag.Mode == flags.ModeRemote {
 			if err := doAuthenticationUserModeRemote(c); err != nil {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция doAuthenticationUserModeRemote, вернуля ошибку: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: функция doAuthenticationUserModeRemote, вернуля ошибку: <%v>", err))
 				return nil
 			}
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию. Режим - удалённый", c.typed.login))
+			c.conf.LgrFile.Write(fmt.Sprintf("Info: пользователь <%s>, прошел аутентификацию. Режим - удалённый", c.typed.login))
 		}
 
 		// Открытие окна, с запросом ввода дополнительного кода шифрования.
@@ -1297,30 +1298,30 @@ func (c *handlerUI) doAuthenticationUser(gui *gocui.Gui, v *gocui.View) error {
 // Запуск процесса сохранения данных.
 func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+F")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+F")
 
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно - логин/пароль
 		if err := doStoreViewLoginPasswordData(c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewLoginPasswordData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doStoreViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewTextData: // Окно - текст.
 		if err := doStoreViewTextData(c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewTextData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doStoreViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBankCardData: // Окно - банковские карты.
 		if err := doStoreViewBankCardData(c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doStoreViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBinaryData: // Окно - файлы.
 		if err := doStoreViewBinaryData(c); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doStoreViewBinaryData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doStoreViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -1333,30 +1334,30 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 // Отображение слудующего элемента.
 func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+E")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+E")
 
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно логин/пароль
 		if err := doShowNextElementViewLoginPasswordData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewLoginPasswordData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewTextData: // Окно текста
 		if err := doShowNextElementViewTextData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewTextData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBankCardData: // Окно банковских карт
 		if err := doShowNextElementViewBankCardData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBinaryData: // Окно файлов
 		if err := doShowNextElementViewBinaryData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewBinaryData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowNextElementViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -1369,30 +1370,30 @@ func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 // Отображение предыдущего элемента.
 func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+G")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+G")
 
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно логин/пароль.
 		if err := doShowPrevElementViewLoginPasswordData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewLoginPasswordData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewTextData: // Окно текста.
 		if err := doShowPrevElementViewTextData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewTextData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBankCardData: // Окно банковских карт.
 		if err := doShowPrevElementViewBankCardData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBinaryData: // Окно файлов.
 		if err := doShowPrevElementViewBinaryData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewBinaryData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doShowPrevElementViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -1405,30 +1406,30 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 // Удаление записи.
 func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+J")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+J")
 
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно логин/пароль
 		if err := doDeleteElementViewLoginPasswordData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewLoginPasswordData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewLoginPasswordData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewTextData: // Окно текста
 		if err := doDeleteElementViewTextData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewTextData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewTextData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBankCardData: // Окно банковских карт
 		if err := doDeleteElementViewBankCardData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewBankCardData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewBankCardData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
 	case viewBinaryData: // Окно файлов.
 		if err := doDeleteElementViewBinaryData(c, gui); err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewBinaryData, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция doDeleteElementViewBinaryData, вернула ошибку: <%v>", err))
 			return nil
 		}
 
@@ -1441,7 +1442,7 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 // Извлечение.
 func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+K")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+K")
 
 	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
@@ -1460,7 +1461,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 				// Чтение буфера.
 				v, err := gui.View("fieldShowFor")
 				if err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+					c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
 					return nil
 				}
 				nameFile := v.ViewBuffer()
@@ -1497,7 +1498,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 				// Чтение имени запрашиваемого файла.
 				v, err := gui.View("fieldShowFor")
 				if err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+					c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
 					return nil
 				}
 				fileName := v.ViewBuffer()
@@ -1506,7 +1507,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 				// Запрос у сервера информации по файлу.
 				_, _, rxFileSize, err := c.conf.Server.RequestFileInfo(c.tokenAuth, c.clientName, fileName)
 				if err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestFileInfo, вернула ошибку: <%v>", err))
+					c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestFileInfo, вернула ошибку: <%v>", err))
 					return nil
 				}
 
@@ -1514,7 +1515,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 
 				// Подготовка данных для реализации запроса файла.
 				if err := c.conf.Server.InitDataRequestFileByName(fileName, c.tokenAuth, c.clientName, rxFileSize, 0, c.secret.secretKey); err != nil {
-					c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция InitDataRequestFileByName, вернула ошибку: <%v>", err))
+					c.conf.LgrFile.Write(fmt.Sprintf("Error: функция InitDataRequestFileByName, вернула ошибку: <%v>", err))
 					return nil
 				}
 
@@ -1522,7 +1523,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 				chErr := make(chan error)
 				chDone := make(chan struct{})
 
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: запуск процесса получения файла: <%s>", fileName))
+				c.conf.LgrFile.Write(fmt.Sprintf("Info: запуск процесса получения файла: <%s>", fileName))
 
 				// Приём файла.
 				go c.conf.Server.RequestFileByName(chProcess, chErr, chDone)
@@ -1544,7 +1545,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 
 	// Очистка.
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -1554,7 +1555,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewRequestSecretKey, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Секретный ключ"
@@ -1566,7 +1567,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 	//
 	if v, err := g.SetView("scrtKey", 50, 7, inputWidth+1, inputHeight+1+6); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 		}
 		v.Title = "Ключ"
@@ -1592,7 +1593,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 	//
 	if v, err := g.SetView("Enter", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1604,7 +1605,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1616,7 +1617,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1629,7 +1630,7 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 
 	// Установка фокуса на поле ввода "scrtKey"
 	if _, err := g.SetCurrentView("scrtKey"); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус на 'scrtKey': <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус на 'scrtKey': <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус на 'scrtKey': <%v>", err)
 	}
 
@@ -1642,7 +1643,15 @@ func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 // Окно с выбором типа записей.
 func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+U")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+U")
+
+	// Закрытие подключения к БД, чтобы была возможность BackUp и Restore.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		if err := c.conf.DataBase.Close(); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка закрытия подключения к БД:<%v>, перед выходом из раздела логин/пароль", err))
+			return nil
+		}
+	}
 
 	// Ограничение.
 	if c.view.activeView != viewLoginPasswordData &&
@@ -1664,7 +1673,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		inst := container.New(containerName, c.secret.secretKey)
 		c.conf.Container = inst
 
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: стартовая обработка контейнера <%s> пройдена", containerName))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: стартовая обработка контейнера <%s> пройдена", containerName))
 	}
 
 	// Логика обработчика
@@ -1673,7 +1682,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
 	// Очистка видов.
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -1688,7 +1697,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// Для дополнительного секретного ключа.
 	view, err := g.SetView(viewSelectType, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Тип данных"
@@ -1700,7 +1709,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	//
 	if v, err := g.SetView("selectLoginPassword", 50, 2, inputWidth+1, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1716,7 +1725,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("selectText", 50, 5, inputWidth+1, inputHeight+1+4); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1732,7 +1741,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("SelectBinary", 50, 8, inputWidth+1, inputHeight+1+7); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1747,7 +1756,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("SelectBankCard", 50, 11, inputWidth+1, inputHeight+1+10); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1768,7 +1777,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// имя клиента.
 	if v, err := g.SetView("indicatorNameClient", 44, 18, inputWidth+12, inputHeight+1+17); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1781,7 +1790,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// процент выполнения.
 	if v, err := g.SetView("indicatorPercent", 56, 20, inputWidth+7, inputHeight+1+19); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1807,7 +1816,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		// Верхний ряд.
 		if v, err := g.SetView("Backup", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
 			if err != gocui.ErrUnknownView {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 				return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 			}
 			v.Editable = false
@@ -1822,7 +1831,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	// Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1834,7 +1843,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1846,7 +1855,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1858,7 +1867,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -1871,7 +1880,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 	if c.conf.Flag.Mode == flags.ModeLocal { // Отбразить элемент, если режим - локальный.
 		if v, err := g.SetView("Restore", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 			if err != gocui.ErrUnknownView {
-				c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+				c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 				return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 			}
 			v.Editable = false
@@ -1885,7 +1894,7 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 
@@ -1894,11 +1903,11 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		t := time.Now().UTC().Format("20060102150405.000")
 		randStr, err := generateRandomString(10)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция generateRandomString, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция generateRandomString, вернула ошибку: <%v>", err))
 			return fmt.Errorf("ошибка при генерации случайной строки, для ID клиента: <%w>", err)
 		}
 		c.clientName = t + "-" + randStr
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Info: Создан ID клиента: <%s>", c.clientName))
+		c.conf.LgrFile.Write(fmt.Sprintf("Info: Создан ID клиента: <%s>", c.clientName))
 	}
 
 	layoutInitialized = true
@@ -1910,12 +1919,24 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 // Окно для взаимодействия с логин/пароль.
 func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
-	// ограничение.
+	// Ограничение.
 	if c.view.activeView != viewSelectType {
 		return nil
 	}
 
-	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeLoginPassword")
+	// Подключение к БД.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		storage, err := domain.NewStorage(c.conf.Flag.DSN)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
+			return nil
+		}
+		c.conf.DataBase = storage
+	}
+
+	// Логика.
+	//
+	c.conf.LgrFile.Write("Debug: выполнен вход в окно typeLoginPassword")
 
 	c.status.readLoginPaaswordPassed = false // Сброс признака.
 	c.status.readNameLoginPaaswordPassed = false
@@ -1929,7 +1950,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
 	// Очистка.
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -1940,7 +1961,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewLoginPasswordData, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Логины - пароли"
@@ -1955,7 +1976,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("fieldShowFor", 1, 4, inputWidth-48, inputHeight+1+3); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Для"
@@ -1969,7 +1990,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowLogin", 33, 4, inputWidth-4, inputHeight+1+3); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Логин"
@@ -1983,7 +2004,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowPassword", 77, 4, inputWidth+48, inputHeight+1+3); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Пароль"
@@ -2001,7 +2022,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("fieldAddFor", 1, 12, inputWidth-48, inputHeight+1+11); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Для"
@@ -2017,7 +2038,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddLogin", 33, 12, inputWidth-4, inputHeight+1+11); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Логин"
@@ -2033,7 +2054,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddPassword", 77, 12, inputWidth+48, inputHeight+1+11); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Пароль"
@@ -2057,7 +2078,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX := 51
 	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vRead.Frame = false
@@ -2069,7 +2090,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX = 53
 	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vAdd.Frame = false
@@ -2090,7 +2111,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	// Верхний ряд.
 	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2102,7 +2123,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2114,7 +2135,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2126,7 +2147,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2140,7 +2161,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	//Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2152,7 +2173,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2164,7 +2185,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2176,7 +2197,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2188,7 +2209,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2206,10 +2227,10 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
 		_, err = showLoginPasswordWorkDB(c)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция funcshowLoginPasswordWorkDB, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция funcshowLoginPasswordWorkDB, вернула ошибку: <%v>", err))
 			c.status.readLoginPaaswordSUCCESS = false
 		} else {
-			c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные логин/пароль успешно прочитаны")
 			c.status.readLoginPaaswordSUCCESS = true
 		}
 	}
@@ -2225,18 +2246,18 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 		// Запрос у сервера имен записей
 		rxData, err := c.conf.Server.RequestLoginPasswordNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestLoginPasswordNames, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestLoginPasswordNames, вернула ошибку: <%v>", err))
 			c.status.readNameLoginPaaswordSUCCESS = false
 		} else {
 			c.data.namesLoginPassword = rxData // передача результата
-			c.conf.PtrLoggerFile.Write("Debug: данные логин/пароль успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные логин/пароль успешно прочитаны")
 			c.status.readNameLoginPaaswordSUCCESS = true
 		}
 	}
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	layoutInitialized = true
@@ -2253,7 +2274,17 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeText")
+	// Подключение к БД.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		storage, err := domain.NewStorage(c.conf.Flag.DSN)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
+			return nil
+		}
+		c.conf.DataBase = storage
+	}
+
+	c.conf.LgrFile.Write("Debug: выполнен вход в окно typeText")
 
 	c.status.readTextPassed = false // Сброс признака.
 	c.status.readNameTextPassed = false
@@ -2268,7 +2299,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
 	// Удаляем все зависимые виды
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -2279,7 +2310,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewTextData, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Текст"
@@ -2295,7 +2326,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX := 51
 	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vRead.Frame = false
@@ -2307,7 +2338,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX = 53
 	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vAdd.Frame = false
@@ -2324,7 +2355,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("fieldShowFor", 1, 4, inputWidth-48, inputHeight+1+3); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Для"
@@ -2338,7 +2369,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowText", 33, 4, inputWidth+48, inputHeight+1+3); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Текст"
@@ -2357,7 +2388,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("fieldAddFor", 1, 12, inputWidth-48, inputHeight+1+11); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Для"
@@ -2373,7 +2404,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddText", 33, 12, inputWidth+48, inputHeight+1+11); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Текст"
@@ -2402,7 +2433,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	// Верхний ряд.
 	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2414,7 +2445,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2426,7 +2457,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2438,7 +2469,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2452,7 +2483,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	// Нижний ряд
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2464,7 +2495,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2476,7 +2507,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2488,7 +2519,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2500,7 +2531,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2517,9 +2548,9 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
 		_, err = showTextWorkDB(c)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
 		} else {
-			c.conf.PtrLoggerFile.Write("Debug: данные текста успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные текста успешно прочитаны")
 			c.status.readTextSUCCESS = true
 		}
 	}
@@ -2534,18 +2565,18 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 		// Запрос у сервера имен записей
 		rxData, err := c.conf.Server.RequestTextNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
 			c.status.readNameTextSUCCESS = false
 		} else {
 			c.data.namesText = rxData // передача результата
-			c.conf.PtrLoggerFile.Write("Debug: данные текста успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные текста успешно прочитаны")
 			c.status.readNameTextSUCCESS = true
 		}
 	}
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	layoutInitialized = true
@@ -2560,6 +2591,16 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// ограничение.
 	if c.view.activeView != viewSelectType {
 		return nil
+	}
+
+	// Подключение к БД.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		storage, err := domain.NewStorage(c.conf.Flag.DSN)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
+			return nil
+		}
+		c.conf.DataBase = storage
 	}
 
 	c.view.activeView = "" // Сброс
@@ -2584,7 +2625,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 
 	// Удаляем все зависимые виды.
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -2595,7 +2636,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Создание контейнера запроса ввода дополнительного секретного ключа.
 	view, err := g.SetView(viewBinaryData, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Файлы"
@@ -2627,7 +2668,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX := 105
 	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vRead.Frame = false
@@ -2637,7 +2678,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Процент выполнения.
 	if v, err := g.SetView("indicatorPercent", 56, 20, inputWidth+7, inputHeight+1+19); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2655,7 +2696,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Отображение имени файла
 	if v, err := g.SetView("fieldShowFor", 22, 2, inputWidth+20, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2674,7 +2715,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Полный путь к файлу.
 	if v, err := g.SetView("fieldPathSource", 22, 6, inputWidth+48, inputHeight+1+5); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = true
@@ -2691,7 +2732,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Директория назначения.
 	if v, err := g.SetView("fieldPathTarget", 22, 10, inputWidth+48, inputHeight+1+9); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = true
@@ -2713,7 +2754,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	// Верхний ряд.
 	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2725,7 +2766,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2737,7 +2778,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2749,7 +2790,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2761,7 +2802,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Extraction", 104, 23, inputWidth+48, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2775,7 +2816,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	//Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2787,7 +2828,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2799,7 +2840,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2811,7 +2852,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2823,7 +2864,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -2841,9 +2882,9 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	if c.conf.Flag.Mode == flags.ModeLocal {
 		c.data.files, err = c.conf.Container.ListFilesInContainer(c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
 		} else {
-			c.conf.PtrLoggerFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
 			c.status.readFileSUCCESS = true
 		}
 	}
@@ -2859,18 +2900,18 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 		// Запрос у сервера имен записей
 		rxData, err := c.conf.Server.RequestFileNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestFileNames, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestFileNames, вернула ошибку: <%v>", err))
 			c.status.readNameFileSUCCESS = false
 		} else {
 			c.data.namesFile = rxData // передача результата
-			c.conf.PtrLoggerFile.Write("Debug: данные банковской карты, успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные банковской карты, успешно прочитаны")
 			c.status.readNameFileSUCCESS = true
 		}
 	}
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	layoutInitialized = true
@@ -2887,7 +2928,17 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		return nil
 	}
 
-	c.conf.PtrLoggerFile.Write("Debug: выполнен вход в окно typeBankCard")
+	// Подключение к БД.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		storage, err := domain.NewStorage(c.conf.Flag.DSN)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
+			return nil
+		}
+		c.conf.DataBase = storage
+	}
+
+	c.conf.LgrFile.Write("Debug: выполнен вход в окно typeBankCard")
 
 	c.status.readBankCardPassed = false // Сброс признака.
 	c.status.readNameBankCardPassed = false
@@ -2902,7 +2953,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
 	// Очистка.
 	if err := deleteViews(g); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
@@ -2913,7 +2964,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	// Окно для банковской карты.
 	view, err := g.SetView(viewBankCardData, 0, 0, screenWidth-1, screenHeight-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	view.Title = "Банковские карты"
@@ -2930,7 +2981,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("fieldShowFor", 1, 2, inputWidth-48, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Для"
@@ -2944,7 +2995,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowOwner", 33, 2, inputWidth-4, inputHeight+1+1); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Владелец"
@@ -2958,7 +3009,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowNumber", 33, 5, inputWidth-4, inputHeight+1+4); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Номер"
@@ -2972,7 +3023,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowValid", 33, 8, inputWidth-30, inputHeight+1+7); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Дата"
@@ -2986,7 +3037,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldShowCode", 59, 8, inputWidth-4, inputHeight+1+7); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Код"
@@ -3005,7 +3056,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
 	if v, err := g.SetView("fieldAddFor", 1, 13, inputWidth-48, inputHeight+1+12); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Для"
@@ -3019,7 +3070,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddOwner", 33, 13, inputWidth-4, inputHeight+1+12); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Владелец"
@@ -3033,7 +3084,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddNumber", 33, 16, inputWidth-4, inputHeight+1+15); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Номер"
@@ -3047,7 +3098,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddValid", 33, 19, inputWidth-30, inputHeight+1+18); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Дата"
@@ -3061,7 +3112,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("fieldAddCode", 59, 19, inputWidth-4, inputHeight+1+18); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Title = "Код"
@@ -3084,7 +3135,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX := 80
 	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vRead.Frame = false
@@ -3096,7 +3147,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	indicatorX = 80
 	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
 	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 	}
 	vAdd.Frame = false
@@ -3110,7 +3161,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	// Верхний ряд.
 	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3122,7 +3173,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3134,7 +3185,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3146,7 +3197,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3160,7 +3211,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	//Нижний ряд.
 	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3172,7 +3223,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3184,7 +3235,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3196,7 +3247,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3208,7 +3259,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 	}
 	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
 		if err != gocui.ErrUnknownView {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
 		}
 		v.Editable = false
@@ -3227,9 +3278,9 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
 		_, err = showBankCardWorkDB(c)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
 		} else {
-			c.conf.PtrLoggerFile.Write("Debug: данные банковских карт успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные банковских карт успешно прочитаны")
 			c.status.readBankCardSUCCESS = true
 		}
 	}
@@ -3245,18 +3296,18 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		// Запрос у сервера имен записей
 		rxData, err := c.conf.Server.RequestBankCardNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
 			c.status.readNameBankCardSUCCESS = false
 		} else {
 			c.data.namesBankCard = rxData // передача результата
-			c.conf.PtrLoggerFile.Write("Debug: данные банковской карты, успешно прочитаны")
+			c.conf.LgrFile.Write("Debug: данные банковской карты, успешно прочитаны")
 			c.status.readNameBankCardSUCCESS = true
 		}
 	}
 
 	// Установка фокуса.
 	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.PtrLoggerFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
+		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
 	}
 	layoutInitialized = true
@@ -3268,7 +3319,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 // Передача данных клиента, на сервер.
 func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+O")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+O")
 
 	// Запрет отработки, если уже есть активный процесс.
 	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
@@ -3278,29 +3329,39 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 	// Логика работает только из окна выбора типа.
 	if c.view.activeView == viewSelectType {
 
-		// Установка признака, что запущен процесс передачи файлов на сервер.
-		c.updateStatusRestore(stageNotActive) // Сброс состояния, чтобы убрать подсветку.
 		c.updateStatusBackUp(stageActive)
+		c.updateStatusRestore(stageNotActive) // сброс признака, чтобы убрать подсветку.
 
-		// Сброс данных.
-		c.txrx.passedKB = 0
-		c.txrx.percentTxRx = 0
-		c.txrx.totalSizeKB = 0
+		c.conf.LgrFile.Write("Info: Запущен процесс BackUp")
 
 		// Логика процесса.
 		//
 		files := []string{"manager.db", "container.data"}
 
 		// Определение общего размера файлов.
-		c.txrx.totalSizeKB, err = totalFileSize(files)
+		totalSizeKB, err := totalFileSize(files)
 		if err != nil {
-			c.conf.PtrLoggerFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
 			c.updateStatusBackUp(stageFault)
 			return nil
 		}
 
+		// Инициализация данных процесса BackUp.
+		if err := c.conf.Server.InitDataBackUp(files, totalSizeKB, c.secret.secretKey); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция InitDataBackUp, вернула ошибку: <%v>", err))
+			c.updateStatusBackUp(stageFault)
+			return nil
+		}
+
+		chProcess := make(chan float32)
+		chErr := make(chan error)
+		chDone := make(chan struct{})
+
 		// Передача файлов.
-		go doBackupProcess(files, c)
+		go c.conf.Server.BackUp(chProcess, chErr, chDone, c.conf.LgrFile)
+
+		// Буфер процесса BackUp.
+		go bufferProcessBackUp(c, chProcess, chErr, chDone)
 	}
 	return nil
 }
@@ -3308,7 +3369,7 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 // Получение данных клиента, от сервер.
 func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 
-	c.conf.PtrLoggerFile.Write("Info: Нажата комбинация Ctrl+P")
+	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+P")
 
 	// Запрет отработки, если уже есть активный процесс.
 	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
@@ -3318,18 +3379,41 @@ func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 	// Логика работает только из окна выбора типа.
 	if c.view.activeView == viewSelectType {
 
-		// Установка признака, что запущен процесс приёма файлов от сервера.
+		c.conf.LgrFile.Write("Info: Запущен поцесс Restore")
+
 		c.updateStatusBackUp(stageNotActive) // сброс признака, чтобы убрать подсветку.
 		c.updateStatusRestore(stageActive)
 
-		// Сброс данных.
-		c.txrx.passedKB = 0
-		c.txrx.percentTxRx = 0
-		c.txrx.totalSizeKB = 0
+		// Предварительный запрос у сервера данных по файлам.
+		rxFilesInfo, err := c.conf.Server.RestoreRequestFilesInfo()
+		if err != nil {
+			return fmt.Errorf("Функция RestoreRequestFilesInfo, вернула ошибку:<%w>", err)
+		}
+
+		// Проверка, что сервер предоставил данные по всем нужным файлам.
+		wantNames := []string{"manager.db", "container.data"}
+		rxNames := make([]string, 0, 2)
+		for _, f := range rxFilesInfo {
+			rxNames = append(rxNames, f.Name)
+		}
+		if err := chechRxNameFiles(rxNames, wantNames); err != nil {
+			return fmt.Errorf("Функция chechRxNameFiles, вернула ошибку:<%w>", err)
+		}
+
+		// Инициализация данных для выполнения Restore.
+		if err := c.conf.Server.InitDataRestore(rxFilesInfo); err != nil {
+			return fmt.Errorf("Функция InitDataRestore, вернула ошибку:<%w>", err)
+		}
+
+		chProcess := make(chan float32)
+		chErr := make(chan error)
+		chDone := make(chan struct{})
 
 		// Приём файлов.
-		files := []string{"manager.db", "container.data"}
-		go doRestoreProcess(files, c)
+		go c.conf.Server.Restore(chProcess, chErr, chDone, c.conf.LgrFile)
+
+		// Буфер процесса.
+		go bufferProcessRestore(c, chProcess, chErr, chDone)
 	}
 	return nil
 }

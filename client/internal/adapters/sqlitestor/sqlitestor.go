@@ -11,8 +11,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var once sync.Once
-
 // База данных.
 type dataBase struct {
 	ptrDB *sql.DB
@@ -66,27 +64,19 @@ var inst *dataBase
 // Конструктор.
 func New(dsn string) (Actions, error) {
 
-	var err error
+	db, connErr := connect(dsn)
+	if connErr != nil {
+		return nil, fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
 
-	once.Do(func() {
-		db, connErr := connect(dsn)
-		if connErr != nil {
-			err = fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
-			return
-		}
-		if migrationErr := migrationUp(db); migrationErr != nil {
-			err = fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
-			return
-		}
+	}
+	if migrationErr := migrationUp(db); migrationErr != nil {
+		return nil, fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
 
-		inst = &dataBase{
-			ptrDB: db,
-			mu:    &sync.Mutex{},
-		}
-	})
+	}
 
-	if err != nil {
-		return nil, fmt.Errorf("Error: %v", err)
+	inst = &dataBase{
+		ptrDB: db,
+		mu:    &sync.Mutex{},
 	}
 
 	return inst, nil

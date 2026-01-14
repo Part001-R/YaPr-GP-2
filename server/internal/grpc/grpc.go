@@ -104,7 +104,9 @@ func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empt
 }
 
 // Обработчик приёма файла.
-func (s *Manager) BackupFile(stream pb.PasswordManager_LocalBackupFileServer) (errReturn error) {
+func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServer) (errReturn error) {
+
+	s.logger.Info("Принят запрос BackUp")
 
 	// Проверка, что процесс уже активный.
 	if s.GetStatusBackUp() == stageActive || s.GetStatusRestore() == stageActive {
@@ -225,6 +227,8 @@ func (s *Manager) BackupFile(stream pb.PasswordManager_LocalBackupFileServer) (e
 		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
+	s.logger.Info("BackUp, выполнен")
+
 	// Финальное сообщение сервера.
 	return stream.SendAndClose(&pb.LocalBackupFileResponse{
 		FileName: rxFileName,
@@ -232,7 +236,7 @@ func (s *Manager) BackupFile(stream pb.PasswordManager_LocalBackupFileServer) (e
 }
 
 // Обработчик передачи файлов.
-func (s *Manager) RestoreFile(req *pb.LocalRestoreFileRequest, stream pb.PasswordManager_LocalRestoreFileServer) error {
+func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.PasswordManager_LocalRestoreFileServer) error {
 
 	// Получение статуса isBackUp
 	if s.GetStatusBackUp() == stageActive {
@@ -305,7 +309,7 @@ func (s *Manager) RestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Passwor
 }
 
 // Предоставление информации о файлах.
-func (s *Manager) FilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.LocalFilesInfoResponse, error) {
+func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.LocalFilesInfoResponse, error) {
 
 	// Извлечение метаданных из контекста
 	md, ok := metadata.FromIncomingContext(ctx)

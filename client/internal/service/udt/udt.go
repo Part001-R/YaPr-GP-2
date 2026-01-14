@@ -16,12 +16,12 @@ var onceConf sync.Once
 
 // Конфигурация сервиса.
 type Configuration struct {
-	PtrLoggerFile *logfile.LogFile  // Логгер файл.
-	DataBase      domain.StorageI   // Интерфес БД.
-	Container     container.Actions // Интерфейс контейнера.
-	Flag          *flags.Config     // Флаги.
-	ptrDB         *sql.DB           // Указатель на БД.
-	Server        server.ServerI    // Интерфейс сервера.
+	LgrFile   *logfile.LogFile  // Логгер файл.
+	DataBase  domain.StorageI   // Интерфес БД.
+	Container container.Actions // Интерфейс контейнера.
+	Flag      *flags.Config     // Флаги.
+	ptrDB     *sql.DB           // Указатель на БД.
+	Server    server.ServerI    // Интерфейс сервера.
 }
 
 // Указатель на конфигурацию сервиса.
@@ -31,9 +31,9 @@ var inst *Configuration
 func New(l *logfile.LogFile, a domain.StorageI, f *flags.Config) *Configuration {
 	onceConf.Do(func() {
 		inst = &Configuration{
-			PtrLoggerFile: l,
-			DataBase:      a,
-			Flag:          f,
+			LgrFile:  l,
+			DataBase: a,
+			Flag:     f,
 		}
 	})
 	return inst
@@ -47,7 +47,7 @@ func NewServer(s server.ServerI) {
 // Проверка содержимого конфигурации.
 func (c Configuration) CheckConf() error {
 
-	if c.PtrLoggerFile == nil {
+	if c.LgrFile == nil {
 		return NilPtrLoggerFile
 	}
 

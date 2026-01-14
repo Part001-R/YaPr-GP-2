@@ -84,3 +84,26 @@ type dataSendFile struct {
 	sizePassed   int64
 	secretKey    [32]byte
 }
+
+// Представление данных для BackUp
+type dataBackUp struct {
+	listFiles    []string
+	tokenAuth    string
+	clientID     string
+	sizeSendFile int64
+	sizePassed   int64
+	secretKey    [32]byte
+}
+
+// Представление данных для Restore
+type dataRestore struct {
+	listFiles      []InfoByFiles
+	totalSizeFiles int64
+	sizePassed     int64
+}
+
+// Информация по файлу.
+type InfoByFiles struct {
+	Name   string // имя файла.
+	Volume int64  // размер файла.
+}
