@@ -28,6 +28,11 @@ service PasswordManager {
     rpc RequestFileInfo(RequestFileInfoRequest) returns (RequestFileInfoResponse);
     rpc RequestFileName(google.protobuf.Empty) returns (RequestFileNameResponse);
     rpc RequestFileByName(RequestFileByNameRequest) returns (stream RequestFileByNameResponse);
+
+    rpc DeleteLoginPassword(RequestDeleteName) returns (google.protobuf.Empty);
+    rpc DeleteText(RequestDeleteName) returns (google.protobuf.Empty);
+    rpc DeleteBankCard(RequestDeleteName) returns (google.protobuf.Empty);
+    rpc DeleteFile(RequestDeleteName) returns (google.protobuf.Empty);
 }
 
 message LocalBackupFileRequest {
@@ -179,4 +184,9 @@ message RequestFileByNameRequest {
 message RequestFileByNameResponse {
     string fileName = 1;
     bytes content = 2;
+}
+
+message RequestDeleteName {
+    string idClient = 1;
+    string name = 2;
 }

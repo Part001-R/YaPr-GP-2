@@ -1566,6 +1566,58 @@ func (x *RequestFileByNameResponse) GetContent() []byte {
 	return nil
 }
 
+type RequestDeleteName struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdClient      string                 `protobuf:"bytes,1,opt,name=idClient,proto3" json:"idClient,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestDeleteName) Reset() {
+	*x = RequestDeleteName{}
+	mi := &file_proto_client_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestDeleteName) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestDeleteName) ProtoMessage() {}
+
+func (x *RequestDeleteName) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_client_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestDeleteName.ProtoReflect.Descriptor instead.
+func (*RequestDeleteName) Descriptor() ([]byte, []int) {
+	return file_proto_client_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RequestDeleteName) GetIdClient() string {
+	if x != nil {
+		return x.IdClient
+	}
+	return ""
+}
+
+func (x *RequestDeleteName) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 var File_proto_client_proto protoreflect.FileDescriptor
 
 const file_proto_client_proto_rawDesc = "" +
@@ -1665,7 +1717,10 @@ const file_proto_client_proto_rawDesc = "" +
 	"\bfileName\x18\x02 \x01(\tR\bfileName\"Q\n" +
 	"\x19RequestFileByNameResponse\x12\x1a\n" +
 	"\bfileName\x18\x01 \x01(\tR\bfileName\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\fR\acontent2\xb4\f\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\"C\n" +
+	"\x11RequestDeleteName\x12\x1a\n" +
+	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name2\xc9\x0e\n" +
 	"\x0fPasswordManager\x126\n" +
 	"\x04Ping\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12V\n" +
 	"\x0fLocalBackupFile\x12\x1f.manager.LocalBackupFileRequest\x1a .manager.LocalBackupFileResponse(\x01\x12Y\n" +
@@ -1685,7 +1740,13 @@ const file_proto_client_proto_rawDesc = "" +
 	"\x15RequestBankCardByName\x12%.manager.RequestBankCardByNameRequest\x1a&.manager.RequestBankCardByNameResponse\x12T\n" +
 	"\x0fRequestFileInfo\x12\x1f.manager.RequestFileInfoRequest\x1a .manager.RequestFileInfoResponse\x12K\n" +
 	"\x0fRequestFileName\x12\x16.google.protobuf.Empty\x1a .manager.RequestFileNameResponse\x12\\\n" +
-	"\x11RequestFileByName\x12!.manager.RequestFileByNameRequest\x1a\".manager.RequestFileByNameResponse0\x01B&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
+	"\x11RequestFileByName\x12!.manager.RequestFileByNameRequest\x1a\".manager.RequestFileByNameResponse0\x01\x12I\n" +
+	"\x13DeleteLoginPassword\x12\x1a.manager.RequestDeleteName\x1a\x16.google.protobuf.Empty\x12@\n" +
+	"\n" +
+	"DeleteText\x12\x1a.manager.RequestDeleteName\x1a\x16.google.protobuf.Empty\x12D\n" +
+	"\x0eDeleteBankCard\x12\x1a.manager.RequestDeleteName\x1a\x16.google.protobuf.Empty\x12@\n" +
+	"\n" +
+	"DeleteFile\x12\x1a.manager.RequestDeleteName\x1a\x16.google.protobuf.EmptyB&Z$github.com/Part001-R/YaPr-GP-2/protob\x06proto3"
 
 var (
 	file_proto_client_proto_rawDescOnce sync.Once
@@ -1699,7 +1760,7 @@ func file_proto_client_proto_rawDescGZIP() []byte {
 	return file_proto_client_proto_rawDescData
 }
 
-var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_proto_client_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_proto_client_proto_goTypes = []any{
 	(*LocalBackupFileRequest)(nil),             // 0: manager.LocalBackupFileRequest
 	(*LocalBackupFileResponse)(nil),            // 1: manager.LocalBackupFileResponse
@@ -1729,50 +1790,59 @@ var file_proto_client_proto_goTypes = []any{
 	(*RequestFileNameResponse)(nil),            // 25: manager.RequestFileNameResponse
 	(*RequestFileByNameRequest)(nil),           // 26: manager.RequestFileByNameRequest
 	(*RequestFileByNameResponse)(nil),          // 27: manager.RequestFileByNameResponse
-	(*emptypb.Empty)(nil),                      // 28: google.protobuf.Empty
+	(*RequestDeleteName)(nil),                  // 28: manager.RequestDeleteName
+	(*emptypb.Empty)(nil),                      // 29: google.protobuf.Empty
 }
 var file_proto_client_proto_depIdxs = []int32{
 	4,  // 0: manager.LocalFilesInfoResponse.fileInfo:type_name -> manager.FileInfo
-	28, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
+	29, // 1: manager.PasswordManager.Ping:input_type -> google.protobuf.Empty
 	0,  // 2: manager.PasswordManager.LocalBackupFile:input_type -> manager.LocalBackupFileRequest
 	2,  // 3: manager.PasswordManager.LocalRestoreFile:input_type -> manager.LocalRestoreFileRequest
-	28, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
+	29, // 4: manager.PasswordManager.LocalFilesInfo:input_type -> google.protobuf.Empty
 	6,  // 5: manager.PasswordManager.Registration:input_type -> manager.RegistrationRequest
 	7,  // 6: manager.PasswordManager.Authentication:input_type -> manager.AuthenticationRequest
 	9,  // 7: manager.PasswordManager.SendLoginPassword:input_type -> manager.SendLoginPasswordRequest
 	10, // 8: manager.PasswordManager.SendText:input_type -> manager.SendTextRequest
 	11, // 9: manager.PasswordManager.SendBankCard:input_type -> manager.SendBankCardRequest
 	12, // 10: manager.PasswordManager.SendFile:input_type -> manager.SendFileRequest
-	28, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
+	29, // 11: manager.PasswordManager.RequestLoginPasswordName:input_type -> google.protobuf.Empty
 	15, // 12: manager.PasswordManager.RequestLoginPasswordByName:input_type -> manager.RequestLoginPasswordByNameRequest
-	28, // 13: manager.PasswordManager.RequestTextName:input_type -> google.protobuf.Empty
+	29, // 13: manager.PasswordManager.RequestTextName:input_type -> google.protobuf.Empty
 	18, // 14: manager.PasswordManager.RequestTextByName:input_type -> manager.RequestTextByNameRequest
-	28, // 15: manager.PasswordManager.RequestBankCardName:input_type -> google.protobuf.Empty
+	29, // 15: manager.PasswordManager.RequestBankCardName:input_type -> google.protobuf.Empty
 	21, // 16: manager.PasswordManager.RequestBankCardByName:input_type -> manager.RequestBankCardByNameRequest
 	23, // 17: manager.PasswordManager.RequestFileInfo:input_type -> manager.RequestFileInfoRequest
-	28, // 18: manager.PasswordManager.RequestFileName:input_type -> google.protobuf.Empty
+	29, // 18: manager.PasswordManager.RequestFileName:input_type -> google.protobuf.Empty
 	26, // 19: manager.PasswordManager.RequestFileByName:input_type -> manager.RequestFileByNameRequest
-	28, // 20: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
-	1,  // 21: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
-	3,  // 22: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
-	5,  // 23: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
-	28, // 24: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
-	8,  // 25: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
-	28, // 26: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
-	28, // 27: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
-	28, // 28: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
-	13, // 29: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
-	14, // 30: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
-	16, // 31: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
-	17, // 32: manager.PasswordManager.RequestTextName:output_type -> manager.RequestTextNameResponse
-	19, // 33: manager.PasswordManager.RequestTextByName:output_type -> manager.RequestTextByNameResponse
-	20, // 34: manager.PasswordManager.RequestBankCardName:output_type -> manager.RequestBankCardNameResponse
-	22, // 35: manager.PasswordManager.RequestBankCardByName:output_type -> manager.RequestBankCardByNameResponse
-	24, // 36: manager.PasswordManager.RequestFileInfo:output_type -> manager.RequestFileInfoResponse
-	25, // 37: manager.PasswordManager.RequestFileName:output_type -> manager.RequestFileNameResponse
-	27, // 38: manager.PasswordManager.RequestFileByName:output_type -> manager.RequestFileByNameResponse
-	20, // [20:39] is the sub-list for method output_type
-	1,  // [1:20] is the sub-list for method input_type
+	28, // 20: manager.PasswordManager.DeleteLoginPassword:input_type -> manager.RequestDeleteName
+	28, // 21: manager.PasswordManager.DeleteText:input_type -> manager.RequestDeleteName
+	28, // 22: manager.PasswordManager.DeleteBankCard:input_type -> manager.RequestDeleteName
+	28, // 23: manager.PasswordManager.DeleteFile:input_type -> manager.RequestDeleteName
+	29, // 24: manager.PasswordManager.Ping:output_type -> google.protobuf.Empty
+	1,  // 25: manager.PasswordManager.LocalBackupFile:output_type -> manager.LocalBackupFileResponse
+	3,  // 26: manager.PasswordManager.LocalRestoreFile:output_type -> manager.LocalRestoreFileResponse
+	5,  // 27: manager.PasswordManager.LocalFilesInfo:output_type -> manager.LocalFilesInfoResponse
+	29, // 28: manager.PasswordManager.Registration:output_type -> google.protobuf.Empty
+	8,  // 29: manager.PasswordManager.Authentication:output_type -> manager.AuthenticationResponse
+	29, // 30: manager.PasswordManager.SendLoginPassword:output_type -> google.protobuf.Empty
+	29, // 31: manager.PasswordManager.SendText:output_type -> google.protobuf.Empty
+	29, // 32: manager.PasswordManager.SendBankCard:output_type -> google.protobuf.Empty
+	13, // 33: manager.PasswordManager.SendFile:output_type -> manager.SendFileResponse
+	14, // 34: manager.PasswordManager.RequestLoginPasswordName:output_type -> manager.RequestLoginPasswordNameResponse
+	16, // 35: manager.PasswordManager.RequestLoginPasswordByName:output_type -> manager.RequestLoginPasswordByNameResponse
+	17, // 36: manager.PasswordManager.RequestTextName:output_type -> manager.RequestTextNameResponse
+	19, // 37: manager.PasswordManager.RequestTextByName:output_type -> manager.RequestTextByNameResponse
+	20, // 38: manager.PasswordManager.RequestBankCardName:output_type -> manager.RequestBankCardNameResponse
+	22, // 39: manager.PasswordManager.RequestBankCardByName:output_type -> manager.RequestBankCardByNameResponse
+	24, // 40: manager.PasswordManager.RequestFileInfo:output_type -> manager.RequestFileInfoResponse
+	25, // 41: manager.PasswordManager.RequestFileName:output_type -> manager.RequestFileNameResponse
+	27, // 42: manager.PasswordManager.RequestFileByName:output_type -> manager.RequestFileByNameResponse
+	29, // 43: manager.PasswordManager.DeleteLoginPassword:output_type -> google.protobuf.Empty
+	29, // 44: manager.PasswordManager.DeleteText:output_type -> google.protobuf.Empty
+	29, // 45: manager.PasswordManager.DeleteBankCard:output_type -> google.protobuf.Empty
+	29, // 46: manager.PasswordManager.DeleteFile:output_type -> google.protobuf.Empty
+	24, // [24:47] is the sub-list for method output_type
+	1,  // [1:24] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -1789,7 +1859,7 @@ func file_proto_client_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_client_proto_rawDesc), len(file_proto_client_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   28,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

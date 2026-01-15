@@ -748,3 +748,241 @@ func layerRequestFileInfoTx(data fileInfo) (res *pb.RequestFileInfoResponse, err
 
 	return r, nil
 }
+
+//
+// --- DeleteLoginPassword ---
+//
+
+// Получение токена из запроса.
+func layerDeleteLoginPasswordToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerDeleteLoginPasswordRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
+
+	idClient = req.IdClient
+	name = req.Name
+
+	if idClient == "" {
+		return "", "", EmptyDataIDClient
+	}
+
+	if name == "" {
+		return "", "", EmptyDataFileNAme
+	}
+
+	return idClient, name, nil
+}
+
+// Логика.
+func layerDeleteLoginPassword(name string, s *Manager, ctx context.Context) error {
+
+	// Удаление.
+	if err := s.storage.DelDataLoginPasswordContext(ctx, name); err != nil {
+		return fmt.Errorf("Функция DelDataLoginPasswordContext, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- DeleteText ---
+//
+
+// Получение токена из запроса.
+func layerDeleteTextToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerDeleteTextRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
+
+	idClient = req.IdClient
+	name = req.Name
+
+	if idClient == "" {
+		return "", "", EmptyDataIDClient
+	}
+
+	if name == "" {
+		return "", "", EmptyDataFileNAme
+	}
+
+	return idClient, name, nil
+}
+
+// Логика.
+func layerDeleteText(name string, s *Manager, ctx context.Context) error {
+
+	// Удаление.
+	if err := s.storage.DelTextContext(ctx, name); err != nil {
+		return fmt.Errorf("Функция DelTextContext, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- DeleteBankCard ---
+//
+
+// Получение токена из запроса.
+func layerDeleteBankCardToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerDeleteBankCardRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
+
+	idClient = req.IdClient
+	name = req.Name
+
+	if idClient == "" {
+		return "", "", EmptyDataIDClient
+	}
+
+	if name == "" {
+		return "", "", EmptyDataFileNAme
+	}
+
+	return idClient, name, nil
+}
+
+// Логика.
+func layerDeleteBankCard(name string, s *Manager, ctx context.Context) error {
+
+	// Удаление.
+	if err := s.storage.DelBankCardContext(ctx, name); err != nil {
+		return fmt.Errorf("Функция DelBankCardContext, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- DeleteFile ---
+//
+
+// Получение токена из запроса.
+func layerDeleteFileToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
+
+// Получение данных запроса.
+func layerDeleteFileRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
+
+	idClient = req.IdClient
+	name = req.Name
+
+	if idClient == "" {
+		return "", "", EmptyDataIDClient
+	}
+
+	if name == "" {
+		return "", "", EmptyDataFileNAme
+	}
+
+	return idClient, name, nil
+}
+
+// Логика.
+func layerDeleteFile(name string, s *Manager) error {
+
+	filePath := s.flag.NameSubDirFiles + "/" + name
+
+	if fileExists(filePath) {
+		if err := os.Remove(filePath); err != nil {
+			s.logger.Error("Ошибка удаления файла", zap.String("ошибка", err.Error()), zap.String("файл", name))
+			return fmt.Errorf("Ошибка: <%w> удаления файла:<%s>", err, name)
+		}
+		return nil
+	}
+
+	s.logger.Error("Отсутствует файл", zap.String("файл", filePath))
+	return fmt.Errorf("Отсутствует файл: <%s>", name)
+}

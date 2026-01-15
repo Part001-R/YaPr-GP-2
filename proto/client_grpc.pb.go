@@ -39,6 +39,10 @@ const (
 	PasswordManager_RequestFileInfo_FullMethodName            = "/manager.PasswordManager/RequestFileInfo"
 	PasswordManager_RequestFileName_FullMethodName            = "/manager.PasswordManager/RequestFileName"
 	PasswordManager_RequestFileByName_FullMethodName          = "/manager.PasswordManager/RequestFileByName"
+	PasswordManager_DeleteLoginPassword_FullMethodName        = "/manager.PasswordManager/DeleteLoginPassword"
+	PasswordManager_DeleteText_FullMethodName                 = "/manager.PasswordManager/DeleteText"
+	PasswordManager_DeleteBankCard_FullMethodName             = "/manager.PasswordManager/DeleteBankCard"
+	PasswordManager_DeleteFile_FullMethodName                 = "/manager.PasswordManager/DeleteFile"
 )
 
 // PasswordManagerClient is the client API for PasswordManager service.
@@ -64,6 +68,10 @@ type PasswordManagerClient interface {
 	RequestFileInfo(ctx context.Context, in *RequestFileInfoRequest, opts ...grpc.CallOption) (*RequestFileInfoResponse, error)
 	RequestFileName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*RequestFileNameResponse, error)
 	RequestFileByName(ctx context.Context, in *RequestFileByNameRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RequestFileByNameResponse], error)
+	DeleteLoginPassword(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteText(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteBankCard(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteFile(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type passwordManagerClient struct {
@@ -288,6 +296,46 @@ func (c *passwordManagerClient) RequestFileByName(ctx context.Context, in *Reque
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PasswordManager_RequestFileByNameClient = grpc.ServerStreamingClient[RequestFileByNameResponse]
 
+func (c *passwordManagerClient) DeleteLoginPassword(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_DeleteLoginPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) DeleteText(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_DeleteText_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) DeleteBankCard(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_DeleteBankCard_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *passwordManagerClient) DeleteFile(ctx context.Context, in *RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, PasswordManager_DeleteFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PasswordManagerServer is the server API for PasswordManager service.
 // All implementations must embed UnimplementedPasswordManagerServer
 // for forward compatibility.
@@ -311,6 +359,10 @@ type PasswordManagerServer interface {
 	RequestFileInfo(context.Context, *RequestFileInfoRequest) (*RequestFileInfoResponse, error)
 	RequestFileName(context.Context, *emptypb.Empty) (*RequestFileNameResponse, error)
 	RequestFileByName(*RequestFileByNameRequest, grpc.ServerStreamingServer[RequestFileByNameResponse]) error
+	DeleteLoginPassword(context.Context, *RequestDeleteName) (*emptypb.Empty, error)
+	DeleteText(context.Context, *RequestDeleteName) (*emptypb.Empty, error)
+	DeleteBankCard(context.Context, *RequestDeleteName) (*emptypb.Empty, error)
+	DeleteFile(context.Context, *RequestDeleteName) (*emptypb.Empty, error)
 	mustEmbedUnimplementedPasswordManagerServer()
 }
 
@@ -377,6 +429,18 @@ func (UnimplementedPasswordManagerServer) RequestFileName(context.Context, *empt
 }
 func (UnimplementedPasswordManagerServer) RequestFileByName(*RequestFileByNameRequest, grpc.ServerStreamingServer[RequestFileByNameResponse]) error {
 	return status.Error(codes.Unimplemented, "method RequestFileByName not implemented")
+}
+func (UnimplementedPasswordManagerServer) DeleteLoginPassword(context.Context, *RequestDeleteName) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteLoginPassword not implemented")
+}
+func (UnimplementedPasswordManagerServer) DeleteText(context.Context, *RequestDeleteName) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteText not implemented")
+}
+func (UnimplementedPasswordManagerServer) DeleteBankCard(context.Context, *RequestDeleteName) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteBankCard not implemented")
+}
+func (UnimplementedPasswordManagerServer) DeleteFile(context.Context, *RequestDeleteName) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
 }
 func (UnimplementedPasswordManagerServer) mustEmbedUnimplementedPasswordManagerServer() {}
 func (UnimplementedPasswordManagerServer) testEmbeddedByValue()                         {}
@@ -705,6 +769,78 @@ func _PasswordManager_RequestFileByName_Handler(srv interface{}, stream grpc.Ser
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type PasswordManager_RequestFileByNameServer = grpc.ServerStreamingServer[RequestFileByNameResponse]
 
+func _PasswordManager_DeleteLoginPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestDeleteName)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).DeleteLoginPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_DeleteLoginPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).DeleteLoginPassword(ctx, req.(*RequestDeleteName))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_DeleteText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestDeleteName)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).DeleteText(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_DeleteText_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).DeleteText(ctx, req.(*RequestDeleteName))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_DeleteBankCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestDeleteName)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).DeleteBankCard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_DeleteBankCard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).DeleteBankCard(ctx, req.(*RequestDeleteName))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PasswordManager_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestDeleteName)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PasswordManagerServer).DeleteFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PasswordManager_DeleteFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PasswordManagerServer).DeleteFile(ctx, req.(*RequestDeleteName))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PasswordManager_ServiceDesc is the grpc.ServiceDesc for PasswordManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -771,6 +907,22 @@ var PasswordManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestFileName",
 			Handler:    _PasswordManager_RequestFileName_Handler,
+		},
+		{
+			MethodName: "DeleteLoginPassword",
+			Handler:    _PasswordManager_DeleteLoginPassword_Handler,
+		},
+		{
+			MethodName: "DeleteText",
+			Handler:    _PasswordManager_DeleteText_Handler,
+		},
+		{
+			MethodName: "DeleteBankCard",
+			Handler:    _PasswordManager_DeleteBankCard_Handler,
+		},
+		{
+			MethodName: "DeleteFile",
+			Handler:    _PasswordManager_DeleteFile_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

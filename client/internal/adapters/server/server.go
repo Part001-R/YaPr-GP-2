@@ -60,6 +60,10 @@ type ActionsI interface {
 	RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
 	InitDataRequestFileByName(fileName, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error
 	InitDataSendFile(filePath, tokenAuth, clientID string, sizeSendFile, sizePassed int64, secretKey [32]byte) error
+	DeleteLoginPassword(idClient, name string) error
+	DeleteText(idClient, name string) error
+	DeleteBankCard(idClient, name string) error
+	DeleteFile(idClient, name string) error
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
 }
@@ -859,6 +863,50 @@ func (s *server) RestoreRequestFilesInfo() (data []InfoByFiles, err error) {
 
 	// Результат.
 	return rxData, nil
+}
+
+// Удаление записи логин/пароль.
+func (s *server) DeleteLoginPassword(idClient, name string) error {
+
+	// Удаление записи.
+	if err := layerDeleteLoginPassword(name, idClient, s); err != nil {
+		return fmt.Errorf("Функция layerDeleteLoginPassword, вернула ошибку:<%w>", err)
+	}
+
+	return nil
+}
+
+// Удаление записи текста.
+func (s *server) DeleteText(idClient, name string) error {
+
+	// Удаление записи.
+	if err := layerDeleteText(name, idClient, s); err != nil {
+		return fmt.Errorf("Функция layerDeleteText, вернула ошибку:<%w>", err)
+	}
+
+	return nil
+}
+
+// Удаление записи банковской карты.
+func (s *server) DeleteBankCard(idClient, name string) error {
+
+	// Удаление записи.
+	if err := layerDeleteBankCard(name, idClient, s); err != nil {
+		return fmt.Errorf("Функция layerDeleteBankCard, вернула ошибку:<%w>", err)
+	}
+
+	return nil
+}
+
+// Удаление файла.
+func (s *server) DeleteFile(idClient, name string) error {
+
+	// Удаление файла.
+	if err := layerDeleteFile(name, idClient, s); err != nil {
+		return fmt.Errorf("Функция layerDeleteFile, вернула ошибку:<%w>", err)
+	}
+
+	return nil
 }
 
 //

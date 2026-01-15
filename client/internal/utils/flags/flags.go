@@ -36,6 +36,11 @@ func New() *Config {
 		}
 	})
 
+	// Проверка флагов.
+	if err := checkFlags(flags); err != nil {
+		log.Fatalf("Ошибка проверки параметров звпуска сервиса: <%v>", err)
+	}
+
 	return &flags
 }
 

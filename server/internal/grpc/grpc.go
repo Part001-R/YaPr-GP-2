@@ -1081,6 +1081,146 @@ func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRe
 	return resp, nil
 }
 
+// Обработчик удаления записи логин/пароль.
+func (s *Manager) DeleteLoginPassword(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос на удаление записи логин/пароль.")
+
+	// Получение токена аутентификации.
+	rxToken, err := layerDeleteLoginPasswordToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена аутентификации", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "ошибка получения токена")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	_, name, err := layerDeleteLoginPasswordRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения данных запроса", zap.Error(err))
+		return nil, status.Error(codes.Unavailable, "ошибка в данных запроса")
+	}
+
+	// Удаление.
+	if err := layerDeleteLoginPassword(name, s, ctx); err != nil {
+		s.logger.Error("ошибка удаления записи логин/пароль", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка удаления записи логин/пароль")
+	}
+
+	s.logger.Info("Запись логин/пароль, удалена")
+	return nil, nil
+}
+
+// Обработчик удаления записи текста.
+func (s *Manager) DeleteText(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос на удаление записи текста.")
+
+	// Получение токена аутентификации.
+	rxToken, err := layerDeleteTextToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена аутентификации", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "ошибка получения токена")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	_, name, err := layerDeleteTextRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения данных запроса", zap.Error(err))
+		return nil, status.Error(codes.Unavailable, "ошибка в данных запроса")
+	}
+
+	// Удаление.
+	if err := layerDeleteText(name, s, ctx); err != nil {
+		s.logger.Error("ошибка удаления записи текста", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка удаления записи текста")
+	}
+
+	s.logger.Info("Запись текста, удалена")
+	return nil, nil
+}
+
+// Обработчик удаления записи банковской карты.
+func (s *Manager) DeleteBankCard(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос на удаление записи банковской карты.")
+
+	// Получение токена аутентификации.
+	rxToken, err := layerDeleteBankCardToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена аутентификации", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "ошибка получения токена")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	_, name, err := layerDeleteBankCardRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения данных запроса", zap.Error(err))
+		return nil, status.Error(codes.Unavailable, "ошибка в данных запроса")
+	}
+
+	// Удаление.
+	if err := layerDeleteBankCard(name, s, ctx); err != nil {
+		s.logger.Error("ошибка удаления записи банковской карты", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка удаления записи банковской карты")
+	}
+
+	s.logger.Info("Запись банковской карты, удалена")
+	return nil, nil
+}
+
+// Обработчик удаления файла.
+func (s *Manager) DeleteFile(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
+
+	s.logger.Info("Принят запрос на удаление файла.")
+
+	// Получение токена аутентификации.
+	rxToken, err := layerDeleteFileToken(ctx)
+	if err != nil {
+		s.logger.Error("ошибка получения токена аутентификации", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "ошибка получения токена")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
+
+	// Получение данных запроса.
+	_, name, err := layerDeleteFileRx(req)
+	if err != nil {
+		s.logger.Error("ошибка получения данных запроса", zap.Error(err))
+		return nil, status.Error(codes.Unavailable, "ошибка в данных запроса")
+	}
+
+	// Удаление.
+	if err := layerDeleteFile(name, s); err != nil {
+		s.logger.Error("ошибка удаления файла", zap.Error(err))
+		return nil, status.Error(codes.Internal, "ошибка удаления файла")
+	}
+
+	s.logger.Info("Файл, удалён")
+	return nil, nil
+}
+
 //
 // Интерцепторы.
 //

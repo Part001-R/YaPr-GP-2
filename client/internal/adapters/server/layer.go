@@ -1324,3 +1324,111 @@ func layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretK
 
 	return nil
 }
+
+//
+// --- DeleteLoginPassword ---
+//
+
+// Логика процесса.
+func layerDeleteLoginPassword(name, idClient string, s *server) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", s.tokenSrv)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.RequestDeleteName{
+		IdClient: idClient,
+		Name:     name,
+	}
+	_, err := s.client.DeleteLoginPassword(ctx, req)
+	if err != nil {
+		return fmt.Errorf("Функция DeleteLoginPassword, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- DeleteText ---
+//
+
+// Логика процесса.
+func layerDeleteText(name, idClient string, s *server) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", s.tokenSrv)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.RequestDeleteName{
+		IdClient: idClient,
+		Name:     name,
+	}
+	_, err := s.client.DeleteText(ctx, req)
+	if err != nil {
+		return fmt.Errorf("Функция DeleteText, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- DeleteBankCard ---
+//
+
+// Логика процесса.
+func layerDeleteBankCard(name, idClient string, s *server) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", s.tokenSrv)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.RequestDeleteName{
+		IdClient: idClient,
+		Name:     name,
+	}
+	_, err := s.client.DeleteBankCard(ctx, req)
+	if err != nil {
+		return fmt.Errorf("Функция DeleteBankCard, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}
+
+//
+// --- DeleteFile ---
+//
+
+// Логика процесса.
+func layerDeleteFile(name, idClient string, s *server) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Установка метаданных с токеном
+	md := metadata.Pairs("token", s.tokenSrv)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	// Запрос
+	req := &pb.RequestDeleteName{
+		IdClient: idClient,
+		Name:     name,
+	}
+	_, err := s.client.DeleteFile(ctx, req)
+	if err != nil {
+		return fmt.Errorf("Функция DeleteFile, вернула ошибку: <%w>", err)
+	}
+
+	return nil
+}

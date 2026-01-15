@@ -3979,34 +3979,74 @@ func doShowPrevElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 // Логика удаления в окне viewLoginPasswordData. Возвращается ошибка.
 func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
-	c.status.delLoginPaaswordPassed = true
-	c.status.delLoginPaaswordSUCCESS = false
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	v, err := gui.View("fieldShowFor")
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+		c.status.delLoginPaaswordPassed = true
+		c.status.delLoginPaaswordSUCCESS = false
+
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer()
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление записи в БД.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		if err := c.conf.DataBase.DelDataLoginPasswordContext(ctx, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.status.delLoginPaaswordSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: данные логин/пароль, успешно удалены"))
+
 		return nil
 	}
-	textEl := v.Buffer() // Получаем содержимое поля ввода
-	textEl = strings.ReplaceAll(textEl, "\n", "")
 
-	textEl, err = encrypt(textEl, c.secret.secretKey)
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		c.status.delLoginPaaswordPassed = true
+		c.status.delLoginPaaswordSUCCESS = false
+
+		// Получение имени удаляемой записи.
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer()
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		// Шифрование значения.
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление.
+		if err := c.conf.Server.DeleteLoginPassword(c.clientName, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция DeleteLoginPassword, вернула ошибку: <%v>. Режим - удалённый.", err))
+			return fmt.Errorf("Функция DeleteLoginPassword, вернула ошибку: <%v>. Режим - удалённый.", err)
+		}
+
+		c.status.delLoginPaaswordSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: данные логин/пароль, успешно удалены. Режим - удалённый."))
+
 		return nil
 	}
-
-	// Удаление записи в БД.
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	if err := c.conf.DataBase.DelDataLoginPasswordContext(ctx, textEl); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
-		return nil
-	}
-
-	c.status.delLoginPaaswordSUCCESS = true
-	c.conf.LgrFile.Write(("Debug: данные логин/пароль, успешно удалены"))
 
 	return nil
 }
@@ -4014,99 +4054,210 @@ func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 // Логика удаления в окне viewTextData. Возвращается ошибка.
 func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
-	c.status.delTextPassed = true
-	c.status.delTextSUCCESS = false
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	v, err := gui.View("fieldShowFor")
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+		c.status.delTextPassed = true
+		c.status.delTextSUCCESS = false
+
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer() // Получаем содержимое поля ввода
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление записи в БД.
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := c.conf.DataBase.DelTextContext(ctx, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.status.delTextSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: данные текста, успешно удалены"))
+
 		return nil
 	}
-	textEl := v.Buffer() // Получаем содержимое поля ввода
-	textEl = strings.ReplaceAll(textEl, "\n", "")
 
-	textEl, err = encrypt(textEl, c.secret.secretKey)
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		c.status.delTextPassed = true
+		c.status.delTextSUCCESS = false
+
+		// Получение имени удаляемой записи.
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи текста: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer()
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		// Шифрование значения.
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление.
+		if err := c.conf.Server.DeleteText(c.clientName, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция DeleteText, вернула ошибку: <%v>. Режим - удалённый.", err))
+			return fmt.Errorf("Функция DeleteText, вернула ошибку: <%v>. Режим - удалённый.", err)
+		}
+
+		c.status.delTextSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: данные текста, успешно удалены. Режим - удалённый."))
+
 		return nil
 	}
-
-	// Удаление записи в БД.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	if err := c.conf.DataBase.DelTextContext(ctx, textEl); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
-		return nil
-	}
-
-	c.status.delTextSUCCESS = true
-	c.conf.LgrFile.Write(("Debug: данные текста, успешно удалены"))
-
 	return nil
 }
 
 // Логика удаления в окне viewBankCardData. Возвращается ошибка.
 func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
-	c.status.delBankCardPassed = true
-	c.status.delBankCardSUCCESS = false
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-	v, err := gui.View("fieldShowFor")
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+		c.status.delBankCardPassed = true
+		c.status.delBankCardSUCCESS = false
+
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи логин/пароль: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer() // Получаем содержимое поля ввода
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление записи в БД.
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := c.conf.DataBase.DelBankCardContext(ctx, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		c.status.delBankCardSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: данные карты, успешно удалены"))
+
 		return nil
 	}
-	textEl := v.Buffer() // Получаем содержимое поля ввода
-	textEl = strings.ReplaceAll(textEl, "\n", "")
 
-	textEl, err = encrypt(textEl, c.secret.secretKey)
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
+
+		c.status.delBankCardPassed = true
+		c.status.delBankCardSUCCESS = false
+
+		// Получение имени удаляемой записи.
+		v, err := gui.View("fieldShowFor")
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении записи банковской карты: <%v>", err))
+			return nil
+		}
+		textEl := v.Buffer()
+		textEl = strings.ReplaceAll(textEl, "\n", "")
+
+		// Шифрование значения.
+		textEl, err = encrypt(textEl, c.secret.secretKey)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция encrypt, вернула ошибку: <%v>", err))
+			return nil
+		}
+
+		// Удаление.
+		if err := c.conf.Server.DeleteBankCard(c.clientName, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция DeleteBankCard, вернула ошибку: <%v>. Режим - удалённый.", err))
+			return fmt.Errorf("Функция DeleteText, вернула ошибку: <%v>. Режим - удалённый.", err)
+		}
+
+		c.status.delBankCardSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: данные банковской карты, успешно удалены. Режим - удалённый."))
+
 		return nil
 	}
-
-	// Удаление записи в БД.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	if err := c.conf.DataBase.DelBankCardContext(ctx, textEl); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
-		return nil
-	}
-
-	c.status.delBankCardSUCCESS = true
-	c.conf.LgrFile.Write(("Debug: данные карты, успешно удалены"))
-
 	return nil
 }
 
 // Логика удаления в окне viewBinaryData. Возвращается ошибка.
 func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
-	if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
+	// Если режим - локальный.
+	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		c.updateStatusPopContainer(stageNotActive)
-		c.updateStatusPushContainer(stageNotActive)
+		if c.getStatusPopContainer() != stageActive && c.getStatusPushContainer() != stageActive {
+
+			c.updateStatusPopContainer(stageNotActive)
+			c.updateStatusPushContainer(stageNotActive)
+
+			c.status.delFilePassed = true
+			c.status.delFileSUCCESS = false
+
+			// Чтение буфера.
+			v, err := gui.View("fieldShowFor")
+			if err != nil {
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+				return nil
+			}
+			name := v.ViewBuffer()
+			name = strings.ReplaceAll(name, "\n", "") // удаление символа
+
+			// Удаление файла.
+			if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
+				return nil
+			}
+			c.status.delFileSUCCESS = true
+		}
+
+		return nil
+	}
+
+	// Если режим - удалённый.
+	if c.conf.Flag.Mode == flags.ModeRemote {
 
 		c.status.delFilePassed = true
 		c.status.delFileSUCCESS = false
 
-		// Чтение буфера.
+		// Получение имени удаляемой записи.
 		v, err := gui.View("fieldShowFor")
 		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка доступа к элементу fieldShowFor: <%v>", err))
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка получения вида fieldShowFor, при удалении файла: <%v>", err))
 			return nil
 		}
-		name := v.ViewBuffer()
-		name = strings.ReplaceAll(name, "\n", "") // удаление символа
+		textEl := v.Buffer()
+		textEl = strings.ReplaceAll(textEl, "\n", "")
 
-		// Удаление файла.
-		if err := c.conf.Container.RemoveFileFromContainer(name, c.secret.secretKey); err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RemoveFileFromContainer, вернула ошибку: <%v>", err))
-			return nil
+		// Удаление.
+		if err := c.conf.Server.DeleteFile(c.clientName, textEl); err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция DeleteFile, вернула ошибку: <%v>. Режим - удалённый.", err))
+			return fmt.Errorf("Функция DeleteFile, вернула ошибку: <%v>. Режим - удалённый.", err)
 		}
+
 		c.status.delFileSUCCESS = true
+		c.conf.LgrFile.Write(("Debug: файл, успешно удалён. Режим - удалённый."))
+
+		return nil
 	}
 
 	return nil
