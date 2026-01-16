@@ -1,3 +1,4 @@
+// Представление функционала контейнера.
 package container
 
 import (
@@ -39,7 +40,12 @@ type Actions interface {
 // Экземпляр.
 var inst *Container
 
-// Конструктор.
+// Конструктор. Возвращается интерфейс.
+//
+// Параметры:
+//
+//	name - имя контейнера.
+//	key - ключ шифрования.
 func New(name string, key [32]byte) Actions {
 	onceInst.Do(func() {
 		// Проверка присутствия файла контейнера.
@@ -71,7 +77,11 @@ func New(name string, key [32]byte) Actions {
 	return inst
 }
 
-// Чтение контейнера из файла.
+// Чтение контейнера из файла. Возвращается указатель на контейнер и ошибка.
+//
+// Параметры:
+//
+//	key - ключ шифрования.
 func (c Container) readContainer(key [32]byte) (*Container, error) {
 
 	data, err := os.ReadFile(c.name)
@@ -100,7 +110,12 @@ func (c Container) readContainer(key [32]byte) (*Container, error) {
 	return &container, nil
 }
 
-// Запись контейнера в файл.
+// Запись контейнера в файл. Возвращается ошибка.
+//
+// Параметры:
+//
+//	container - указатель на контейнер.
+//	key - ключ шифрования.
 func (c *Container) writeContainer(container *Container, key [32]byte) error {
 
 	// Шифрование каждого файла перед сохранением.
@@ -125,7 +140,15 @@ func (c *Container) writeContainer(container *Container, key [32]byte) error {
 	return os.WriteFile(c.name, data, 0644)
 }
 
-// Добавление файла в контейнер.
+// Добавление файла в контейнер. Для запуска в горутине.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	key - ключ шифрования.
+//	chProcess - канал передачи процентов процесса.
+//	chError - канал передачи ошибки.
+//	chOk - канал передачи признака завершения процесса.
 func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chOk chan<- struct{}) {
 	defer func() {
 		close(chProcess)
@@ -202,7 +225,17 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 	chOk <- struct{}{}
 }
 
-// Получение файла из контейнера по имени
+// Получение файла из контейнера, по имени. Для запуска в горутине.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	key - ключ шифрования.
+//	txChPercent - канал передачи процентов процесса.
+//	txChErr - канал передачи ошибки.
+//	txChDone - канал передачи признака успешного завершения процесса.
+//	txChData - канал передачи данных.
+//	rxChBreak - канал приёма сигнала остановки процесса.
 func (c Container) GetFileFromContainer(fileName string, key [32]byte, txChPercent chan<- float64, txChErr chan<- error, txChDone chan<- struct{}, txChData chan<- []byte, rxChBreak <-chan struct{}) {
 	defer func() {
 		close(txChPercent)
@@ -257,7 +290,11 @@ func (c Container) GetFileFromContainer(fileName string, key [32]byte, txChPerce
 	txChErr <- fmt.Errorf("файл:<%s>, в контейнере, не найден", fileName)
 }
 
-// Получение списка файлов в контейнере.
+// Получение списка файлов в контейнере. Возвращается массив имен файлов и ошибка.
+//
+// Параметры:
+//
+//	key - ключ шифрования.
 func (c Container) ListFilesInContainer(key [32]byte) (files []string, err error) {
 
 	// чтение контейнера.
@@ -274,7 +311,12 @@ func (c Container) ListFilesInContainer(key [32]byte) (files []string, err error
 	return files, nil
 }
 
-// Удаление файла из контейнера.
+// Удаление файла из контейнера. Возвращается ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	key - ключ шифрования.
 func (c *Container) RemoveFileFromContainer(fileName string, key [32]byte) error {
 	// Чтение контейнера
 	container, err := c.readContainer(key)

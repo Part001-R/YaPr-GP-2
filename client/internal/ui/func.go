@@ -8,12 +8,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"math"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -137,101 +134,6 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 
 	// Проверка пройдена.
 	return true, nil
-}
-
-// Создание резервной копии файла БД, на сервере.
-func backUp(c *handlerUI, txFileName string, client proto.PasswordManagerClient) error {
-
-	// Создание токена.
-	secretKey, txToken, err := layerBackUpCreateToken()
-	if err != nil {
-		return fmt.Errorf("функция layerBackUpCreateToken, вернула ошибку:<%w>", err)
-	}
-
-	// Передача файла на сервер.
-	resp, rxFileHash, rxToken, err := layerBackUpTxFile(client, txFileName, txToken, c)
-	if err != nil {
-		return fmt.Errorf("Функция layerTxBackUpDB, вернула ошибку: <%w>", err)
-	}
-
-	// Вычисление хэша переданного файла.
-	txFileHash, err := hashFile(txFileName)
-	if err != nil {
-		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
-	}
-
-	// Проверка результата.
-	if err := layerBackUpCheckResult(resp, txFileName, txFileHash, rxFileHash, rxToken, secretKey); err != nil {
-		return fmt.Errorf("Функция layerCheckResultBackUpDB, вернула ошибку: <%w>", err)
-	}
-
-	return nil
-}
-
-// Восстановление из резервной копии файла БД.
-func restore(c *handlerUI, fileName string, client proto.PasswordManagerClient) (err error) {
-
-	needRestoreState := false // Признак необходимости воостановления состояния, при ошибке.
-	var tempFileName string   // Имя временного файла.
-
-	// Обработка перед выходом.
-	defer func(needRestoreState bool, fileName, tempFileName string, errProcess error) {
-		if errRestore := deferProcessRestoreByError(needRestoreState, fileName, tempFileName, errProcess); errRestore != nil {
-			err = fmt.Errorf("функция deferProcessRestoreByError, вернула ошибку:<%w>, при ошибку процесса:<%w>", errRestore, errProcess)
-		}
-	}(needRestoreState, fileName, tempFileName, err)
-
-	// Создание токена.
-	secretKey, txToken, err := layerRestoreCreateToken()
-	if err != nil {
-		return fmt.Errorf("Функция layerRestoreCreateToken, вернула ошибку: <%w>", err)
-	}
-
-	// Запрос файла у сервера.
-	content, srcFileHash, rxToken, err := layerRestoreRxFile(client, fileName, txToken, c)
-	if err != nil {
-		return fmt.Errorf("Функция layerRx, вернула ошибку: <%w>", err)
-	}
-
-	// Изменение имени существующего файла, чтобы в случае ошибки, не потерять данные.
-	if isFileExists(fileName) {
-		tempFileName, err = changeFileName(fileName, "-temp")
-		if err != nil {
-			return fmt.Errorf("функция changeFileName, вернула ошибку:<%w>", err)
-		}
-		needRestoreState = true
-	}
-
-	// Сохранение принятых данных в файл.
-	if err := layerRestoreSaveFile(content, fileName); err != nil {
-		return fmt.Errorf("Функция saveFile, вернула ошибку: <%w>", err)
-	}
-
-	// Вычисление хэша принятого файла.
-	rxFileHash, err := hashFile(fileName)
-	if err != nil {
-		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
-	}
-
-	// Проверка результата.
-	if err := layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretKey); err != nil {
-
-		// Удаление файла, если проверка не пройдена.
-		if errRemove := os.Remove(fileName); errRemove != nil {
-			return fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, fileName, err)
-		}
-		return fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, fileName)
-	}
-
-	// Файл успешно принят.
-	// Удаление резервного файла, если он существует.
-	if isFileExists(tempFileName) {
-		if err := os.Remove(tempFileName); err != nil {
-			return fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>, при успешном приёме", err, fileName)
-		}
-	}
-
-	return nil
 }
 
 // Создание JWT токена.
@@ -1123,7 +1025,15 @@ func enterViewRequestSecretKey(v *gocui.View, g *gocui.Gui, c *handlerUI) error 
 	default:
 	}
 
-	// Отображение окно, выбранного типа.
+	// Инициализация каналов.
+	c.initChannels()
+
+	// Запуск сторожевого таймера.
+	if !c.status.statusWDT {
+		go wdt(c, g, v)
+	}
+
+	// Отображение окна, выбранного типа.
 	if err := c.showSelectType(g, v); err != nil {
 		return fmt.Errorf("функция c.showSelectType, вернула ошибку: <%w>", err)
 	}
@@ -2061,15 +1971,24 @@ func indicatorViewBinaryData(g *gocui.Gui, c *handlerUI) error {
 				return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 			}
 
-			if c.status.readNameFileSUCCESS {
-
+			// Если на сервере нет активности по работе с файлами.
+			if !c.getStatusIsBusyServer() {
+				if c.status.readNameFileSUCCESS {
+					indicator.Clear()
+					indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.namesFile))))
+					indicator.FgColor = gocui.ColorGreen
+					indicator.BgColor = gocui.ColorDefault
+				} else {
+					indicator.Clear()
+					indicator.Write([]byte("Ошибка чтения."))
+					indicator.FgColor = gocui.ColorRed
+					indicator.BgColor = gocui.ColorDefault
+				}
+			}
+			// Если на сервере ведётся работа с файлами.
+			if c.getStatusIsBusyServer() {
 				indicator.Clear()
-				indicator.Write([]byte(fmt.Sprintf("Всего файлов: %d", len(c.data.namesFile))))
-				indicator.FgColor = gocui.ColorGreen
-				indicator.BgColor = gocui.ColorDefault
-			} else {
-				indicator.Clear()
-				indicator.Write([]byte("Ошибка чтения."))
+				indicator.Write([]byte("Сервер занят"))
 				indicator.FgColor = gocui.ColorRed
 				indicator.BgColor = gocui.ColorDefault
 			}
@@ -2260,117 +2179,6 @@ func fileSize(filePath string) (int64, error) {
 	return fileInfo.Size() / 1024, nil
 }
 
-// Вычисление процента выполнения.
-//
-// Параметры:
-//
-//	c - конфигурация.
-//	b - количество переданных байт.
-func updateDataBackUpRestoreProcess(c *handlerUI, b int) {
-
-	c.mutex.processTxRx.Lock()
-	defer c.mutex.processTxRx.Unlock()
-
-	// Получение КБайт из Байт.
-	volumeKB := b / 1024
-
-	// Обновление данных накопителя.
-	c.txrx.passedKB += int64(volumeKB)
-
-	// Вычисление процентов.
-	if c.txrx.totalSizeKB > 0 {
-		c.txrx.percentTxRx = float32(float64(c.txrx.passedKB) / float64(c.txrx.totalSizeKB) * 100.0)
-	} else {
-		c.txrx.percentTxRx = 0
-	}
-}
-
-// Запрос информации о файлах.
-func requestFilesInfo(client proto.PasswordManagerClient, c *handlerUI) error {
-
-	// Создание токена.
-	secretKey, txToken, err := layerRestoreCreateToken()
-	if err != nil {
-		return fmt.Errorf("Функция layerRestoreCreateToken, вернула ошибку: <%w>", err)
-	}
-
-	// Запрос информации по файлам у сервера.
-	filesInfo, rxToken, err := layerFilesInfoRequest(client, txToken)
-	if err != nil {
-		return fmt.Errorf("Функция layerFilesInfoRequest, вернула ошибку: <%w>", err)
-	}
-
-	// Проверка результата запроса.
-	if len(filesInfo) == 0 {
-		return EmptyData
-	}
-	if err := layerReqFilesCheckResult(rxToken, secretKey); err != nil {
-		return fmt.Errorf("Функция layerReqFilesCheckResult, вернула ошибку: <%w>", err)
-	}
-
-	// Заполнение данных по результатам запроса.
-	if err := layerFilesInfoFillData(filesInfo, c); err != nil {
-		return fmt.Errorf("Функция layerFilesInfoFillData, вернула ошибку: <%w>", err)
-	}
-
-	return nil
-}
-
-// Процесс restrore.
-func doRestoreProcess(filesList []string, c *handlerUI) {
-
-	// Подключение к серверу.
-	client, conn, err := connectSrv(c)
-	if err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Функция connectSrv, вернула ошибку: <%v>", err))
-		c.updateStatusRestore(stageFault)
-		return
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция conn.Close, вернула ошибку: <%v>", err))
-		}
-	}()
-
-	// Запрос у сервера информации по файлам (имя, размер), которые будут приняты.
-	if err := requestFilesInfo(client, c); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция requestFilesInfo, вернула ошибку: <%v>", err))
-		c.updateStatusRestore(stageFault)
-		return
-	}
-
-	// Получение файлов.
-	for _, f := range filesList {
-		if err := restore(c, f, client); err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка restore: <%v>, при приёме: <%s> ", err, f))
-			c.updateStatusRestore(stageFault)
-			return
-		}
-		c.conf.LgrFile.Write(fmt.Sprintf("Info: Восстановление файла <%s>, выполнено", f))
-	}
-
-	// Установка признака, что восстановление выполнено.
-	c.updateStatusRestore(stageOk)
-}
-
-// Вычисление хэша у файла.
-func hashFile(fileName string) (string, error) {
-
-	file, err := os.Open(fileName)
-	if err != nil {
-		return "", fmt.Errorf("ошибка при открытии файла: %w", err)
-	}
-	defer file.Close()
-
-	hasher := sha256.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return "", fmt.Errorf("ошибка при вычислении хэша: %w", err)
-	}
-
-	hash := hasher.Sum(nil)
-	return hex.EncodeToString(hash), nil
-}
-
 // Проверка существования файла.
 func isFileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
@@ -2378,88 +2186,6 @@ func isFileExists(filePath string) bool {
 		return false // Файл не существует
 	}
 	return err == nil // Файл существует
-}
-
-// Добавление превикса к имени имени файла. Возвращается новое имя и ошибка.
-func changeFileName(fileName string, suffix string) (newFileName string, err error) {
-
-	// Проверка, существует ли файл.
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return "", fmt.Errorf("файл с именем:<%s>, не найден", fileName)
-	}
-
-	// Исходные данные.
-	ext := filepath.Ext(fileName)
-	name := strings.TrimSuffix(fileName, ext)
-
-	// Новое имя.
-	newFileName = fmt.Sprintf("%s%s%s", name, suffix, ext)
-
-	// Проверка существование файла по новому имени.
-	// Если есть - удаляется.
-	_, err = os.Stat(newFileName)
-	if err == nil {
-		if err := os.Remove(newFileName); err != nil {
-			return "", fmt.Errorf("ошибка:<%w> удаления резервного файла:<%s>", err, newFileName)
-		}
-	} else if !os.IsNotExist(err) {
-		return "", fmt.Errorf("ошибка:<%w> при проверке существования файла:<%s>", err, newFileName)
-	}
-
-	// Переименование файла.
-	err = os.Rename(fileName, newFileName)
-	if err != nil {
-		return "", fmt.Errorf("ошибка:<%w> переименования файла:<%s>", err, fileName)
-	}
-
-	return newFileName, nil
-}
-
-// Воссстановление имени файла. Возвращается ошибка.
-func restoreFileName(fileName string, suffix string) (err error) {
-
-	// Проверка, существует ли файл.
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return fmt.Errorf("файл с именем:<%s>, не найден", fileName)
-	}
-
-	// Исходные данные.
-	ext := filepath.Ext(fileName)
-	name := strings.TrimSuffix(fileName, ext)
-
-	// Восстановление
-	name = strings.TrimSuffix(name, suffix)
-
-	// Формирование нового имени.
-	newFileName := fmt.Sprintf("%s%s", name, ext)
-
-	// Переименование файла.
-	err = os.Rename(fileName, newFileName)
-	if err != nil {
-		return fmt.Errorf("ошибка:<%w> переименования файла:<%s>", err, fileName)
-	}
-
-	return nil
-}
-
-// Воостановление состояния файлов процесса restore, при ошибке в последовательности. Возвращается ошибка.
-func deferProcessRestoreByError(dooRestore bool, fileName, tempFileName string, errProcess error) error {
-
-	if errProcess != nil {
-		// Удаление принятого файла.
-		if isFileExists(fileName) && dooRestore {
-			if err := os.Remove(fileName); err != nil {
-				return fmt.Errorf("Error: ошибка:<%v>, при удалении файла:<%s> по ошибке процесса:<%v>", err, fileName, err)
-			}
-		}
-		// Восстановление имени у исходного файла.
-		if isFileExists(tempFileName) && dooRestore {
-			if err := restoreFileName(tempFileName, "-temp"); err != nil {
-				return fmt.Errorf("Error: ошибка:<%v>, при восстановлении файла:<%s> по ошибке процесса:<%v>", err, tempFileName, err)
-			}
-		}
-	}
-	return nil
 }
 
 // Функция принимает данные по каналам и транслирует их в экземпляр.
@@ -2704,7 +2430,7 @@ func doStoreViewBinaryData(c *handlerUI) error {
 	// Если режим - удалённый
 	if c.conf.Flag.Mode == flags.ModeRemote {
 
-		if c.getStatusFileRx() == stageNotActive && c.getStatusFileTx() == stageNotActive {
+		if c.getStatusFileRx() == stageNotActive && c.getStatusFileTx() == stageNotActive && !c.getStatusIsBusyServer() {
 
 			// Установка признака, что процесс передачи активный.
 			c.updateStatusFileTx(stageActive)
@@ -4586,4 +4312,37 @@ func chechRxNameFiles(rxList, wantList []string) error {
 
 	// Проверка не пройдена.
 	return fmt.Errorf("Нет соответствия имён файлов. Нужно:<%v>, а принято:<%v>", wantList, rxList)
+}
+
+// Реализация сторожевого таймера.
+func wdt(c *handlerUI, g *gocui.Gui, v *gocui.View) {
+	c.conf.LgrFile.Write("Info: Запуск сторожевого таймера")
+
+	c.status.statusWDT = true
+	defer func() {
+		c.status.statusWDT = false
+		c.conf.LgrFile.Write("Info: Сторожевой таймер, остановлен.")
+	}()
+
+	timer := time.NewTimer(10 * time.Minute)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C: // Отображение главного окна.
+			if err := g.SetKeybinding("", gocui.KeyCtrlH, gocui.ModNone, c.showMain); err != nil {
+				c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка Ctrl+H: <%v>", err))
+			} else {
+				c.showMain(g, v)
+			}
+			return
+
+		case <-c.ch.resetWDT: // Сброс.
+			timer.Reset(10 * time.Minute)
+
+		case <-c.ch.resetWDTClose: // Остановка.
+			return
+
+		}
+	}
 }

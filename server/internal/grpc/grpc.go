@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"sync"
 	"sync/atomic"
 
@@ -556,13 +557,23 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 
 	s.logger.Info("Принят запрос добавления файла")
 
-	// Извлечение метаданных из контекста
+	// Проверка уже запущенного процесса приёма файла.
+	if s.GetStatusRx() != stageNotActive {
+		return status.Error(codes.Unavailable, "Приём отклонён. Уже идёт передача файла.")
+	}
+
+	// Установка признака, что начат процесс приёма файла.
+	if err := s.UpdateStatusRx(stageActive); err != nil {
+		return status.Error(codes.Internal, "ошибка установки признака активности")
+	}
+
+	// Извлечение метаданных из контекста.
 	md, ok := metadata.FromIncomingContext(stream.Context())
 	if !ok {
 		return status.Error(codes.InvalidArgument, "ошибка извлечения заголовков")
 	}
 
-	// Получение значения токена
+	// Получение значения токена.
 	token := md.Get("token")
 	if len(token) == 0 {
 		return status.Error(codes.Unauthenticated, "токен не передан")
@@ -578,6 +589,7 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 	var isRemovedFile bool     // Флаг, что файл уже был удалён
 
 	// Проверка необходимости удаления файла, перед выходом.
+	// Сброс признака активности.
 	defer func(doRemove bool, fileName string) {
 		if fileExists(fileName) && doRemove {
 			if errRemove := os.Remove(fileName); errRemove != nil {
@@ -588,6 +600,11 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 
 				errReturn = fmt.Errorf("ошибка при удалении файла:<%v>, файл:<%s>, ошибка:<%v>, причина удаления:<%v>", errRemove, fileName, errRemove, errReturn)
 			}
+		}
+		// Сброс статуса активности.
+		if err := s.UpdateStatusRx(stageNotActive); err != nil {
+			s.logger.Error("ошибка сброса признака активности", zap.String("ошибка", err.Error()))
+			errReturn = fmt.Errorf("ошибка:<%w>, сброса признака активности. Базовая ошибка:<%w>", err, errReturn)
 		}
 	}(doDeferRemoveFile, rxFileName)
 
@@ -605,7 +622,7 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 		// Создание файла.
 		if rxFileName == "" {
 			rxFileName = req.GetFileName()
-			rxFileName = s.flag.NameSubDirFiles + "/" + rxFileName // Добавление дочерней директории
+			rxFileName = path.Join(s.flag.NameSubDirFiles, rxFileName)
 
 			// Предварительное удаление уже существующего файла.
 			if !isRemovedFile {
@@ -659,11 +676,6 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
 		s.logger.Error("ошибка установки трейлера", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
 		return status.Error(codes.Internal, "ошибка установки трейлера")
-	}
-
-	// Сброс статуса.
-	if err := s.UpdateStatusBackUp(stageNotActive); err != nil {
-		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
 	s.logger.Info("Файл успешно принят")
@@ -937,14 +949,14 @@ func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (re
 	s.logger.Info("Принят запрос имён файлов")
 
 	//Получение имён файлов.
-	rxData, err := layerRequestFileNameScanDir(flags.NameSubDirFiles)
+	rxData, isBusyServer, err := layerRequestFileNameScanDir(flags.NameSubDirFiles, s)
 	if err != nil {
 		s.logger.Error("Ошибка чтения имён файлов", zap.Error(err))
 		return nil, status.Error(codes.Internal, "ошибка чтения имён файлов")
 	}
 
 	// Формирование ответа
-	resp, err = layerRequestFileNameTx(rxData)
+	resp, err = layerRequestFileNameTx(rxData, isBusyServer)
 	if err != nil {
 		s.logger.Error("Ошибка подготовки ответа", zap.Error(err))
 		return nil, status.Error(codes.Internal, "ошибка чтения имён файлов")
@@ -987,8 +999,7 @@ func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.
 	//
 
 	reqFileName := req.FileName
-
-	reqFilePath := s.flag.NameSubDirFiles + "/" + reqFileName // добавление директории размещения файла
+	reqFilePath := path.Join(s.flag.NameSubDirFiles, reqFileName)
 
 	fileContent, err := os.ReadFile(reqFilePath)
 	if err != nil {
@@ -1062,7 +1073,7 @@ func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRe
 	}
 
 	// Логика обработчика.
-	filePath := s.flag.NameSubDirFiles + "/" + fileName
+	filePath := path.Join(s.flag.NameSubDirFiles, fileName)
 	dataFile, err := layerRequestFileInfo(filePath)
 	if err != nil {
 		s.logger.Error("ошибка сбора информации", zap.Error(err))
@@ -1303,7 +1314,7 @@ func (s *Manager) UpdateStatusRestore(stage int32) error {
 
 // Получение значения статуса приёма файла от клиента. Возвращается текущее значение статуса.
 func (s *Manager) GetStatusRx() int32 {
-	return atomic.LoadInt32(&s.status.txFile)
+	return atomic.LoadInt32(&s.status.rxFile)
 }
 
 // Обновление значения статуса приёма файла от клиента. Возвращается ошибка.
@@ -1313,7 +1324,7 @@ func (s *Manager) UpdateStatusRx(stage int32) error {
 		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
 	}
 
-	atomic.StoreInt32(&s.status.txFile, stage)
+	atomic.StoreInt32(&s.status.rxFile, stage)
 
 	return nil
 }

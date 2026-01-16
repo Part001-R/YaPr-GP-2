@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package server
 
 import (
@@ -23,7 +24,12 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// Подключение к серверу.
+// Подключение к серверу. Возвращается подключение, клиент и ошибка.
+//
+// Параметры:
+//
+//	ip - ip адрес.
+//	port - номер порта.
 func connect(ip, port string) (conn *grpc.ClientConn, client pb.PasswordManagerClient, err error) {
 
 	// Проверка аргументов
@@ -58,7 +64,7 @@ func connect(ip, port string) (conn *grpc.ClientConn, client pb.PasswordManagerC
 	return conn, client, nil
 }
 
-// Создание токена для регистрации пользователя в режиме  - удалённый.
+// Создание токена для регистрации пользователя в режиме  - удалённый. Возвращаются передаваемые метаданные, секретный ключ, имя токена и ошибка.
 func createTokenForAuthentication() (txMD metadata.MD, secretKey, nameToken string, err error) {
 
 	// Создание ключа.
@@ -270,7 +276,11 @@ func decrypt(data string, key [32]byte) (string, error) {
 	return string(plaintext), nil
 }
 
-// Проверка существования файла
+// Проверка существования файла. Возвращается true - если файл существует.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
 func isFileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
@@ -279,7 +289,11 @@ func isFileExists(filePath string) bool {
 	return err == nil
 }
 
-// Функция для удаления файла
+// Функция для удаления файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
 func deleteFile(filePath string) error {
 	err := os.Remove(filePath)
 	if err != nil {
@@ -288,7 +302,11 @@ func deleteFile(filePath string) error {
 	return nil
 }
 
-// Вычисление хэша у файла.
+// Вычисление хэша у файла. Возвращается хэш и ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
 func hashFile(fileName string) (string, error) {
 
 	file, err := os.Open(fileName)
@@ -307,17 +325,24 @@ func hashFile(fileName string) (string, error) {
 }
 
 // Воостановление состояния файлов процесса restore, при ошибке в последовательности. Возвращается ошибка.
-func deferProcessRestoreByError(dooRestore bool, fileName, tempFileName string, errProcess error) error {
+//
+// Параметры:
+//
+//	doRestore - выполнить восстановление.
+//	fileName - имя файла.
+//	tempFileName - имя временного файла.
+//	errProcess - основная ошибка логики.
+func deferProcessRestoreByError(doRestore bool, fileName, tempFileName string, errProcess error) error {
 
 	if errProcess != nil {
 		// Удаление принятого файла.
-		if isFileExists(fileName) && dooRestore {
+		if isFileExists(fileName) && doRestore {
 			if err := os.Remove(fileName); err != nil {
 				return fmt.Errorf("Error: ошибка:<%v>, при удалении файла:<%s> по ошибке процесса:<%v>", err, fileName, err)
 			}
 		}
 		// Восстановление имени у исходного файла.
-		if isFileExists(tempFileName) && dooRestore {
+		if isFileExists(tempFileName) && doRestore {
 			if err := restoreFileName(tempFileName, "-temp"); err != nil {
 				return fmt.Errorf("Error: ошибка:<%v>, при восстановлении файла:<%s> по ошибке процесса:<%v>", err, tempFileName, err)
 			}
@@ -327,6 +352,11 @@ func deferProcessRestoreByError(dooRestore bool, fileName, tempFileName string, 
 }
 
 // Воссстановление имени файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	suffix - постфикс.
 func restoreFileName(fileName string, suffix string) (err error) {
 
 	// Проверка, существует ли файл.
@@ -353,7 +383,13 @@ func restoreFileName(fileName string, suffix string) (err error) {
 	return nil
 }
 
-// Приём файла.
+// Приём файла. Возвращается хэш принятого файла и ошибка.
+//
+// Параметры:
+//
+//	s - указатель на сервер.
+//	data - данные для процесса.
+//	chProcess - канал для передачи процентов процесса.
 func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rxFileHash string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -422,6 +458,11 @@ func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rx
 }
 
 // Добавление превикса к имени имени файла. Возвращается новое имя и ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	suffix - суффикс.
 func changeFileName(fileName string, suffix string) (newFileName string, err error) {
 
 	// Проверка, существует ли файл.
@@ -456,17 +497,13 @@ func changeFileName(fileName string, suffix string) (newFileName string, err err
 	return newFileName, nil
 }
 
-// Сохранение файла.
-func saveRxDataFile(content []byte, fileName string) error {
-
-	if err := os.WriteFile(fileName, content, 0644); err != nil {
-		return fmt.Errorf("Функция os.WriteFile, вернула ошибку: <%v>", err)
-	}
-
-	return nil
-}
-
-// Проверка ответа от сервера.
+// Проверка ответа от сервера. Возвращается ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	rxFileHash - хэш принятого файла.
+//	srcFileHash - хэш исходного файла.
 func checkResultRequestFile(fileName, rxFileHash, srcFileHash string) error {
 
 	// Проверка аргументов.
@@ -496,8 +533,10 @@ func checkResultRequestFile(fileName, rxFileHash, srcFileHash string) error {
 //
 // Параметры:
 //
-//	c - конфигурация.
-//	b - количество переданных байт.
+//	s - указатель на сервер.
+//	chProcess - канал передачи процентов процесса.
+//	b - количество байт.
+//	data - данные процесса.
 func updateDataRxProcess(s *server, chProcess chan<- float32, b int, data *dataRequestFile) {
 
 	s.mtx.processRxFile.Lock()
@@ -521,8 +560,10 @@ func updateDataRxProcess(s *server, chProcess chan<- float32, b int, data *dataR
 //
 // Параметры:
 //
-//	c - конфигурация.
-//	b - количество переданных байт.
+//	s - указатель на сервер.
+//	chProcess - канал передачи процентов процесса.
+//	b - количество байт.
+//	data - данные процесса.
 func updateDataTxProcess(s *server, chProcess chan<- float32, b int, data *dataSendFile) {
 
 	s.mtx.processTxFile.Lock()
@@ -546,8 +587,9 @@ func updateDataTxProcess(s *server, chProcess chan<- float32, b int, data *dataS
 //
 // Параметры:
 //
-//	c - конфигурация.
-//	b - количество переданных байт.
+//	s - указатель на сервер.
+//	chProcess - канал передачи процентов процесса.
+//	b - количество байт.
 func updateDataBackUpRestoreProcess(s *server, chProcess chan<- float32, b int) {
 
 	s.mtx.processBackUpRestore.Lock()

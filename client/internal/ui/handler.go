@@ -22,166 +22,6 @@ const (
 
 var once sync.Once
 
-type encrKey struct {
-	secretKey [32]byte // секретный ключ
-}
-
-// Введённые пользователем данные.
-type typeData struct {
-	login         string // имя пользователя.
-	password1     string // пароль.
-	password2     string // пароль (подтверждение).
-	ip            string // IP.
-	port          string // Port.
-	dataFor       string // для чего формируются данные.
-	dataLogin     string // логин.
-	dataPassword  string // пароль.
-	dataText      string // текст.
-	dataOwner     string // владелец.
-	dataNumb      string // номер.
-	dataValidDate string // дата валидности.
-	dataCode      string // код.
-	dataPathSrc   string // путь, нахождения файла.
-	dataPathTrg   string // путь, куда нужно поместить файл.
-}
-
-// Признаки выполнения логики
-type status struct {
-	checkConnectStatus           bool // Результат процедуры проверки связи с сервером.
-	checkConnectPassed           bool // Признак, что проверка связи была запущена.
-	addUserSUCCESS               bool // Признак успешного добавления пользователя.
-	addUserPassed                bool // Признак, что была запущена процедура регистрации пользователя.
-	addUserRegBusy               bool // Признак, чот уже есть заргистрированный пользователь
-	addLoginPaaswordSUCCESS      bool // Признак успешного добавления пары логин/пароль.
-	addLoginPaaswordPassed       bool // Признак, что выполнена процедура добавления пары логин/пароль.
-	readLoginPaaswordSUCCESS     bool // Признак, успешного получения данных логин/пароль.
-	readLoginPaaswordPassed      bool // Признак, что процедура чтения логин/пароль, пройдена.
-	readNameLoginPaaswordSUCCESS bool // Признак, успешного получения имён логин/пароль.
-	readNameLoginPaaswordPassed  bool // Признак, что процедура получения имён логин/пароль, пройдена.
-	readNameTextSUCCESS          bool // Признак, успешного получения имён текста.
-	readNameTextPassed           bool // Признак, что процедура получения имён текста, пройдена.
-	delLoginPaaswordSUCCESS      bool // Признак, успешного удаления данных логин/пароль.
-	delLoginPaaswordPassed       bool // Признак, что процедура удаления логин/пароль, пройдена.
-	addTextSUCCESS               bool // Признак успешного добавления текста.
-	addTextPassed                bool // Признак, что выполнена процедура добавления текста.
-	readTextSUCCESS              bool // Признак, успешного получения данных текста.
-	readTextPassed               bool // Признак, что процедура получения текста, пройдена.
-	delTextSUCCESS               bool // Признак, успешного удаления данных текста.
-	delTextPassed                bool // Признак, что процедура удаления текста, пройдена.
-	addBankCardSUCCESS           bool // Признак успешного добавления карты.
-	addBankCardPassed            bool // Признак, что выполнена процедура добавления карты.
-	readBankCardSUCCESS          bool // Признак, успешного получения данных карт.
-	readBankCardPassed           bool // Признак, что процедура получения данных карт, пройдена.
-	readNameBankCardSUCCESS      bool // Признак, успешного получения данных карт.
-	readNameBankCardPassed       bool // Признак, что процедура получения данных карт, пройдена.
-	readNameFileSUCCESS          bool // Признак, успешного получения данных файлов.
-	readNameFilePassed           bool // Признак, что процедура получения данных файлов, пройдена.
-	delBankCardSUCCESS           bool // Признак, успешного удаления данных карты.
-	delBankCardPassed            bool // Признак, что процедура удаления карты, пройдена.
-	addFileSUCCESS               bool // Признак успешного добавления файла.
-	addFilePassed                bool // Признак, что выполнена процедура добавления файла.
-	readFileSUCCESS              bool // Признак, успешного получения данных файла.
-	readFilePassed               bool // Признак, что процедура получения данных файла, пройдена.
-	delFileSUCCESS               bool // Признак, успешного удаления файла.
-	delFilePassed                bool // Признак, что процедура удаления файла, пройдена.
-	extractFileSUCCESS           bool // Признак, успешного извлечения файла.
-	extractFilePassed            bool // Признак, что процедура извлечения файла, пройдена.
-	restore                      int  // Статус процесса воостановления из резервной копии.
-	backUp                       int  // Статус процесса создания резервной копии.
-	pushContainer                int  // Статус процесса передачи в контейнер.
-	popContainer                 int  // Статус процесса извлечения из контейнера.
-	fileTx                       int  // Статус процесса передачи файла на сервер
-	fileRx                       int  // Статус процесса приёма файла от сервера
-}
-
-// Для навигации по экранам.
-type screens struct {
-	activeView   string // название активного экрана
-	currentFocus string // на какой элемент установлен фокус
-}
-
-// Представление записи логин/пароль
-type loginPassword struct {
-	name      string
-	login     string
-	password  string
-	createdAt string
-}
-
-// Представление записи - текст.
-type textData struct {
-	name      string
-	text      string
-	createdAt string
-}
-
-// Представление записи - банковская карта.
-type bankCard struct {
-	name      string
-	owner     string
-	numb      string
-	valid     string
-	code      string
-	createdAt string
-}
-
-// Данные БД.
-type data struct {
-	encryptLoginPassword []loginPassword // закодированные данные - логин/пароль.
-	loginPassword        []loginPassword // данные - логин/пароль.
-	encryptTextData      []textData      // закодированные данные - текст.
-	textData             []textData      // данные - текст.
-	encryptBankCard      []bankCard      // закодированные данные - банковские карты.
-	bankCard             []bankCard      // данные - банковские карты.
-	files                []string        // файлы
-	namesLoginPassword   []string        // имена записей логин/пароль
-	namesText            []string        // имена записей текст
-	namesBankCard        []string        // имена записей банковские карты
-	namesFile            []string        // имена файлов
-}
-
-// Индесы.
-type indexes struct {
-	loginPassword int // текущий индекс для обхода массива - логин/пароль.
-	text          int // текущий индекс для обхода массива - текст.
-	bankCard      int // текущий индекс для обхода массива - банковские карты.
-	file          int // текущий индекс для обхода массива - файлы.
-}
-
-// Мьютексы.
-type mutex struct {
-	restoreBackup       sync.Mutex // для резервного копирования и восстановления.
-	processTxRx         sync.Mutex // для данных процесса Tx Rx файлов.
-	statusBackUp        sync.Mutex // для статуса процесса передачи.
-	statusRestore       sync.Mutex // для статуса процесса приёма.
-	statusPushContainer sync.Mutex // для статуса процесса передачи в контейнер.
-	statusPopContainer  sync.Mutex // для статуса процесса извлечения из контейнера.
-	statusFileTx        sync.Mutex // для статуса процесса передачи файла на сервер.
-	statusFileRx        sync.Mutex // для статуса процесса приёма файла от сервера.
-}
-
-// Отправка-приём файлов.
-type txrx struct {
-	percentTxRx float32 // Процент выполнения процесса передачи файлов.
-	totalSizeKB int64   // Передаваемый размер (Байт).
-	passedKB    int64   // обработано данных (Байт).
-}
-
-// Общий тип для CLI UI.
-type handlerUI struct {
-	conf       *udt.Configuration // конфигурация сервиса.
-	typed      typeData           // введённые пользователем данные.
-	status     status             // признаки сервиса.
-	view       screens            // взаимодействие с окнами.
-	secret     encrKey            // секретность.
-	data       data               // данные.
-	index      indexes            // индексы для обхода массивов.
-	mutex      mutex              // мьютексы.
-	txrx       txrx               // данные по Tx-Rx файлов.
-	clientName string             // имя клиента.
-	tokenAuth  string             // токен аутентификации.
-}
-
 var inst *handlerUI
 
 // Конструктор.
@@ -213,6 +53,9 @@ func new(conf *udt.Configuration) *handlerUI {
 				statusRestore:       sync.Mutex{},
 				statusPushContainer: sync.Mutex{},
 				statusPopContainer:  sync.Mutex{},
+				statusFileTx:        sync.Mutex{},
+				statusFileRx:        sync.Mutex{},
+				statusIsBusyServer:  sync.Mutex{},
 			},
 			txrx:       txrx{},
 			clientName: "",
@@ -532,6 +375,17 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 		c.view.activeView == viewSettings ||
 		c.view.activeView == viewTextData {
 		return nil
+	}
+
+	// Подключение к БД.
+	// Реализация тут, а не на этапе подготовки, т.к. при бездействии, происходит отключение от БД.
+	if c.conf.Flag.Mode == flags.ModeLocal {
+		storage, err := domain.NewStorage(c.conf.Flag.DSN)
+		if err != nil {
+			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
+			return nil
+		}
+		c.conf.DataBase = storage
 	}
 
 	// Логика
@@ -880,6 +734,10 @@ func (c *handlerUI) nextFocus(g *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажат Tab")
 
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
+
 	// Перевод фокуса
 	switch c.view.activeView {
 	case viewRegistration: // Окно регистрации.
@@ -1056,6 +914,11 @@ func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 func (c *handlerUI) handleEnter(g *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажат Enter")
+
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
 
 	// Запрет активности при активности процессов передачи файлов.
 	if c.status.backUp == stageActive || c.status.restore == stageActive {
@@ -1300,6 +1163,11 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+F")
 
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
+
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно - логин/пароль
 		if err := doStoreViewLoginPasswordData(c); err != nil {
@@ -1335,6 +1203,11 @@ func (c *handlerUI) doStore(gui *gocui.Gui, v *gocui.View) error {
 func (c *handlerUI) doShowNextElement(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+E")
+
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
 
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно логин/пароль
@@ -1372,6 +1245,11 @@ func (c *handlerUI) doShowPrevElement(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+G")
 
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
+
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно логин/пароль.
 		if err := doShowPrevElementViewLoginPasswordData(c, gui); err != nil {
@@ -1408,6 +1286,11 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+J")
 
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
+
 	switch c.view.activeView {
 	case viewLoginPasswordData: // Окно логин/пароль
 		if err := doDeleteElementViewLoginPasswordData(c, gui); err != nil {
@@ -1443,6 +1326,11 @@ func (c *handlerUI) doDeleteElement(gui *gocui.Gui, v *gocui.View) error {
 func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+K")
+
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
 
 	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
@@ -1514,7 +1402,7 @@ func (c *handlerUI) doExtract(gui *gocui.Gui, v *gocui.View) error {
 				rxFileSize = rxFileSize / 1024 // Получение КБайт
 
 				// Подготовка данных для реализации запроса файла.
-				if err := c.conf.Server.InitDataRequestFileByName(fileName, c.tokenAuth, c.clientName, rxFileSize, 0, c.secret.secretKey); err != nil {
+				if err := c.conf.Server.InitDataRequestFileByName(fileName, c.typed.dataPathTrg, c.tokenAuth, c.clientName, rxFileSize, 0, c.secret.secretKey); err != nil {
 					c.conf.LgrFile.Write(fmt.Sprintf("Error: функция InitDataRequestFileByName, вернула ошибку: <%v>", err))
 					return nil
 				}
@@ -2244,7 +2132,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 		defer cancel()
 
 		// Запрос у сервера имен записей
-		rxData, err := c.conf.Server.RequestLoginPasswordNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		rxData, err := c.conf.Server.RequestLoginPasswordNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
 		if err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestLoginPasswordNames, вернула ошибку: <%v>", err))
 			c.status.readNameLoginPaaswordSUCCESS = false
@@ -2563,7 +2451,7 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 		defer cancel()
 
 		// Запрос у сервера имен записей
-		rxData, err := c.conf.Server.RequestTextNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		rxData, err := c.conf.Server.RequestTextNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
 		if err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
 			c.status.readNameTextSUCCESS = false
@@ -2623,7 +2511,7 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 	c.status.extractFilePassed = false
 	c.status.extractFileSUCCESS = false
 
-	// Удаляем все зависимые виды.
+	// Очистка.
 	if err := deleteViews(g); err != nil {
 		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
@@ -2898,14 +2786,21 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 		defer cancel()
 
 		// Запрос у сервера имен записей
-		rxData, err := c.conf.Server.RequestFileNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		rxData, isBusyServer, err := c.conf.Server.RequestFileNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
 		if err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestFileNames, вернула ошибку: <%v>", err))
 			c.status.readNameFileSUCCESS = false
 		} else {
-			c.data.namesFile = rxData // передача результата
-			c.conf.LgrFile.Write("Debug: данные банковской карты, успешно прочитаны")
-			c.status.readNameFileSUCCESS = true
+			if !isBusyServer {
+				c.updateStatusIsBusyServer(false)
+				c.data.namesFile = rxData
+				c.conf.LgrFile.Write("Debug: данные файлов, успешно прочитаны")
+				c.status.readNameFileSUCCESS = true
+			} else { // На сервере активна работа с файлами.
+				c.updateStatusIsBusyServer(true)
+				c.data.namesFile = []string{}
+				c.conf.LgrFile.Write("Debug: На сервере активна работа с файлами. Нет актуальных данных.")
+			}
 		}
 	}
 
@@ -3294,7 +3189,7 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 		defer cancel()
 
 		// Запрос у сервера имен записей
-		rxData, err := c.conf.Server.RequestBankCardNames(ctx, c.conf.Server.GetTokenAuthentication(), c.clientName, c.secret.secretKey)
+		rxData, err := c.conf.Server.RequestBankCardNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
 		if err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
 			c.status.readNameBankCardSUCCESS = false
@@ -3320,6 +3215,11 @@ func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+O")
+
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
 
 	// Запрет отработки, если уже есть активный процесс.
 	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
@@ -3358,7 +3258,7 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 		chDone := make(chan struct{})
 
 		// Передача файлов.
-		go c.conf.Server.BackUp(chProcess, chErr, chDone, c.conf.LgrFile)
+		go c.conf.Server.BackUp(chProcess, chErr, chDone)
 
 		// Буфер процесса BackUp.
 		go bufferProcessBackUp(c, chProcess, chErr, chDone)
@@ -3370,6 +3270,11 @@ func (c *handlerUI) doBackup(gui *gocui.Gui, v *gocui.View) (err error) {
 func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+P")
+
+	// Сброс сторожевого таймера.
+	if c.status.statusWDT {
+		c.ch.resetWDT <- struct{}{} // Сброс таймера.
+	}
 
 	// Запрет отработки, если уже есть активный процесс.
 	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
@@ -3410,7 +3315,7 @@ func (c *handlerUI) doRestore(gui *gocui.Gui, v *gocui.View) error {
 		chDone := make(chan struct{})
 
 		// Приём файлов.
-		go c.conf.Server.Restore(chProcess, chErr, chDone, c.conf.LgrFile)
+		go c.conf.Server.Restore(chProcess, chErr, chDone)
 
 		// Буфер процесса.
 		go bufferProcessRestore(c, chProcess, chErr, chDone)
@@ -3542,4 +3447,37 @@ func (c *handlerUI) getStatusPopContainer() int {
 	defer c.mutex.statusPopContainer.Unlock()
 
 	return c.status.popContainer
+}
+
+// Обновление статуса занятости сервера, в режиме - удалённый.
+func (c *handlerUI) updateStatusIsBusyServer(st bool) {
+
+	c.mutex.statusIsBusyServer.Lock()
+	defer c.mutex.statusIsBusyServer.Unlock()
+
+	c.status.isBusyServer = st
+}
+
+// Получение текущего занятости сервера, в режиме - удалённый.
+func (c *handlerUI) getStatusIsBusyServer() bool {
+
+	c.mutex.statusIsBusyServer.Lock()
+	defer c.mutex.statusIsBusyServer.Unlock()
+
+	return c.status.isBusyServer
+}
+
+// Получение текущего занятости сервера, в режиме - удалённый.
+func (c *handlerUI) initChannels() {
+
+	// Канал для сброса сторожевого таймера.
+	if c.ch.resetWDT == nil {
+		c.ch.resetWDT = make(chan struct{})
+		return
+	}
+	// Канал для завершения работы.
+	if c.ch.resetWDTClose == nil {
+		c.ch.resetWDTClose = make(chan struct{})
+		return
+	}
 }

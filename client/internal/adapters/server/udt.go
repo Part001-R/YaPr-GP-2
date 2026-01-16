@@ -1,3 +1,4 @@
+// Типы данных пакета.
 package server
 
 // Представление данных передачи логин/пароль.
@@ -67,39 +68,40 @@ type TxFileResp struct {
 
 // Представление данных для запроса файла
 type dataRequestFile struct {
-	fileName    string
-	tokenAuth   string
-	clientID    string
-	sizeReqFile int64
-	sizePassed  int64
-	secretKey   [32]byte
+	filePath    string   // Путь к файлу.
+	fileName    string   // имя файла.
+	tokenAuth   string   // Токен аутентификации.
+	clientID    string   // id клиента.
+	sizeReqFile int64    // Размер запрашиваемых данных.
+	sizePassed  int64    // Обработанный размер.
+	secretKey   [32]byte // Ключ.
 }
 
 // Представление данных для передачи файла
 type dataSendFile struct {
-	filePath     string
-	tokenAuth    string
-	clientID     string
-	sizeSendFile int64
-	sizePassed   int64
-	secretKey    [32]byte
+	filePath     string   // Путь к файлу.
+	tokenAuth    string   // Токен аутентификации.
+	clientID     string   // id клиента.
+	sizeSendFile int64    // Размер передаваемых данных.
+	sizePassed   int64    // Обработанный размер.
+	secretKey    [32]byte // Ключ.
 }
 
 // Представление данных для BackUp
 type dataBackUp struct {
-	listFiles    []string
-	tokenAuth    string
-	clientID     string
-	sizeSendFile int64
-	sizePassed   int64
-	secretKey    [32]byte
+	listFiles    []string // Имена файлов.
+	tokenAuth    string   // Токен аутентификации.
+	clientID     string   // id клиента.
+	sizeSendFile int64    // Размер передаваемых данных.
+	sizePassed   int64    // Обработанный размер.
+	secretKey    [32]byte // Ключ.
 }
 
 // Представление данных для Restore
 type dataRestore struct {
-	listFiles      []InfoByFiles
-	totalSizeFiles int64
-	sizePassed     int64
+	listFiles      []InfoByFiles // Имена файлов.
+	totalSizeFiles int64         // Общий размер файлов.
+	sizePassed     int64         // Обработанный размер.
 }
 
 // Информация по файлу.

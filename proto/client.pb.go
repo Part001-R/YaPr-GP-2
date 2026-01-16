@@ -1421,6 +1421,7 @@ func (x *RequestFileInfoResponse) GetSize() int64 {
 type RequestFileNameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntriesName   []string               `protobuf:"bytes,1,rep,name=EntriesName,proto3" json:"EntriesName,omitempty"`
+	IsBusy        bool                   `protobuf:"varint,2,opt,name=isBusy,proto3" json:"isBusy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1460,6 +1461,13 @@ func (x *RequestFileNameResponse) GetEntriesName() []string {
 		return x.EntriesName
 	}
 	return nil
+}
+
+func (x *RequestFileNameResponse) GetIsBusy() bool {
+	if x != nil {
+		return x.IsBusy
+	}
+	return false
 }
 
 type RequestFileByNameRequest struct {
@@ -1709,9 +1717,10 @@ const file_proto_client_proto_rawDesc = "" +
 	"\x17RequestFileInfoResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04hash\x18\x02 \x01(\tR\x04hash\x12\x12\n" +
-	"\x04size\x18\x03 \x01(\x03R\x04size\";\n" +
+	"\x04size\x18\x03 \x01(\x03R\x04size\"S\n" +
 	"\x17RequestFileNameResponse\x12 \n" +
-	"\vEntriesName\x18\x01 \x03(\tR\vEntriesName\"R\n" +
+	"\vEntriesName\x18\x01 \x03(\tR\vEntriesName\x12\x16\n" +
+	"\x06isBusy\x18\x02 \x01(\bR\x06isBusy\"R\n" +
 	"\x18RequestFileByNameRequest\x12\x1a\n" +
 	"\bidClient\x18\x01 \x01(\tR\bidClient\x12\x1a\n" +
 	"\bfileName\x18\x02 \x01(\tR\bfileName\"Q\n" +

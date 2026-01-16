@@ -636,12 +636,17 @@ func layerRequestBankCardByNameTx(txData TxBankCard) (*pb.RequestBankCardByNameR
 //
 
 // Получение имён файлов.
-func layerRequestFileNameScanDir(dir string) (fileNames []string, err error) {
+func layerRequestFileNameScanDir(dir string, s *Manager) (fileNames []string, isBusyServer bool, err error) {
+
+	// Проверка активности по работе с файлами
+	if s.GetStatusRx() == stageActive {
+		return nil, true, nil
+	}
 
 	// Чтение содержимого директории
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	// Сбор имён файлов
@@ -651,21 +656,24 @@ func layerRequestFileNameScanDir(dir string) (fileNames []string, err error) {
 		}
 	}
 
-	return fileNames, nil
+	return fileNames, false, nil
 }
 
 // Подготовка ответа.
-func layerRequestFileNameTx(fileNames []string) (*pb.RequestFileNameResponse, error) {
+func layerRequestFileNameTx(fileNames []string, isBusyServer bool) (*pb.RequestFileNameResponse, error) {
 
+	// Ответ.
 	resp := &pb.RequestFileNameResponse{
 		EntriesName: make([]string, 0, len(fileNames)),
+		IsBusy:      isBusyServer,
 	}
 
-	// Заполнение
+	// Заполнение.
 	for _, v := range fileNames {
 		resp.EntriesName = append(resp.EntriesName, v)
 	}
 
+	// Результат.
 	return resp, nil
 }
 
@@ -973,7 +981,7 @@ func layerDeleteFileRx(req *pb.RequestDeleteName) (idClient, name string, err er
 // Логика.
 func layerDeleteFile(name string, s *Manager) error {
 
-	filePath := s.flag.NameSubDirFiles + "/" + name
+	filePath := path.Join(s.flag.NameSubDirFiles, name)
 
 	if fileExists(filePath) {
 		if err := os.Remove(filePath); err != nil {

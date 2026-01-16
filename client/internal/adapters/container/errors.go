@@ -1,3 +1,4 @@
+// Статические ошибки пакета.
 package container
 
 import "errors"

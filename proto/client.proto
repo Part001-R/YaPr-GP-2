@@ -174,6 +174,7 @@ message RequestFileInfoResponse {
 
 message RequestFileNameResponse {
     repeated string EntriesName = 1;
+    bool isBusy = 2;
 }
 
 message RequestFileByNameRequest {

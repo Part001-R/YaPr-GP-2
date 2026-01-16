@@ -1,3 +1,4 @@
+// Слои обработчиков пакета.
 package server
 
 import (
@@ -15,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"google.golang.org/grpc"
@@ -27,7 +27,7 @@ import (
 // --- backUp ---
 //
 
-// Создание токена.
+// Создание токена. Возвращается секретный ключ токен и ошибка.
 func layerBackUpCreateToken() (secretKey, token string, err error) {
 
 	// Создание ключа.
@@ -47,8 +47,14 @@ func layerBackUpCreateToken() (secretKey, token string, err error) {
 	return secretKey, token, nil
 }
 
-// Передача файла.
-func layerBackUpTxFile(s *server, fileName, token string, chProcess chan<- float32, lgr *logfile.LogFile) (resp *pb.LocalBackupFileResponse, rxHash, rxToken string, err error) {
+// Передача файла. Возвращается ответ запроса, принятый хэш, принятый токен и ошибка.
+//
+// Параметры:
+//
+//	s - указатель на сервер.
+//	fileName - имя файла.
+//	chProcess - канал процентов процесса.
+func layerBackUpTxFile(s *server, fileName, token string, chProcess chan<- float32) (resp *pb.LocalBackupFileResponse, rxHash, rxToken string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -124,7 +130,16 @@ func layerBackUpTxFile(s *server, fileName, token string, chProcess chan<- float
 	return resp, rxHash, rxToken, nil
 }
 
-// Проверка результата.
+// Проверка результата. Возвращается ошибка.
+//
+// Параметры.
+//
+//	resp - принятый ответ.
+//	txFileName - передаваемое имя файла.
+//	txFileHash - хэш передаваемого файла.
+//	rxFileHash - хэш принятого сервером файла.
+//	rxToken - принятый токен.
+//	secretKey - секретный ключ.
 func layerBackUpCheckResult(resp *proto.LocalBackupFileResponse, txFileName, txFileHash, rxFileHash, rxToken, secretKey string) error {
 
 	// Проверка аргументов.
@@ -169,7 +184,12 @@ func layerBackUpCheckResult(resp *proto.LocalBackupFileResponse, txFileName, txF
 // --- SendLoginPassword ---
 //
 
-// Шифрование передаваемых данных.
+// Шифрование передаваемых данных. Возвращаются зашифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	data - данные для шифрования.
+//	key - ключ шифрования.
 func layerSendLoginPasswordEncode(data TxLoginPassword, key [32]byte) (eData TxLoginPassword, err error) {
 
 	eData.ID = data.ID
@@ -201,22 +221,27 @@ func layerSendLoginPasswordEncode(data TxLoginPassword, key [32]byte) (eData TxL
 // --- SendText ---
 //
 
-// Шифрование передаваемых данных.
-func layerSendTextEncode(data TxText, secretKey [32]byte) (eData TxText, err error) {
+// Шифрование передаваемых данных. Возвращаются зашифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	data - данные для шифрования.
+//	key - ключ шифрования.
+func layerSendTextEncode(data TxText, key [32]byte) (eData TxText, err error) {
 
 	eData.ID = data.ID
 
-	eData.For, err = encrypt(data.For, secretKey)
+	eData.For, err = encrypt(data.For, key)
 	if err != nil {
 		return TxText{}, fmt.Errorf("Error: ошибка шифрования содержимого txFor: <%v>", err)
 	}
 
-	eData.Text, err = encrypt(data.Text, secretKey)
+	eData.Text, err = encrypt(data.Text, key)
 	if err != nil {
 		return TxText{}, fmt.Errorf("Error: ошибка шифрования содержимого txLogin: <%v>", err)
 	}
 
-	eData.CreatedAt, err = encrypt(data.CreatedAt, secretKey)
+	eData.CreatedAt, err = encrypt(data.CreatedAt, key)
 	if err != nil {
 		return TxText{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCreatedAt: <%v>", err)
 	}
@@ -228,37 +253,42 @@ func layerSendTextEncode(data TxText, secretKey [32]byte) (eData TxText, err err
 // --- SendBankCard ---
 //
 
-// Шифрование передаваемых данных.
-func layerSendBankCardEncode(data TxBankCard, secretKey [32]byte) (eData TxBankCard, err error) {
+// Шифрование передаваемых данных. Возвращаются зашифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	data - данные для шифрования.
+//	key - ключ шифрования.
+func layerSendBankCardEncode(data TxBankCard, key [32]byte) (eData TxBankCard, err error) {
 
 	eData.ID = data.ID
 
-	eData.For, err = encrypt(data.For, secretKey)
+	eData.For, err = encrypt(data.For, key)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого txFor: <%w>", err)
 	}
 
-	eData.Owner, err = encrypt(data.Owner, secretKey)
+	eData.Owner, err = encrypt(data.Owner, key)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxOwner: <%w>", err)
 	}
 
-	eData.Numb, err = encrypt(data.Numb, secretKey)
+	eData.Numb, err = encrypt(data.Numb, key)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxNumb: <%w>", err)
 	}
 
-	eData.ValidData, err = encrypt(data.ValidData, secretKey)
+	eData.ValidData, err = encrypt(data.ValidData, key)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxValidData: <%w>", err)
 	}
 
-	eData.Code, err = encrypt(data.Code, secretKey)
+	eData.Code, err = encrypt(data.Code, key)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCode: <%w>", err)
 	}
 
-	eData.CreatedAt, err = encrypt(data.CreatedAt, secretKey)
+	eData.CreatedAt, err = encrypt(data.CreatedAt, key)
 	if err != nil {
 		return TxBankCard{}, fmt.Errorf("Error: ошибка шифрования содержимого TxCreatedAt: <%w>", err)
 	}
@@ -270,7 +300,12 @@ func layerSendBankCardEncode(data TxBankCard, secretKey [32]byte) (eData TxBankC
 // --- SendFile ---
 //
 
-// Шифрование файла.
+// Шифрование файла. Возвращается путь к защифрованному файлу и ошибка.
+//
+// Параметры:
+//
+//	filePath - путь к исходному файлу.
+//	key - ключ шифрования.
 func layerSendFileEncrypt(filePath string, key [32]byte) (encFilePath string, err error) {
 
 	// Подключение к исходному файлу.
@@ -352,7 +387,12 @@ func layerSendFileEncrypt(filePath string, key [32]byte) (encFilePath string, er
 	return encFilePath, nil
 }
 
-// Передача файла на сервер.
+// Передача файла на сервер. Возвращается хэш файла от сервера и ошибка.
+//
+// Параметры:
+//
+//	s - указатель на сервер.
+//	chProcess - канал вывода процентов процесса.
 func layerSendFileTx(s *server, chProcess chan<- float32) (rxHash string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -432,7 +472,12 @@ func layerSendFileTx(s *server, chProcess chan<- float32) (rxHash string, err er
 	return rxHash, nil
 }
 
-// Проверка хэша.
+// Проверка хэша. Возвращается ошибка.
+//
+// Параметры:
+//
+//	nameFile - имя файла.
+//	rxHash - принятый хэш.
 func layerSendFileCheckHash(nameFile, rxHash string) error {
 
 	// Вычисление хэша у переданного файла.
@@ -449,7 +494,11 @@ func layerSendFileCheckHash(nameFile, rxHash string) error {
 	return nil
 }
 
-// Удаление файла.
+// Удаление файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
 func layerSendFileRemove(filePath string) error {
 
 	if !isFileExists(filePath) {
@@ -468,8 +517,13 @@ func layerSendFileRemove(filePath string) error {
 // --- RequestLoginPasswordNames ---
 //
 
-// Передача запроса
-func layerRequestLoginPasswordNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+// Передача запроса. Возвращаются принятые данные и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+func layerRequestLoginPasswordNamesTx(client proto.PasswordManagerClient, tokenAuth string) (rxData []string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -497,7 +551,12 @@ func layerRequestLoginPasswordNamesTx(client proto.PasswordManagerClient, tokenA
 	return rxData, nil
 }
 
-// Расшифровка принятых данных
+// Расшифровка принятых данных. Возвращаются рамшифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	enRxData - приянтый зашифрованные данные.
+//	key - ключ.
 func layerRequestLoginPasswordNamesDecrypt(enRxData []string, key [32]byte) (rxData []string, err error) {
 
 	// Проверка
@@ -522,7 +581,12 @@ func layerRequestLoginPasswordNamesDecrypt(enRxData []string, key [32]byte) (rxD
 // --- RequestLoginPasswordByName ---
 //
 
-// Шифрование передаваемых данных
+// Шифрование передаваемых данных. Возвращается зашифрованное значение и ошибка.
+//
+// Параметры:
+//
+//	nameEntry - имя записи.
+//	key - ключ шифрования.
 func LayerRequestLoginPasswordByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry string, err error) {
 
 	// Шифрование имени записи
@@ -534,7 +598,14 @@ func LayerRequestLoginPasswordByNameEncrypt(nameEntry string, key [32]byte) (enN
 	return enNameEntry, nil
 }
 
-// Запрос к серверу
+// Запрос к серверу. Возвращается ответ сервера и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиента.
+//	enNameEntry - зашифрованное имя записи.
 func LayerRequestLoginPasswordByNameTx(client proto.PasswordManagerClient, tokenAuth, idClient, enNameEntry string) (resp *pb.RequestLoginPasswordByNameResponse, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -560,7 +631,12 @@ func LayerRequestLoginPasswordByNameTx(client proto.PasswordManagerClient, token
 	return resp, nil
 }
 
-// Обработка ответа
+// Обработка ответа. Возвращаются принятые данные и ошибка.
+//
+// Параметры:
+//
+//	resp - ответ.
+//	key - ключ.
 func LayerRequestLoginPasswordByDecrypt(resp *pb.RequestLoginPasswordByNameResponse, key [32]byte) (rxData RxLoginPassword, err error) {
 
 	rxData.For, err = decrypt(resp.Name, key)
@@ -590,8 +666,13 @@ func LayerRequestLoginPasswordByDecrypt(resp *pb.RequestLoginPasswordByNameRespo
 // --- RequestTextNames ---
 //
 
-// Передача запроса
-func layerRequestTextNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+// Передача запроса. Возвращается массив имен записей и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+func layerRequestTextNamesTx(client proto.PasswordManagerClient, tokenAuth string) (rxData []string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -619,7 +700,12 @@ func layerRequestTextNamesTx(client proto.PasswordManagerClient, tokenAuth, idCl
 	return rxData, nil
 }
 
-// Расшифровка принятых данных
+// Расшифровка принятых данных. Возвращается массив расшифрованных данных и ошибка.
+//
+// Параметры:
+//
+//	enRxData - приятый массив зашифрованных данных.
+//	key - ключ.
 func layerRequestTextNamesDecrypt(enRxData []string, key [32]byte) (rxData []string, err error) {
 
 	// Проверка
@@ -644,7 +730,12 @@ func layerRequestTextNamesDecrypt(enRxData []string, key [32]byte) (rxData []str
 // --- RequestTextByName ---
 //
 
-// Шифрование передаваемых данных
+// Шифрование передаваемых данных. Возвращается зашифрованное значение имени и ошибка.
+//
+// Параметры:
+//
+//	nameEntry - имя записи.
+//	key - ключ.
 func LayerRequestTextByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry string, err error) {
 
 	// Шифрование имени записи
@@ -656,7 +747,14 @@ func LayerRequestTextByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry 
 	return enNameEntry, nil
 }
 
-// Запрос к серверу
+// Запрос к серверу. Возвращается ответ сервера и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиента.
+//	enNameEntry - зашифрованное имя.
 func LayerRequestTextByNameTx(client proto.PasswordManagerClient, tokenAuth, idClient, enNameEntry string) (resp *pb.RequestTextByNameResponse, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -682,7 +780,12 @@ func LayerRequestTextByNameTx(client proto.PasswordManagerClient, tokenAuth, idC
 	return resp, nil
 }
 
-// Обработка ответа
+// Обработка ответа. Возвращается массив расшированных данных и ошибка.
+//
+// Параметры:
+//
+//	resp - ответ сервера.
+//	key - ключ.
 func LayerRequestTextByNameDecrypt(resp *pb.RequestTextByNameResponse, key [32]byte) (rxData RxText, err error) {
 
 	rxData.For, err = decrypt(resp.Name, key)
@@ -707,8 +810,13 @@ func LayerRequestTextByNameDecrypt(resp *pb.RequestTextByNameResponse, key [32]b
 // --- RequestBankCardNames ---
 //
 
-// Передача запроса
-func layerRequestBankCardNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+// Передача запроса. Возвращается массив зашифрованных имён и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+func layerRequestBankCardNamesTx(client proto.PasswordManagerClient, tokenAuth string) (rxData []string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -736,7 +844,12 @@ func layerRequestBankCardNamesTx(client proto.PasswordManagerClient, tokenAuth, 
 	return rxData, nil
 }
 
-// Расшифровка принятых данных
+// Расшифровка принятых данных. Возвращается массив расшифрованных имён и ошибка.
+//
+// Параметры:
+//
+//	enRxData - массив зашифрованных имён.
+//	key - ключ шифрования.
 func layerRequestBankCardNamesDecrypt(enRxData []string, key [32]byte) (rxData []string, err error) {
 
 	// Проверка
@@ -761,7 +874,12 @@ func layerRequestBankCardNamesDecrypt(enRxData []string, key [32]byte) (rxData [
 // --- RequestBankCardByName ---
 //
 
-// Шифрование передаваемых данных
+// Шифрование передаваемых данных. Возвращается зашифрованное имя и ошибка.
+//
+// Параметры:
+//
+//	nameEntry - имя записи.
+//	key - ключ шифрования.
 func LayerRequestBankCardByNameEncrypt(nameEntry string, key [32]byte) (enNameEntry string, err error) {
 
 	// Шифрование имени записи
@@ -773,7 +891,14 @@ func LayerRequestBankCardByNameEncrypt(nameEntry string, key [32]byte) (enNameEn
 	return enNameEntry, nil
 }
 
-// Запрос к серверу
+// Запрос к серверу. Возвращается ответ сервера и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиента.
+//	enNameEntry - зашифрованное имя записи.
 func LayerRequestBankCardByNameTx(client proto.PasswordManagerClient, tokenAuth, idClient, enNameEntry string) (resp *pb.RequestBankCardByNameResponse, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -799,7 +924,12 @@ func LayerRequestBankCardByNameTx(client proto.PasswordManagerClient, tokenAuth,
 	return resp, nil
 }
 
-// Обработка ответа
+// Обработка ответа. Возвращается массив расшифрованных данных и ошибка.
+//
+// Параметры:
+//
+//	resp - ответ сервера.
+//	key - ключ.
 func LayerRequestBankCardByNameDecrypt(resp *pb.RequestBankCardByNameResponse, key [32]byte) (rxData RxBankCard, err error) {
 
 	rxData.For, err = decrypt(resp.Name, key)
@@ -839,8 +969,13 @@ func LayerRequestBankCardByNameDecrypt(resp *pb.RequestBankCardByNameResponse, k
 // --- RequestFileNames ---
 //
 
-// Передача запроса
-func layerRequestFileNamesTx(client proto.PasswordManagerClient, tokenAuth, idClient string) (rxData []string, err error) {
+// Передача запроса. Возвращается ответ сервера и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+func layerRequestFileNamesTx(client proto.PasswordManagerClient, tokenAuth string) (resp *pb.RequestFileNameResponse, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -851,7 +986,7 @@ func layerRequestFileNamesTx(client proto.PasswordManagerClient, tokenAuth, idCl
 
 	// Запрос у сервера информации.
 	emptyRequest := &emptypb.Empty{}
-	resp, err := client.RequestFileName(
+	resp, err = client.RequestFileName(
 		ctx,
 		emptyRequest,
 	)
@@ -859,20 +994,41 @@ func layerRequestFileNamesTx(client proto.PasswordManagerClient, tokenAuth, idCl
 		return nil, fmt.Errorf("Функция client.RequestTextName, вернула ошибку: <%v>", err)
 	}
 
+	// Результат.
+	return resp, nil
+}
+
+// Получение данных из ответа. Возвращаются данные ответа сервера, признак занятости сервера и ошибка.
+//
+// Параметры:
+//
+//	resp - ответ сервера.
+func layerRequestFileNamesRx(resp *pb.RequestFileNameResponse) (rxData []string, isBusyServer bool, err error) {
+
+	// Получение признака занятости сервера.
+	isBusyServer = resp.IsBusy
+
 	// Получение данных ответа.
 	for _, v := range resp.EntriesName {
 		rxData = append(rxData, v)
 	}
 
 	// Результат.
-	return rxData, nil
+	return rxData, isBusyServer, nil
 }
 
 //
 // --- RequestFileInfo ---
 //
 
-// Передача запроса
+// Передача запроса. Возвращается имя файла, его хэш, его размер и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиента.
+//	nameFile - имя файла.
 func layerRequestFileInfoTx(client proto.PasswordManagerClient, tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -904,7 +1060,12 @@ func layerRequestFileInfoTx(client proto.PasswordManagerClient, tokenAuth, idCli
 	return fileName, fileHash, fileSize, nil
 }
 
-// Проверка имён.
+// Проверка имён. Возвращается ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	rxFileName - принятое имя файла.
 func layerRequestFileInfoCheck(fileName, rxFileName string) error {
 
 	if fileName != rxFileName {
@@ -918,7 +1079,13 @@ func layerRequestFileInfoCheck(fileName, rxFileName string) error {
 // --- RequestFileByName ---
 //
 
-// Приём файла.
+// Приём файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	s - указатель на сервер.
+//	data - данные процесса.
+//	chProcess - канал передачи процентов выполнения.
 func layerRequestFileByNameRx(s *server, data *dataRequestFile, chProcess chan<- float32) (err error) {
 
 	needRestoreState := false // Признак необходимости воостановления состояния, при ошибке.
@@ -956,7 +1123,11 @@ func layerRequestFileByNameRx(s *server, data *dataRequestFile, chProcess chan<-
 	return nil
 }
 
-// Изменение имени существующего файла.
+// Изменение имени существующего файла. Возвращается имя временного файла и ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
 func layerRequestFileByNameCreateTemp(fileName string) (tempFileName string, err error) {
 
 	if isFileExists(fileName) {
@@ -969,7 +1140,11 @@ func layerRequestFileByNameCreateTemp(fileName string) (tempFileName string, err
 	return tempFileName, nil
 }
 
-// Удаление временного файла.
+// Удаление временного файла. Возращается ошибка.
+//
+// Параметры:
+//
+//	tempFileName - имя временного файла.
 func layerRequestFileByNameRemoveTemp(tempFileName string) error {
 
 	if isFileExists(tempFileName) {
@@ -981,8 +1156,11 @@ func layerRequestFileByNameRemoveTemp(tempFileName string) error {
 	return nil
 }
 
-// Расшифровка файла.
-func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error) {
+// Расшифровка файла. Возвращается имя расшифрованного файла и ошибка.
+//
+//	encFilePath - имя зашифрованного файла.
+//	key - ключ шифрования.
+func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (decFileName string, err error) {
 
 	defer func(encFilePath string) {
 		if errDel := deleteFile(encFilePath); errDel != nil {
@@ -992,13 +1170,13 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 
 	encFile, err := os.Open(encFilePath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer encFile.Close()
 
 	// Создание расшифрованного файла
 	decFileExt := path.Ext(encFilePath)
-	decFileName := path.Base(encFilePath)
+	decFileName = path.Base(encFilePath)
 	decFileName = strings.TrimSuffix(decFileName, decFileExt)
 	decFileName = strings.TrimSuffix(decFileName, "-enc")
 
@@ -1007,26 +1185,26 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 	// Предварительное удаление файла, если существует.
 	if isFileExists(decFileName) {
 		if err := deleteFile(decFileName); err != nil {
-			return fmt.Errorf("Ошибка при удалении файла: <%s>", decFileName)
+			return "", fmt.Errorf("Ошибка при удалении файла: <%s>", decFileName)
 		}
 	}
 
 	outputFile, err := os.Create(decFileName)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer outputFile.Close()
 
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Читаем IV (первые 16 байт)
 	iv := make([]byte, aes.BlockSize)
 	n, err := encFile.Read(iv)
 	if err != nil || n != aes.BlockSize {
-		return fmt.Errorf("не удалось прочитать IV")
+		return "", fmt.Errorf("не удалось прочитать IV")
 	}
 
 	stream := cipher.NewCBCDecrypter(block, iv)
@@ -1040,7 +1218,7 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 			if err == io.EOF {
 				break
 			}
-			return err
+			return "", err
 		}
 
 		chunk := append(leftover, buffer[:n]...)
@@ -1064,7 +1242,7 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 
 		// Пишем расшифрованные данные
 		if _, err := outputFile.Write(plaintext); err != nil {
-			return err
+			return "", err
 		}
 	}
 
@@ -1076,19 +1254,47 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 		// Удаляем PKCS#7 паддинг
 		padding := plaintext[len(plaintext)-1]
 		if padding == 0 || int(padding) > aes.BlockSize || len(plaintext) < int(padding) {
-			return ErrInvalidPadding
+			return "", ErrInvalidPadding
 		}
 
 		for i := len(plaintext) - int(padding); i < len(plaintext); i++ {
 			if plaintext[i] != padding {
-				return ErrInvalidPadding
+				return "", ErrInvalidPadding
 			}
 		}
 
 		plaintext = plaintext[:len(plaintext)-int(padding)]
 		if _, err := outputFile.Write(plaintext); err != nil {
-			return err
+			return "", err
 		}
+	}
+
+	return decFileName, nil
+}
+
+// Перенос файла в целевую директорию. Возвращается ошибка.
+//
+// Параметры:
+//
+//	filename - имя файла.
+//	targetDir - целевая директория.
+func layerRequestFileByNameMove(filename, targetDir string) error {
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("не удалось получить текущую директорию: %v", err)
+	}
+
+	// Полный путь к файлу
+	sourcePath := path.Join(currentDir, filename)
+
+	// Полный путь к целевому файлу
+	targetPath := path.Join(targetDir, filename)
+
+	// Перемещение
+	err = os.Rename(sourcePath, targetPath)
+	if err != nil {
+		return fmt.Errorf("не удалось переместить файл: %v", err)
 	}
 
 	return nil
@@ -1098,7 +1304,7 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (err error)
 // --- RestoreRequestFilesInfo ---
 //
 
-// Создание токена.
+// Создание токена. Возвращается ключ, токен и ошибка.
 func layerRestoreRequestFilesInfoCreateToken() (secretKey, token string, err error) {
 
 	// Создание ключа.
@@ -1118,7 +1324,12 @@ func layerRestoreRequestFilesInfoCreateToken() (secretKey, token string, err err
 	return secretKey, token, nil
 }
 
-// Запрос.
+// Запрос. Возвращается массив имён файлов, принятый токен и ошибка.
+//
+// Параметры:
+//
+//	client - клиент.
+//	token - токен.
 func layerRestoreRequestFilesInfoRequest(client proto.PasswordManagerClient, token string) (files []InfoByFiles, rxToken string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1163,7 +1374,12 @@ func layerRestoreRequestFilesInfoRequest(client proto.PasswordManagerClient, tok
 	return files, rxToken, nil
 }
 
-// Проверка токена.
+// Проверка токена. Возвращается ошибка.
+//
+// Параметры:
+//
+//	rxToken - принятый токен.
+//	secretKey - ключ.
 func layerRestoreRequestFilesInfoCheckToken(rxToken, secretKey string) error {
 
 	// Проверка аргументов.
@@ -1186,7 +1402,7 @@ func layerRestoreRequestFilesInfoCheckToken(rxToken, secretKey string) error {
 // --- Restore ---
 //
 
-// Создание токена.
+// Создание токена. Возвращается ключ, токен и ошибка.
 func layerRestoreCreateToken() (secretKey, token string, err error) {
 
 	// Создание ключа.
@@ -1206,26 +1422,14 @@ func layerRestoreCreateToken() (secretKey, token string, err error) {
 	return secretKey, token, nil
 }
 
-// Проверка ответа от сервера.
-func layerReqFilesCheckResult(rxToken, secretKey string) error {
-
-	// Проверка аргументов.
-	if rxToken == "" {
-		return EmptyDataArgumentRxToken
-	}
-	if secretKey == "" {
-		return EmptyDataArgumentSecretKey
-	}
-
-	// Проверка токена.
-	if err := checkToken(rxToken, secretKey); err != nil {
-		return fmt.Errorf("функция checkToken, вернула ошибку: <%w>", err)
-	}
-
-	return nil
-}
-
-// Приём файла.
+// Приём файла. Возвращается массив данных, принятый хэш файла, принятый токен и ошибка.
+//
+// Параметры:
+//
+//	s - указатель на сервер.
+//	fileName - имя файла.
+//	token - токен.
+//	chProcess - канал передачи процентов процесса.
 func layerRestoreRxFile(s *server, fileName, token string, chProcess chan<- float32) (content []byte, rxFileHash, rxToken string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1239,7 +1443,7 @@ func layerRestoreRxFile(s *server, fileName, token string, chProcess chan<- floa
 	req := &pb.LocalRestoreFileRequest{FileName: fileName}
 	stream, err := s.client.LocalRestoreFile(ctx, req)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("Функция client.RestoreFile, вернула ошибку: <%w>", err)
+		return nil, "", "", fmt.Errorf("Функция LocalRestoreFile, вернула ошибку: <%w>", err)
 	}
 
 	// Чтение потоком.
@@ -1278,7 +1482,12 @@ func layerRestoreRxFile(s *server, fileName, token string, chProcess chan<- floa
 	return content, rxFileHash, rxToken, nil
 }
 
-// Сохранение файла.
+// Сохранение файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	content - данные файла.
+//	fileName - имя файла.
 func layerRestoreSaveFile(content []byte, fileName string) error {
 
 	if err := os.WriteFile(fileName, content, 0644); err != nil {
@@ -1288,7 +1497,15 @@ func layerRestoreSaveFile(content []byte, fileName string) error {
 	return nil
 }
 
-// Проверка ответа от сервера.
+// Проверка ответа от сервера. Возвращается ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	rxFileHash - принятый хэш файла.
+//	srcFileHash - хэш исходного файла.
+//	rxToken - принятый токен.
+//	secretKey - ключ.
 func layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretKey string) error {
 
 	// Проверка аргументов.
@@ -1329,7 +1546,13 @@ func layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretK
 // --- DeleteLoginPassword ---
 //
 
-// Логика процесса.
+// Логика процесса. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name - имя.
+//	idClient - id клиента.
+//	s - указатель на сервер.
 func layerDeleteLoginPassword(name, idClient string, s *server) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1356,7 +1579,13 @@ func layerDeleteLoginPassword(name, idClient string, s *server) error {
 // --- DeleteText ---
 //
 
-// Логика процесса.
+// Логика процесса. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name - имя записи.
+//	idClient - id клиента.
+//	s - указатель на сервер.
 func layerDeleteText(name, idClient string, s *server) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1383,7 +1612,12 @@ func layerDeleteText(name, idClient string, s *server) error {
 // --- DeleteBankCard ---
 //
 
-// Логика процесса.
+// Логика процесса. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name - имя записи.
+//	idClient - id клиента.
 func layerDeleteBankCard(name, idClient string, s *server) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1410,7 +1644,12 @@ func layerDeleteBankCard(name, idClient string, s *server) error {
 // --- DeleteFile ---
 //
 
-// Логика процесса.
+// Логика процесса. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name - имя записи.
+//	idClient - id клиента.
 func layerDeleteFile(name, idClient string, s *server) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

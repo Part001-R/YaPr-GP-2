@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package container
 
 import (
@@ -9,7 +10,12 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
-// Шифрование данных
+// Шифрование данных. Возвращаются зашифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	data - данные для шифрования.
+//	key - ключ шифрования.
 func encrypt(data []byte, key [32]byte) ([]byte, error) {
 
 	var nonce [24]byte
@@ -21,7 +27,12 @@ func encrypt(data []byte, key [32]byte) ([]byte, error) {
 	return encrypted, nil
 }
 
-// Дешифрование данных
+// Дешифрование данных. Возвращаются дешифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	encrypted - зашифрованные данные.
+//	key - ключ шифрования.
 func decrypt(encrypted []byte, key [32]byte) ([]byte, error) {
 
 	var nonce [24]byte
@@ -42,10 +53,6 @@ func decrypt(encrypted []byte, key [32]byte) ([]byte, error) {
 func getFileNameAndExtension(fullPath string) string {
 
 	fileName := filepath.Base(fullPath)
-
-	//fileName = strings.ReplaceAll(fileName, "`", "")  // Удаление кавычек
-	//fileName = strings.ReplaceAll(fileName, " ", "-") // Замена пробелов
-
 	fileType := filepath.Ext(fileName)
 
 	if strings.Contains(fileName, fileType) {

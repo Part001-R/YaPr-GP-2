@@ -1,3 +1,4 @@
+// Обработчики сервера.
 package server
 
 import (
@@ -7,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"google.golang.org/grpc"
@@ -39,26 +39,26 @@ type server struct {
 // Интерфейс действий.
 type ActionsI interface {
 	InitDataBackUp(listFiles []string, sizeSendFile int64, secretKey [32]byte) error
-	BackUp(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile)
+	BackUp(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
 	InitDataRestore(listFiles []InfoByFiles) error
 	RestoreRequestFilesInfo() (data []InfoByFiles, err error)
-	Restore(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile)
+	Restore(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
 	ConnectClose() error
 	AuthenticationContext(ctx context.Context, userName, userPwd string) (tokenAuth string, err error)
 	SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error
 	SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error
 	SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error
 	SendFile(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
-	RequestLoginPasswordNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
+	RequestLoginPasswordNames(ctx context.Context, tokenAuth string, key [32]byte) ([]string, error)
 	RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error)
-	RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
+	RequestTextNames(ctx context.Context, tokenAuth string, key [32]byte) ([]string, error)
 	RequestTextByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxText, err error)
-	RequestBankCardNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error)
+	RequestBankCardNames(ctx context.Context, tokenAuth string, key [32]byte) ([]string, error)
 	RequestBankCardByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxBankCard, err error)
-	RequestFileNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) (rxData []string, err error)
+	RequestFileNames(ctx context.Context, tokenAuth string, key [32]byte) (rxData []string, isBusy bool, err error)
 	RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error)
 	RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
-	InitDataRequestFileByName(fileName, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error
+	InitDataRequestFileByName(fileName, filePath, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error
 	InitDataSendFile(filePath, tokenAuth, clientID string, sizeSendFile, sizePassed int64, secretKey [32]byte) error
 	DeleteLoginPassword(idClient, name string) error
 	DeleteText(idClient, name string) error
@@ -70,12 +70,18 @@ type ActionsI interface {
 
 // Интерфейс.
 type ServerI interface {
-	ActionsI
+	ActionsI // Обработчики.
 }
 
+// Экземпляр.
 var inst *server
 
-// Конструктор.
+// Конструктор. Возвращается интерфей и ошибка.
+//
+// Параметры:
+//
+//	ip - ip сервера.
+//	port - номер порта.
 func New(ip, port string) (act ServerI, err error) {
 
 	// Закрытие подключения, если было установлено ранее.
@@ -113,7 +119,7 @@ func New(ip, port string) (act ServerI, err error) {
 	return inst, nil
 }
 
-// Закрытие коннекта.
+// Закрытие коннекта. Возвращается ошибка.
 func (s *server) ConnectClose() error {
 
 	if s.connect != nil {
@@ -124,7 +130,13 @@ func (s *server) ConnectClose() error {
 	return nil
 }
 
-// Аутентификация.
+// Аутентификация. Возвращается токен аутентификации и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	userName - имя пользователя.
+//	userPwd - пароль пользователя.
 func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd string) (tokenAuth string, err error) {
 
 	// Проверка аргументов.
@@ -193,8 +205,15 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 	return s.tokenSrv, nil
 }
 
-// Передача логин/пароль.
-func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenSrv string, key [32]byte) error {
+// Передача логин/пароль. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	data - данные.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenAuth string, key [32]byte) error {
 
 	// Проверка аргументов.
 	if data.For == "" {
@@ -226,7 +245,7 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 
 	// Подготовка метаданных
 	nameToken := "token"
-	txMD := metadata.Pairs(nameToken, tokenSrv)
+	txMD := metadata.Pairs(nameToken, tokenAuth)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -253,8 +272,15 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 	return nil
 }
 
-// Передача текста.
-func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key [32]byte) error {
+// Передача текста. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	data - данные.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) SendText(ctx context.Context, data TxText, tokenAuth string, key [32]byte) error {
 
 	// Проверка аргументов.
 	if data.For == "" {
@@ -284,7 +310,7 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key
 
 	// Подготовка метаданных
 	nameToken := "token"
-	txMD := metadata.Pairs(nameToken, tokenSrv)
+	txMD := metadata.Pairs(nameToken, tokenAuth)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -310,8 +336,15 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenSrv string, key
 	return nil
 }
 
-// Передача банковской карты.
-func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv string, key [32]byte) error {
+// Передача банковской карты.  Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	data - данные.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenAuth string, key [32]byte) error {
 
 	// Проверка аргументов.
 	if data.For == "" {
@@ -353,7 +386,7 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 
 	// Подготовка метаданных
 	nameToken := "token"
-	txMD := metadata.Pairs(nameToken, tokenSrv)
+	txMD := metadata.Pairs(nameToken, tokenAuth)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -383,6 +416,12 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenSrv str
 }
 
 // Передача файла.
+//
+// Параметры:
+//
+//	chProcess - канал передачи процентов процеса.
+//	chErr - канал ошибок.
+//	chDone - канал передачи признака завершения процесса.
 func (s *server) SendFile(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}) {
 
 	defer func() {
@@ -418,11 +457,17 @@ func (s *server) SendFile(chProcess chan<- float32, chErr chan<- error, chDone c
 	chDone <- struct{}{}
 }
 
-// Запрос у сервера имён записей для логин/пароль
-func (s *server) RequestLoginPasswordNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
+// Запрос у сервера имён записей для логин/пароль. Возвращается массив звписей и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) RequestLoginPasswordNames(ctx context.Context, tokenAuth string, key [32]byte) ([]string, error) {
 
 	// Запрос у сервера имён записей для логин/пароль.
-	enRxData, err := layerRequestLoginPasswordNamesTx(s.client, tokenAuth, idClient)
+	enRxData, err := layerRequestLoginPasswordNamesTx(s.client, tokenAuth)
 	if err != nil {
 		return nil, fmt.Errorf("Функция layerRequestLoginPasswordNamesTx, вернула ошибку: <%w>", err)
 	}
@@ -437,7 +482,15 @@ func (s *server) RequestLoginPasswordNames(ctx context.Context, tokenAuth, idCli
 	return rxData, nil
 }
 
-// Запрос у сервера записи логин/пароль по его имени
+// Запрос у сервера записи логин/пароль по его имени. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиент.
+//	nameEntry - имя записи.
+//	key - ключ.
 func (s *server) RequestLoginPasswordByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxLoginPassword, err error) {
 
 	// Шифрование имени записи логин/пароль
@@ -462,11 +515,17 @@ func (s *server) RequestLoginPasswordByName(ctx context.Context, tokenAuth, idCl
 	return rxData, nil
 }
 
-// Запрос у сервера имён записей для текста
-func (s *server) RequestTextNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
+// Запрос у сервера имён записей для текста. Возвращается массив данных и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) RequestTextNames(ctx context.Context, tokenAuth string, key [32]byte) ([]string, error) {
 
 	// Запрос у сервера имён записей для логин/пароль.
-	enRxData, err := layerRequestTextNamesTx(s.client, tokenAuth, idClient)
+	enRxData, err := layerRequestTextNamesTx(s.client, tokenAuth)
 	if err != nil {
 		return nil, fmt.Errorf("Функция layerRequestRequestTextNamesTx, вернула ошибку: <%w>", err)
 	}
@@ -481,7 +540,14 @@ func (s *server) RequestTextNames(ctx context.Context, tokenAuth, idClient strin
 	return rxData, nil
 }
 
-// Запрос у сервера записи текста по его имени
+// Запрос у сервера записи текста по его имени. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиента.
+//	nameEntry - имя записи.
 func (s *server) RequestTextByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxText, err error) {
 
 	// Шифрование имени записи логин/пароль
@@ -506,11 +572,17 @@ func (s *server) RequestTextByName(ctx context.Context, tokenAuth, idClient, nam
 	return rxData, nil
 }
 
-// Запрос у сервера имён записей для банковских карт.
-func (s *server) RequestBankCardNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) ([]string, error) {
+// Запрос у сервера имён записей для банковских карт. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) RequestBankCardNames(ctx context.Context, tokenAuth string, key [32]byte) ([]string, error) {
 
 	// Запрос у сервера имён записей для банковских карт.
-	enRxData, err := layerRequestBankCardNamesTx(s.client, tokenAuth, idClient)
+	enRxData, err := layerRequestBankCardNamesTx(s.client, tokenAuth)
 	if err != nil {
 		return nil, fmt.Errorf("Функция layerRequestRequestTextNamesTx, вернула ошибку: <%w>", err)
 	}
@@ -525,7 +597,14 @@ func (s *server) RequestBankCardNames(ctx context.Context, tokenAuth, idClient s
 	return rxData, nil
 }
 
-// Запрос у сервера записи банковской карты по его имени
+// Запрос у сервера записи банковской карты по его имени. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиента.
+//	nameEntry - имя записи.
 func (s *server) RequestBankCardByName(ctx context.Context, tokenAuth, idClient, nameEntry string, key [32]byte) (rxData RxBankCard, err error) {
 
 	// Шифрование имени записи банковской карты
@@ -550,20 +629,38 @@ func (s *server) RequestBankCardByName(ctx context.Context, tokenAuth, idClient,
 	return rxData, nil
 }
 
-// Запрос у сервера имён файлов
-func (s *server) RequestFileNames(ctx context.Context, tokenAuth, idClient string, key [32]byte) (rxData []string, err error) {
+// Запрос у сервера имён файлов. Возвращаются данные, признак занятости сервера и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	tokenAuth - токен аутентификации.
+//	key - ключ.
+func (s *server) RequestFileNames(ctx context.Context, tokenAuth string, key [32]byte) (rxData []string, isBusy bool, err error) {
 
 	// Запрос.
-	rxData, err = layerRequestFileNamesTx(s.client, tokenAuth, idClient)
+	resp, err := layerRequestFileNamesTx(s.client, tokenAuth)
 	if err != nil {
-		return nil, fmt.Errorf("Функция layerRequestFileNamesTx, вернула ошибку: <%w>", err)
+		return nil, false, fmt.Errorf("Функция layerRequestFileNamesTx, вернула ошибку: <%w>", err)
+	}
+
+	// Получение данных ответа.
+	rxData, isBusy, err = layerRequestFileNamesRx(resp)
+	if err != nil {
+		return nil, false, fmt.Errorf("Функция layerRequestFileNamesRx, вернула ошибку: <%w>", err)
 	}
 
 	// Результат.
-	return rxData, nil
+	return rxData, isBusy, nil
 }
 
-// Запрос у сервера хэш файла
+// Запрос у сервера хэш файла. Возвращается имя файла, его хэш, его размер и ошибка.
+//
+// Параметры:
+//
+//	tokenAuth - токен аутентификации.
+//	idClient - id клиент.
+//	nameFile - имя файла.
 func (s *server) RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error) {
 
 	// Запрос.
@@ -582,6 +679,12 @@ func (s *server) RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName
 }
 
 // Запрос файла у сервера. Для запуска как горутина.
+//
+// Параметры:
+//
+//	chProcess - канал передачи процентов процесса.
+//	chErr - канал передачи ошибки.
+//	chDone - канал передачи признака завершения процесса.
 func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}) {
 
 	defer func() {
@@ -611,8 +714,15 @@ func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error,
 	}
 
 	// Расшифровка принятого файла.
-	if err := layerRequestFileByNameDecrypt(s.dataRxFile.fileName, s.dataRxFile.secretKey); err != nil {
+	decFileName, err := layerRequestFileByNameDecrypt(s.dataRxFile.fileName, s.dataRxFile.secretKey)
+	if err != nil {
 		chErr <- fmt.Errorf("Функция layerRequestFileByNameDecrypt, вернула ошибку: <%w>", err)
+		return
+	}
+
+	// Перенос файла в указанную директорию.
+	if err := layerRequestFileByNameMove(decFileName, s.dataRxFile.filePath); err != nil {
+		chErr <- fmt.Errorf("Функция layerRequestFileByNameMove, вернула ошибку: <%w>", err)
 		return
 	}
 
@@ -620,11 +730,21 @@ func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error,
 	chDone <- struct{}{}
 }
 
-// Инициализация данных, для процесса приёма файла.
-func (s *server) InitDataRequestFileByName(fileName, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error {
+// Инициализация данных, для процесса приёма файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
+//	filePath - путь к файлу.
+//	tokenAuth - токен аутентификации.
+//	clientID - id клиента.
+//	sizeReqFile - размер запрашиваемого файла.
+//	sizePassed - обработанный размер.
+//	secretKey - ключ.
+func (s *server) InitDataRequestFileByName(fileName, filePath, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error {
 
 	// Проверка аргументов
-	if fileName == "" {
+	if fileName == "" || fileName == "....." {
 		return EmptyDataArgumentFileName
 	}
 	if tokenAuth == "" {
@@ -639,6 +759,7 @@ func (s *server) InitDataRequestFileByName(fileName, tokenAuth, clientID string,
 
 	// Данные
 	s.dataRxFile = dataRequestFile{
+		filePath:    filePath,
 		fileName:    fileName,
 		tokenAuth:   tokenAuth,
 		clientID:    clientID,
@@ -651,6 +772,15 @@ func (s *server) InitDataRequestFileByName(fileName, tokenAuth, clientID string,
 }
 
 // Инициализация данных, для процесса приёма файла.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
+//	tokenAuth - токен аутентификации.
+//	clientID - id клиента.
+//	sizeSendFile - размер запрашиваемого файла.
+//	sizePassed - обработанный размер.
+//	secretKey - ключ.
 func (s *server) InitDataSendFile(filePath, tokenAuth, clientID string, sizeSendFile, sizePassed int64, secretKey [32]byte) error {
 
 	// Проверка аргументов
@@ -681,7 +811,13 @@ func (s *server) InitDataSendFile(filePath, tokenAuth, clientID string, sizeSend
 }
 
 // Режим - локальный. Резервное копирование файлов на сервер.
-func (s *server) BackUp(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile) {
+//
+// Параметры:
+//
+//	chProcess - канал передачи процентов процесса.
+//	chErr - канал передачи ошибки.
+//	chDone - канал передачи признака завершения процесса.
+func (s *server) BackUp(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}) {
 
 	defer func() {
 		close(chProcess)
@@ -699,7 +835,7 @@ func (s *server) BackUp(chProcess chan<- float32, chErr chan<- error, chDone cha
 	for _, txFileName := range s.dataBackUp.listFiles {
 
 		// Передача файла на сервер.
-		resp, rxFileHash, rxToken, err := layerBackUpTxFile(s, txFileName, txToken, chProcess, lgr)
+		resp, rxFileHash, rxToken, err := layerBackUpTxFile(s, txFileName, txToken, chProcess)
 		if err != nil {
 			chErr <- fmt.Errorf("Функция layerBackUpTxFile, вернула ошибку: <%w>", err)
 		}
@@ -720,6 +856,12 @@ func (s *server) BackUp(chProcess chan<- float32, chErr chan<- error, chDone cha
 }
 
 // Инициализация данных, для процесса BackUp.
+//
+// Параметры:
+//
+//	listFiles - массив имён файлов.
+//	sizeSendFile - общий размер передаваемых файлов.
+//	secretKey  - ключ.
 func (s *server) InitDataBackUp(listFiles []string, sizeSendFile int64, secretKey [32]byte) error {
 
 	// Проверка аргументов
@@ -742,7 +884,13 @@ func (s *server) InitDataBackUp(listFiles []string, sizeSendFile int64, secretKe
 }
 
 // Режим - локальный. Восстановление файлов из сервера.
-func (s *server) Restore(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}, lgr *logfile.LogFile) {
+//
+// Параметры:
+//
+//	chProcess - канал передачи процентов процесса.
+//	chErr - канал передачи ошибки.
+//	chDone - канал передачи признака завершения процесса.
+func (s *server) Restore(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{}) {
 
 	defer func() {
 		close(chProcess)
@@ -825,7 +973,11 @@ func (s *server) Restore(chProcess chan<- float32, chErr chan<- error, chDone ch
 	chDone <- struct{}{}
 }
 
-// Инициализация данных, для процесса Restore.
+// Инициализация данных, для процесса Restore. Возвращается ошибка.
+//
+// Параметры:
+//
+//	listFiles - массив информации по файлам.
 func (s *server) InitDataRestore(listFiles []InfoByFiles) error {
 
 	s.dataRestore = dataRestore{}
@@ -841,7 +993,7 @@ func (s *server) InitDataRestore(listFiles []InfoByFiles) error {
 	return nil
 }
 
-// Запрос у сервера информации по файлам, которые будут приняты при Restore.
+// Запрос у сервера информации по файлам, которые будут приняты при Restore. Возвращается массив данных и ошибка.
 func (s *server) RestoreRequestFilesInfo() (data []InfoByFiles, err error) {
 
 	// Создание токена.
@@ -865,7 +1017,12 @@ func (s *server) RestoreRequestFilesInfo() (data []InfoByFiles, err error) {
 	return rxData, nil
 }
 
-// Удаление записи логин/пароль.
+// Удаление записи логин/пароль. Возвращается ошибка.
+//
+// Параметры:
+//
+//	idClient - id клиента.
+//	name - имя записи.
 func (s *server) DeleteLoginPassword(idClient, name string) error {
 
 	// Удаление записи.
@@ -876,7 +1033,12 @@ func (s *server) DeleteLoginPassword(idClient, name string) error {
 	return nil
 }
 
-// Удаление записи текста.
+// Удаление записи текста. Возвращается ошибка.
+//
+// Параметры:
+//
+//	idClient - id клиента.
+//	name - имя записи.
 func (s *server) DeleteText(idClient, name string) error {
 
 	// Удаление записи.
@@ -887,7 +1049,12 @@ func (s *server) DeleteText(idClient, name string) error {
 	return nil
 }
 
-// Удаление записи банковской карты.
+// Удаление записи банковской карты. Возвращается ошибка.
+//
+// Параметры:
+//
+//	idClient - id клиента.
+//	name - имя записи.
 func (s *server) DeleteBankCard(idClient, name string) error {
 
 	// Удаление записи.
@@ -898,8 +1065,21 @@ func (s *server) DeleteBankCard(idClient, name string) error {
 	return nil
 }
 
-// Удаление файла.
+// Удаление файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	idClient - id клиента.
+//	name - имя записи.
 func (s *server) DeleteFile(idClient, name string) error {
+
+	// проверка аргументов.
+	if name == "" || name == "....." {
+		return EmptyDataArgumentFileName
+	}
+	if idClient == "" {
+		return EmptyDataArgumentClientID
+	}
 
 	// Удаление файла.
 	if err := layerDeleteFile(name, idClient, s); err != nil {
@@ -913,12 +1093,16 @@ func (s *server) DeleteFile(idClient, name string) error {
 // --- токен ---
 //
 
-// Получение токена аутентификации.
+// Получение токена аутентификации. Возвращается токен.
 func (s *server) GetTokenAuthentication() string {
 	return s.tokenSrv
 }
 
 // Обновление токена аутентификации.
+//
+// Параметры:
+//
+//	token - новый токен.
 func (s *server) UpdateTokenAuthentication(token string) {
 	s.tokenSrv = token
 }
