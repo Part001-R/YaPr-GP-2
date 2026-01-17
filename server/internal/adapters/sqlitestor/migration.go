@@ -1,3 +1,4 @@
+// Реализации миграций.
 package sqlitestor
 
 import (
@@ -10,7 +11,11 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-// Реализация Up миграции.
+// Реализация Up миграции. Возвращается ошибка.
+//
+// Параметры:
+//
+//	db - указатель на БД.
 func migrationUp(db *sql.DB) error {
 
 	// Проверка аргументов.

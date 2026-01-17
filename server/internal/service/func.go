@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package service
 
 import (
@@ -8,7 +9,11 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/server/internal/service/udt"
 )
 
-// createTLSConfig создание конфигурацию TLS
+// createTLSConfig создание конфигурацию TLS. Возвращается конфигурация и ошибка.
+//
+// Параметры:
+//
+// c - указатель на конфигурацию сервиса.
 func createTLSConfig(c *udt.Configuration) (*tls.Config, error) {
 
 	cert, err := tls.LoadX509KeyPair(c.TLS.Public, c.TLS.Privae)
@@ -22,7 +27,11 @@ func createTLSConfig(c *udt.Configuration) (*tls.Config, error) {
 	}, nil
 }
 
-// Создание дочерней директории.
+// Создание дочерней директории. Возвращается ошибка.
+//
+// Параметры:
+//
+//	subdirName - имя дирекории.
 func createSubdirectory(subdirName string) error {
 
 	if _, err := os.Stat(subdirName); os.IsNotExist(err) {

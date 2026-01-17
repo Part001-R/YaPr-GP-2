@@ -1,5 +1,4 @@
-// Типы данных пакета.
-package domain
+package sqlitestor
 
 // Формат записи логин/пароль
 type LoginPassword struct {
@@ -14,6 +13,24 @@ type TextData struct {
 	Name      string // наименование записи.
 	Text      string // текст.
 	CreatedAt string // время создания/обновления.
+}
+
+// Формат записи банковской карты.
+type BankCardData struct {
+	Name      string // наименование записи.
+	Owner     string // владелец.
+	Numb      string // номер.
+	Valid     string // валидность.
+	Code      string // код.
+	CreatedAt string // время создания/обновления.
+}
+
+// Представление данных текста.
+type DataLoginPassword struct {
+	For       string // принадлежность
+	Login     string // логин
+	Password  string // пароль
+	CreatedAt string // дата создания
 }
 
 // Формат записи банковской карты.

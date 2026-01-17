@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package logfile
 
 import (

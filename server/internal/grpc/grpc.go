@@ -1,3 +1,4 @@
+// Обработчики пакета.
 package grpc
 
 import (
@@ -22,35 +23,28 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const (
-	stageNotActive = 0
-	stageActive    = 1
-)
-
-// Статусы процессов.
-type statusSrv struct {
-	backUp  int32 // Признак активности процесса BackUp (клиент передаёт данные).
-	restore int32 // Признак активности процесса Restore (клиент принимает данные).
-	rxFile  int32 // Признак активности процесса приёма файла от клиента.
-	txFile  int32 // Признак активности процесса передаче клиенту файла.
-}
-
-// grpc
+// Представленние сервиса.
 type Manager struct {
 	pb.UnimplementedPasswordManagerServer
-	logger    *zap.Logger     // Логгер.
-	status    statusSrv       // Статусы.
-	storage   domain.StorageI // База данных.
-	token     string          // Выданный токен
-	secretKey string          // Секретный ключ
-	flag      *flags.Config   // Флаги
+	logger    *zap.Logger    // Логгер.
+	status    statusSrv      // Статусы.
+	storage   domain.DomainI // База данных.
+	token     string         // Выданный токен
+	secretKey string         // Секретный ключ
+	flag      *flags.Config  // Флаги
 }
 
 var once sync.Once // единоразовая инициализация экземпляра
 var inst *Manager  // экземпляр
 
-// Конструктор.
-func New(l *zap.Logger, s domain.StorageI, f *flags.Config) *Manager {
+// Конструктор. Возвращается указатель на экземпляр.
+//
+// Параметры:
+//
+// l - логгер.
+// s - интерфейс домена.
+// f - флаги.
+func New(l *zap.Logger, s domain.DomainI, f *flags.Config) *Manager {
 	once.Do(func() {
 		inst = &Manager{
 			UnimplementedPasswordManagerServer: pb.UnimplementedPasswordManagerServer{},
@@ -72,7 +66,12 @@ func New(l *zap.Logger, s domain.StorageI, f *flags.Config) *Manager {
 // Обработчики.
 //
 
-// Обработчик проверки связи.
+// Обработчик проверки связи. Возвращается пустой указатель и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	empty - указатель на пустые данные.
 func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
 
 	s.logger.Debug("Принят Ping запрос")
@@ -104,7 +103,11 @@ func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empt
 	return &emptypb.Empty{}, nil
 }
 
-// Обработчик приёма файла.
+// Обработчик приёма файла. Возвращается ошибка.
+//
+// Параметры:
+//
+//	stream - поток.
 func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServer) (errReturn error) {
 
 	s.logger.Info("Принят запрос BackUp")
@@ -236,7 +239,12 @@ func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServe
 	})
 }
 
-// Обработчик передачи файлов.
+// Обработчик передачи файлов. Возвращается ошибка.
+//
+// Параметры:
+//
+//	req - данные запроса.
+//	stream - поток.
 func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.PasswordManager_LocalRestoreFileServer) error {
 
 	// Получение статуса isBackUp
@@ -309,7 +317,12 @@ func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Pa
 	return nil
 }
 
-// Предоставление информации о файлах.
+// Предоставление информации о файлах. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.LocalFilesInfoResponse, error) {
 
 	// Извлечение метаданных из контекста
@@ -359,7 +372,12 @@ func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*prot
 	return fileInfos, nil
 }
 
-// Регистрация.
+// Регистрация. Возвращается пустой указатель и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest) (*emptypb.Empty, error) {
 
 	s.logger.Info("Принят запрос регистрации пользователя")
@@ -395,7 +413,12 @@ func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest)
 	return nil, nil
 }
 
-// Аутентификация.
+// Аутентификация. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequest) (*pb.AuthenticationResponse, error) {
 
 	// Данные запроса.
@@ -435,7 +458,12 @@ func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequ
 	return res, nil
 }
 
-// Добавление данных - логин/пароль.
+// Добавление данных - логин/пароль. Возвращается пустой указатель и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswordRequest) (*emptypb.Empty, error) {
 
 	if req.IdClient == "" {
@@ -474,7 +502,12 @@ func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswo
 	return nil, nil
 }
 
-// Добавление данных - текст.
+// Добавление данных - текст. Возвращается пустой указатель и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*emptypb.Empty, error) {
 
 	if req.IdClient == "" {
@@ -513,7 +546,12 @@ func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*empty
 	return nil, nil
 }
 
-// Добавление данных - банковская карта.
+// Добавление данных - банковская карта. Возвращается пустой указатель и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) SendBankCard(ctx context.Context, req *pb.SendBankCardRequest) (*emptypb.Empty, error) {
 
 	if req.IdClient == "" {
@@ -552,7 +590,11 @@ func (s *Manager) SendBankCard(ctx context.Context, req *pb.SendBankCardRequest)
 	return nil, nil
 }
 
-// Добавление данных - файл.
+// Добавление данных - файл. Возвращается ошибка.
+//
+// Параметры:
+//
+//	stream - поток.
 func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn error) {
 
 	s.logger.Info("Принят запрос добавления файла")
@@ -686,7 +728,12 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 	})
 }
 
-// Получение имён для логин/пароль.
+// Получение имён для логин/пароль. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	empty - пустой указатель.
 func (s *Manager) RequestLoginPasswordName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestLoginPasswordNameResponse, err error) {
 
 	s.logger.Info("Принят запрос на получение имён записей логин/пароль")
@@ -722,7 +769,12 @@ func (s *Manager) RequestLoginPasswordName(ctx context.Context, empty *emptypb.E
 	return resp, nil
 }
 
-// Получение данных логин/пароль по имени записи.
+// Получение данных логин/пароль по имени записи. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.RequestLoginPasswordByNameRequest) (resp *pb.RequestLoginPasswordByNameResponse, err error) {
 
 	s.logger.Info("Принят запрос на получение данных записи логин/пароль, по имени записи")
@@ -771,7 +823,12 @@ func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.Reques
 	return resp, nil
 }
 
-// Получение имён для текста.
+// Получение имён для текста. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	empty - пустой указатель.
 func (s *Manager) RequestTextName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestTextNameResponse, err error) {
 
 	s.logger.Info("Принят запрос на получение имён записей текста")
@@ -807,7 +864,12 @@ func (s *Manager) RequestTextName(ctx context.Context, empty *emptypb.Empty) (re
 	return resp, nil
 }
 
-// Получение данных текста по имени записи.
+// Получение данных текста по имени записи. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) RequestTextByName(ctx context.Context, req *pb.RequestTextByNameRequest) (resp *pb.RequestTextByNameResponse, err error) {
 
 	s.logger.Info("Принят запрос на получение данных записи текста, по имени записи")
@@ -855,7 +917,12 @@ func (s *Manager) RequestTextByName(ctx context.Context, req *pb.RequestTextByNa
 	return resp, nil
 }
 
-// Получение имён для банковских карт.
+// Получение имён для банковских карт. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	empty - пустой указатель.
 func (s *Manager) RequestBankCardName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestBankCardNameResponse, err error) {
 
 	s.logger.Info("Принят запрос на получение имён записей банковских карт")
@@ -891,7 +958,12 @@ func (s *Manager) RequestBankCardName(ctx context.Context, empty *emptypb.Empty)
 	return resp, nil
 }
 
-// Получение данных банковской карты по имени записи.
+// Получение данных банковской карты по имени записи. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBankCardByNameRequest) (resp *pb.RequestBankCardByNameResponse, err error) {
 
 	s.logger.Info("Принят запрос на получение данных записи банковской карты, по имени записи")
@@ -943,7 +1015,12 @@ func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBank
 	return resp, nil
 }
 
-// Получение имён файлов.
+// Получение имён файлов. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	empty - пустой указатель.
 func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestFileNameResponse, err error) {
 
 	s.logger.Info("Принят запрос имён файлов")
@@ -967,7 +1044,12 @@ func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (re
 	return resp, nil
 }
 
-// Обработчик передачи файлов.
+// Обработчик передачи файлов. Возвращается ошибка.
+//
+// Параметры:
+//
+//	req - данные запроса.
+//	stream - поток.
 func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.PasswordManager_RequestFileByNameServer) error {
 
 	s.logger.Info("Принят запрос на передачу файла.")
@@ -1047,7 +1129,12 @@ func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.
 	return nil
 }
 
-// Обработчик информации по файлу.
+// Обработчик информации по файлу. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - данные запроса.
 func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRequest) (resp *pb.RequestFileInfoResponse, err error) {
 
 	s.logger.Info("Принят запрос на информацию по файлу.")
@@ -1092,7 +1179,12 @@ func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRe
 	return resp, nil
 }
 
-// Обработчик удаления записи логин/пароль.
+// Обработчик удаления записи логин/пароль. Возвращается пустой ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - запрос.
 func (s *Manager) DeleteLoginPassword(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
 	s.logger.Info("Принят запрос на удаление записи логин/пароль.")
@@ -1127,7 +1219,12 @@ func (s *Manager) DeleteLoginPassword(ctx context.Context, req *pb.RequestDelete
 	return nil, nil
 }
 
-// Обработчик удаления записи текста.
+// Обработчик удаления записи текста. Возвращается пустой ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - запрос.
 func (s *Manager) DeleteText(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
 	s.logger.Info("Принят запрос на удаление записи текста.")
@@ -1162,7 +1259,12 @@ func (s *Manager) DeleteText(ctx context.Context, req *pb.RequestDeleteName) (*e
 	return nil, nil
 }
 
-// Обработчик удаления записи банковской карты.
+// Обработчик удаления записи банковской карты. Возвращается пустой ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - запрос.
 func (s *Manager) DeleteBankCard(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
 	s.logger.Info("Принят запрос на удаление записи банковской карты.")
@@ -1197,7 +1299,12 @@ func (s *Manager) DeleteBankCard(ctx context.Context, req *pb.RequestDeleteName)
 	return nil, nil
 }
 
-// Обработчик удаления файла.
+// Обработчик удаления файла. Возвращается пустой ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - запрос.
 func (s *Manager) DeleteFile(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
 	s.logger.Info("Принят запрос на удаление файла.")
@@ -1236,7 +1343,14 @@ func (s *Manager) DeleteFile(ctx context.Context, req *pb.RequestDeleteName) (*e
 // Интерцепторы.
 //
 
-// Unar интерцептор.
+// Unar интерцептор. Возвращается интерфейс и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	req - запрос.
+//	info - информация.
+//	handler - обработчик.
 func (s *Manager) AuthInterceptorUnar(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
 	// metadata из контекста
@@ -1255,7 +1369,14 @@ func (s *Manager) AuthInterceptorUnar(ctx context.Context, req interface{}, info
 	return handler(ctx, req)
 }
 
-// Stream интерцептор.
+// Stream интерцептор. Возвращается ошибка.
+//
+// Параметры:
+//
+//	srv - интерфейс сервера.
+//	ss - поток сервера.
+//	info - информация.
+//	handler - обработчик.
 func (s *Manager) AuthInterceptorStream(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 
 	// metadata из контекста.
@@ -1284,6 +1405,10 @@ func (s *Manager) GetStatusBackUp() int32 {
 }
 
 // Обновление значения статуса isBackUp. Возвращается ошибка.
+//
+// Параметры6:
+//
+//	stage - новое значение.
 func (s *Manager) UpdateStatusBackUp(stage int32) error {
 
 	if stage != stageActive && stage != stageNotActive {
@@ -1301,6 +1426,10 @@ func (s *Manager) GetStatusRestore() int32 {
 }
 
 // Обновление значения статуса isRestore. Возвращается ошибка.
+//
+// Параметры6:
+//
+//	stage - новое значение.
 func (s *Manager) UpdateStatusRestore(stage int32) error {
 
 	if stage != stageActive && stage != stageNotActive {
@@ -1318,6 +1447,10 @@ func (s *Manager) GetStatusRx() int32 {
 }
 
 // Обновление значения статуса приёма файла от клиента. Возвращается ошибка.
+//
+// Параметры6:
+//
+//	stage - новое значение.
 func (s *Manager) UpdateStatusRx(stage int32) error {
 
 	if stage != stageActive && stage != stageNotActive {
@@ -1335,6 +1468,10 @@ func (s *Manager) GetStatusTx() int32 {
 }
 
 // Обновление значения статуса передачи файла клиенту. Возвращается ошибка.
+//
+// Параметры6:
+//
+//	stage - новое значение.
 func (s *Manager) UpdateStatusTx(stage int32) error {
 
 	if stage != stageActive && stage != stageNotActive {

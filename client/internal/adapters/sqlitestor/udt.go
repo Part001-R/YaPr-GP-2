@@ -1,5 +1,5 @@
 // Типы данных пакета.
-package domain
+package sqlitestor
 
 // Формат записи логин/пароль
 type LoginPassword struct {

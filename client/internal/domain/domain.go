@@ -9,7 +9,7 @@ import (
 )
 
 // Интерфейс БД.
-type StorageI interface {
+type actionsDB interface {
 	Close() error                                                                                               // Закрытие подключения.
 	AddUserContext(ctx context.Context, userName, userPwd string) error                                         // Регистрация пользователя.
 	AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error)                        // Аутентификация пользователя.
@@ -23,6 +23,13 @@ type StorageI interface {
 	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error // Добавление данных - банковские карты.
 	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)                                  // Чтение данных - банковские карты.
 	DelBankCardContext(ctx context.Context, field1 string) error                                                // Удаление данных - банковские карты.
+	ReadNamesTableLoginPasswordContext(ctx context.Context) (names []string, err error)                         // Чтение имён записей логин/пароль.
+	ReadLoginPassworByNameContext(ctx context.Context, name string) (data LoginPassword, err error)             // Чтение записи логин/пароль по имени.
+}
+
+// Интерфейс.
+type Actions interface {
+	actionsDB // Интерфейс БД
 }
 
 // БД.
@@ -35,7 +42,7 @@ type storage struct {
 // Параметры:
 //
 //	dsn - строка подключения.
-func NewStorage(dsn string) (StorageI, error) {
+func NewStorage(dsn string) (Actions, error) {
 
 	// Выделение префикса из dsn.
 	prefix := extractPrefixDSN(dsn)

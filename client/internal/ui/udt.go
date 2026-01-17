@@ -1,3 +1,4 @@
+// Типы данных пакета.
 package ui
 
 import (
@@ -14,6 +15,7 @@ type rxLoginPassword struct {
 	createdAt string // дата создания
 }
 
+// Ключи.
 type encrKey struct {
 	secretKey [32]byte // секретный ключ
 }
@@ -96,27 +98,27 @@ type screens struct {
 
 // Представление записи логин/пароль
 type loginPassword struct {
-	name      string
-	login     string
-	password  string
-	createdAt string
+	name      string // Имя.
+	login     string // Логин.
+	password  string // Пароль.
+	createdAt string // Дата создания.
 }
 
 // Представление записи - текст.
 type textData struct {
-	name      string
-	text      string
-	createdAt string
+	name      string // Имя.
+	text      string // Текст.
+	createdAt string // Дата создания.
 }
 
 // Представление записи - банковская карта.
 type bankCard struct {
-	name      string
-	owner     string
-	numb      string
-	valid     string
-	code      string
-	createdAt string
+	name      string // Имя.
+	owner     string // Владелец.
+	numb      string // Номер карты.
+	valid     string // Дата валидности.
+	code      string // Код.
+	createdAt string // Дата создания.
 }
 
 // Данные БД.
@@ -132,6 +134,7 @@ type data struct {
 	namesText            []string        // имена записей текст
 	namesBankCard        []string        // имена записей банковские карты
 	namesFile            []string        // имена файлов
+	strLoginPassword     loginPassword   // данные - логин/пароль.
 }
 
 // Индесы.

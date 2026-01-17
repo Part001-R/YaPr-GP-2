@@ -1,3 +1,4 @@
+// Функциональность пакета.
 package service
 
 import "fmt"

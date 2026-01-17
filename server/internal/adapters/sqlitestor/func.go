@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package sqlitestor
 
 import (
@@ -11,7 +12,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Подключение к БД.
+// Подключение к БД. Возвращается указатель на БД и ошибка.
+//
+// Параметры:
+//
+//	dsn - строка подключения к БД.
 func connect(dsn string) (*sql.DB, error) {
 	if dsn == "" {
 		return nil, EmptyDataArgumentDSN
@@ -32,7 +37,7 @@ func connect(dsn string) (*sql.DB, error) {
 	return ptrDB, nil
 }
 
-// Генерация хеша из строки. Возвращается хеш.
+// Генерация хеша из строки. Возвращается хэш.
 //
 // Параметры:
 //

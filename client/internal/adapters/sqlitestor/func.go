@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package sqlitestor
 
 import (
@@ -8,10 +9,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "modernc.org/sqlite"
 )
 
-// Подключение к БД.
+// Подключение к БД. Возвращается указатель на БД и ошибка.
+//
+// Параметры:
+//
+//	dsn - dsn БД.
 func connect(dsn string) (*sql.DB, error) {
 	if dsn == "" {
 		return nil, EmptyDataArgumentDSN
@@ -32,27 +40,24 @@ func connect(dsn string) (*sql.DB, error) {
 	return ptrDB, nil
 }
 
-// Генерация хеша из строки. Возвращается хеш.
+// Генерация хэша из строки. Возвращается хэш.
 //
 // Параметры:
 //
-//	input - входные данные для хеширования.
+//	input - входные данные для хэширования.
 func generateHash(input string) string {
 
-	// Создание нового хешера
 	hasher := sha256.New()
-
-	// Запись строки в хешер
 	hasher.Write([]byte(input))
 
-	// Получение хеша в виде байтового среза
+	// Получение хэша в виде байтового среза
 	hashBytes := hasher.Sum(nil)
 
-	// Преобразование хеша в строку, в шестнадцатичном представлении.
+	// Преобразование хэша в строку, в шестнадцатичном представлении.
 	return hex.EncodeToString(hashBytes)
 }
 
-// Проверка сооответсивя хешей. Возвращается true - соответствие.
+// Проверка сооответсивя хэшей. Возвращается true - соответствие.
 //
 // Параметры:
 //
@@ -60,4 +65,37 @@ func generateHash(input string) string {
 //	storedHash - сохранённый хеш.
 func isEqualHash(input, storedHash string) bool {
 	return generateHash(input) == storedHash
+}
+
+// Реализация Up миграции. Возвращается ошибка.
+//
+// Параметры:
+//
+//	db - указательна БД.
+func migrationUp(db *sql.DB) error {
+
+	// Проверка аргументов.
+	if db == nil {
+		return NilPtrArgumentDB
+	}
+
+	// Подготовка к миграции.
+	driver, err := sqlite.WithInstance(db, &sqlite.Config{})
+	if err != nil {
+		return fmt.Errorf("ошибка создания драйвера: %v", err)
+	}
+	m, err := migrate.NewWithDatabaseInstance("file://migrations", "sqlite", driver)
+	if err != nil {
+		return fmt.Errorf("ошибка создания экземпляра миграции: %v", err)
+	}
+	// Up миграция
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			return nil
+		} else {
+			return fmt.Errorf("ошибка выполнения Up миграции: %v", err)
+		}
+	}
+
+	return nil
 }

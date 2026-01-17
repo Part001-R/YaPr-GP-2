@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package grpc
 
 import (
@@ -13,6 +14,10 @@ import (
 )
 
 // Определение размера файла в байтах. Возвращается размер в байтах и ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
 func sizeFile(fileName string) (int64, error) {
 
 	// Проверка существования файла.
@@ -29,7 +34,11 @@ func sizeFile(fileName string) (int64, error) {
 	return fileInfo.Size(), nil
 }
 
-// Вычисление хэша у файла.
+// Вычисление хэша у файла. Возвращается хэш и ошибка.
+//
+// Параметры:
+//
+//	fileName - имя файла.
 func hashFile(fileName string) (string, error) {
 
 	file, err := os.Open(fileName)
@@ -47,16 +56,20 @@ func hashFile(fileName string) (string, error) {
 	return hex.EncodeToString(hash), nil
 }
 
-// Проверка существования файла.
-func fileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
+// Проверка существования файла. Возвращается true - файл существует.
+//
+// Параметры:
+//
+//	fullNameFile - имя файла.
+func fileExists(fullNameFile string) bool {
+	_, err := os.Stat(fullNameFile)
 	if os.IsNotExist(err) {
 		return false // Файл не существует
 	}
 	return err == nil // Файл существует
 }
 
-// Создание токена.
+// Создание токена. Возвращается ключ, токен и ошибка.
 func createServerToken() (secretKey, token string, err error) {
 
 	// Создание ключа.

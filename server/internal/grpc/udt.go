@@ -1,4 +1,18 @@
+// Типы данных пакета.
 package grpc
+
+const (
+	stageNotActive = 0
+	stageActive    = 1
+)
+
+// Статусы процессов.
+type statusSrv struct {
+	backUp  int32 // Признак активности процесса BackUp (клиент передаёт данные).
+	restore int32 // Признак активности процесса Restore (клиент принимает данные).
+	rxFile  int32 // Признак активности процесса приёма файла от клиента.
+	txFile  int32 // Признак активности процесса передаче клиенту файла.
+}
 
 // Принятые данные регистрации.
 type registrationRX struct {

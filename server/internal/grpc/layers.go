@@ -1,3 +1,4 @@
+// Слои обработчиков.
 package grpc
 
 import (
@@ -19,7 +20,11 @@ import (
 // --- Registration ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerRegistrationGetToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -43,6 +48,10 @@ func layerRegistrationGetToken(ctx context.Context) (token tokenData, err error)
 }
 
 // Слой приёма данных. Возвращаются принятые данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerRegistrationRx(req *pb.RegistrationRequest) (rxData registrationRX, err error) {
 
 	rxData.userName = req.UserName
@@ -60,20 +69,30 @@ func layerRegistrationRx(req *pb.RegistrationRequest) (rxData registrationRX, er
 	return rxData, nil
 }
 
-// Логика обработчика.
-func layerRegistrationLogic(rxData registrationRX, db domain.StorageI) error {
+// Логика обработчика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	rxData - принятые данные.
+//	domain - указатель домена.
+func layerRegistrationLogic(rxData registrationRX, domain domain.DomainI) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err := db.AddUserContext(ctx, rxData.userName, rxData.userPwd); err != nil {
+	if err := domain.AddUserContext(ctx, rxData.userName, rxData.userPwd); err != nil {
 		return fmt.Errorf("Функция db.AddUserContext, вернула ошибку: <%w>", err)
 	}
 
 	return nil
 }
 
-// Ответ. Возврат приянтого токена.
+// Ответ. Возврат приянтого токена. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	token - токен.
 func layerRegistrationTx(ctx context.Context, token tokenData) error {
 
 	txMD := metadata.Pairs(token.name, token.token)
@@ -90,6 +109,10 @@ func layerRegistrationTx(ctx context.Context, token tokenData) error {
 //
 
 // Слой приёма данных. Возвращаются принятые данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerAuthenticationRx(req *pb.AuthenticationRequest) (rxData authenticationRX, err error) {
 
 	rxData.userName = req.UserName
@@ -103,7 +126,11 @@ func layerAuthenticationRx(req *pb.AuthenticationRequest) (rxData authentication
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerAuthenticationGetToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -126,7 +153,13 @@ func layerAuthenticationGetToken(ctx context.Context) (token tokenData, err erro
 	return token, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	s - указатель на экземпляр сервиса.
+//	userName - имя пользователя.
+//	userPwd - пароль пользователя.
 func layerAuthenticationLogic(s *Manager, userName, userPwd string) error {
 	// Контекст для запроса.
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -145,7 +178,13 @@ func layerAuthenticationLogic(s *Manager, userName, userPwd string) error {
 	return nil
 }
 
-// Ответ. Возврат приянтого токена.
+// Формирование ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	rxToken - принятый токен.
+//	srvToken - токен сервера.
 func layerAuthenticationTx(ctx context.Context, rxToken tokenData, srvToken string) (res *pb.AuthenticationResponse, err error) {
 
 	// Возврат токена, принятого от клиента.
@@ -167,7 +206,11 @@ func layerAuthenticationTx(ctx context.Context, rxToken tokenData, srvToken stri
 // --- SendLoginPassword ---
 //
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается принятые данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerSendLoginPasswordRx(req *pb.SendLoginPasswordRequest) (rxData RxLoginPassword, err error) {
 
 	rxData.ID = req.IdClient
@@ -179,7 +222,11 @@ func layerSendLoginPasswordRx(req *pb.SendLoginPasswordRequest) (rxData RxLoginP
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerSendLoginPasswordGetToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -205,7 +252,13 @@ func layerSendLoginPasswordGetToken(ctx context.Context) (token tokenData, err e
 	return token, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	rxData - принятые данные.
+//	m - указатель на экземпляр сервиса.
 func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassword, m *Manager) error {
 
 	if err := m.storage.AddDataLoginPasswordContext(ctx, rxData.For, rxData.Login, rxData.Password, rxData.CreatedAt); err != nil {
@@ -219,7 +272,11 @@ func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassw
 // --- SendText ---
 //
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerSendTextRx(req *pb.SendTextRequest) (rxData RxText, err error) {
 
 	rxData.ID = req.IdClient
@@ -230,7 +287,11 @@ func layerSendTextRx(req *pb.SendTextRequest) (rxData RxText, err error) {
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerSendTextGetToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -256,7 +317,13 @@ func layerSendTextGetToken(ctx context.Context) (token tokenData, err error) {
 	return token, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	rxData - принятые данные.
+//	m - указатель на экземпляр сервиса.
 func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error {
 
 	if err := m.storage.AddDataTextContext(ctx, rxData.For, rxData.Text, rxData.CreatedAt); err != nil {
@@ -270,7 +337,11 @@ func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error 
 // --- SendBankCard ---
 //
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerSendBankCardRx(req *pb.SendBankCardRequest) (rxData RxBankCard, err error) {
 
 	rxData.ID = req.IdClient
@@ -284,7 +355,11 @@ func layerSendBankCardRx(req *pb.SendBankCardRequest) (rxData RxBankCard, err er
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerSendBankCardGetToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -310,7 +385,13 @@ func layerSendBankCardGetToken(ctx context.Context) (token tokenData, err error)
 	return token, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	rxData - принятые данные.
+//	m - указатель на экземпляр сервиса.
 func layerSendBankCardContext(ctx context.Context, rxData RxBankCard, m *Manager) error {
 
 	if err := m.storage.AddDataBankCardContext(ctx, rxData.For, rxData.Owner, rxData.Numb, rxData.ValidData, rxData.Code, rxData.CreatedAt); err != nil {
@@ -324,7 +405,11 @@ func layerSendBankCardContext(ctx context.Context, rxData RxBankCard, m *Manager
 // -- RequestLoginPasswordName ---
 //
 
-// Логика.
+// Логика. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func LayerRequestLoginPasswordName(ctx context.Context, s *Manager) (rxData []string, err error) {
 
 	// Получение из БД имён записей логин/пароль.
@@ -336,7 +421,11 @@ func LayerRequestLoginPasswordName(ctx context.Context, s *Manager) (rxData []st
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func LayerRequestLoginPasswordNameToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -362,7 +451,13 @@ func LayerRequestLoginPasswordNameToken(ctx context.Context) (token tokenData, e
 	return token, nil
 }
 
-// Формирование ответа.
+// Формирование ответа. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	rxData - принятые данные.
+//	m - указатель на экземпляр сервиса.
 func LayerRequestLoginPasswordNameTx(data []string) (res *pb.RequestLoginPasswordNameResponse, err error) {
 
 	res = &pb.RequestLoginPasswordNameResponse{
@@ -376,7 +471,11 @@ func LayerRequestLoginPasswordNameTx(data []string) (res *pb.RequestLoginPasswor
 // --- RequestLoginPasswordByName ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerRequestLoginPasswordByNameToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -402,7 +501,11 @@ func layerRequestLoginPasswordByNameToken(ctx context.Context) (token tokenData,
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerRequestLoginPasswordByName(req *pb.RequestLoginPasswordByNameRequest) (name RxReqLoginPasswordByName, err error) {
 
 	name.ClientID = req.IdClient
@@ -411,7 +514,13 @@ func layerRequestLoginPasswordByName(req *pb.RequestLoginPasswordByNameRequest) 
 	return name, nil
 }
 
-// Формирование ответа.
+// Формирование ответа. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	rxData - принятые данные.
+//	m - указатель на экземпляр сервиса.
 func layerRequestLoginPasswordByNameTx(txData TxLoginPassword) (*pb.RequestLoginPasswordByNameResponse, error) {
 
 	resp := &pb.RequestLoginPasswordByNameResponse{
@@ -427,7 +536,12 @@ func layerRequestLoginPasswordByNameTx(txData TxLoginPassword) (*pb.RequestLogin
 // -- RequestTextName ---
 //
 
-// Логика.
+// Логика. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
+//	s - указатель на экземпляр сервиса.
 func LayerRequestTextName(ctx context.Context, s *Manager) (rxData []string, err error) {
 
 	// Получение из БД имён записей текста.
@@ -439,7 +553,11 @@ func LayerRequestTextName(ctx context.Context, s *Manager) (rxData []string, err
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func LayerRequestTextNameToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -465,7 +583,11 @@ func LayerRequestTextNameToken(ctx context.Context) (token tokenData, err error)
 	return token, nil
 }
 
-// Формирование ответа.
+// Формирование ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	data - данные.
 func LayerRequestTextNameTx(data []string) (res *pb.RequestTextNameResponse, err error) {
 
 	res = &pb.RequestTextNameResponse{
@@ -479,7 +601,11 @@ func LayerRequestTextNameTx(data []string) (res *pb.RequestTextNameResponse, err
 // --- RequestTextByName ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerRequestTextByNameToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -505,7 +631,11 @@ func layerRequestTextByNameToken(ctx context.Context) (token tokenData, err erro
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается имя и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerRequestTextByName(req *pb.RequestTextByNameRequest) (name RxReqTextByName, err error) {
 
 	name.ClientID = req.IdClient
@@ -514,7 +644,11 @@ func layerRequestTextByName(req *pb.RequestTextByNameRequest) (name RxReqTextByN
 	return name, nil
 }
 
-// Формирование ответа.
+// Формирование ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	txData - данные.
 func layerRequestTextByNameTx(txData TxText) (*pb.RequestTextByNameResponse, error) {
 
 	resp := &pb.RequestTextByNameResponse{
@@ -529,7 +663,12 @@ func layerRequestTextByNameTx(txData TxText) (*pb.RequestTextByNameResponse, err
 // -- RequestBankCardName ---
 //
 
-// Логика.
+// Логика. Возвращаются данные и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	s - указатель на экземпляр сервиса.
 func LayerRequestBankCardName(ctx context.Context, s *Manager) (rxData []string, err error) {
 
 	// Получение из БД имён записей текста.
@@ -541,7 +680,11 @@ func LayerRequestBankCardName(ctx context.Context, s *Manager) (rxData []string,
 	return rxData, nil
 }
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func LayerRequestBankCardNameToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -567,7 +710,11 @@ func LayerRequestBankCardNameToken(ctx context.Context) (token tokenData, err er
 	return token, nil
 }
 
-// Формирование ответа.
+// Формирование ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	data - данные.
 func LayerRequestBankCardNameTx(data []string) (res *pb.RequestBankCardNameResponse, err error) {
 
 	res = &pb.RequestBankCardNameResponse{
@@ -581,7 +728,11 @@ func LayerRequestBankCardNameTx(data []string) (res *pb.RequestBankCardNameRespo
 // --- RequestBankCardByName ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerRequestBankCardByNameToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -607,7 +758,11 @@ func layerRequestBankCardByNameToken(ctx context.Context) (token tokenData, err 
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается имя и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerRequestBankCardByName(req *pb.RequestBankCardByNameRequest) (name RxReqBankCardByName, err error) {
 
 	name.ClientID = req.IdClient
@@ -616,7 +771,11 @@ func layerRequestBankCardByName(req *pb.RequestBankCardByNameRequest) (name RxRe
 	return name, nil
 }
 
-// Формирование ответа.
+// Формирование ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	txData - данные.
 func layerRequestBankCardByNameTx(txData TxBankCard) (*pb.RequestBankCardByNameResponse, error) {
 
 	resp := &pb.RequestBankCardByNameResponse{
@@ -635,7 +794,12 @@ func layerRequestBankCardByNameTx(txData TxBankCard) (*pb.RequestBankCardByNameR
 // --- RequestFileName ---
 //
 
-// Получение имён файлов.
+// Получение имён файлов. Возвращаются имена файловб признак занятости сервера и ошибка.
+//
+// Параметры:
+//
+//	dir - директория расположенния файлов.
+//	s - указатель на экземпляр сервиса.
 func layerRequestFileNameScanDir(dir string, s *Manager) (fileNames []string, isBusyServer bool, err error) {
 
 	// Проверка активности по работе с файлами
@@ -659,7 +823,12 @@ func layerRequestFileNameScanDir(dir string, s *Manager) (fileNames []string, is
 	return fileNames, false, nil
 }
 
-// Подготовка ответа.
+// Подготовка ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	fileNames - имена файлов.
+//	isBusyServer - признак занятости сервера.
 func layerRequestFileNameTx(fileNames []string, isBusyServer bool) (*pb.RequestFileNameResponse, error) {
 
 	// Ответ.
@@ -681,7 +850,11 @@ func layerRequestFileNameTx(fileNames []string, isBusyServer bool) (*pb.RequestF
 // --- RequestFileInfo ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerRequestFileInfoToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -707,7 +880,11 @@ func layerRequestFileInfoToken(ctx context.Context) (token tokenData, err error)
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается id клиента, имя файла токен и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerRequestFileInfoRx(req *pb.RequestFileInfoRequest) (idClient, fileName string, err error) {
 
 	idClient = req.IdClient
@@ -724,7 +901,11 @@ func layerRequestFileInfoRx(req *pb.RequestFileInfoRequest) (idClient, fileName 
 	return idClient, fileName, nil
 }
 
-// Логика обработчика.
+// Логика обработчика. Возвращается информация по файлу и ошибка.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
 func layerRequestFileInfo(filePath string) (data fileInfo, err error) {
 
 	// Получение размера файла.
@@ -745,7 +926,11 @@ func layerRequestFileInfo(filePath string) (data fileInfo, err error) {
 	return data, nil
 }
 
-// Подготовка ответа.
+// Подготовка ответа. Возвращается ответ и ошибка.
+//
+// Параметры:
+//
+//	data  - данные ответа.
 func layerRequestFileInfoTx(data fileInfo) (res *pb.RequestFileInfoResponse, err error) {
 
 	r := &pb.RequestFileInfoResponse{
@@ -761,7 +946,11 @@ func layerRequestFileInfoTx(data fileInfo) (res *pb.RequestFileInfoResponse, err
 // --- DeleteLoginPassword ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx  - контекст.
 func layerDeleteLoginPasswordToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -787,7 +976,11 @@ func layerDeleteLoginPasswordToken(ctx context.Context) (token tokenData, err er
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается id клиента, имя и ошибка.
+//
+// Параметры:
+//
+//	req  - запрос.
 func layerDeleteLoginPasswordRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
 
 	idClient = req.IdClient
@@ -804,7 +997,13 @@ func layerDeleteLoginPasswordRx(req *pb.RequestDeleteName) (idClient, name strin
 	return idClient, name, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name  - имя.
+//	s  - указатель на экземпляр сервиса.
+//	ctx - контекст.
 func layerDeleteLoginPassword(name string, s *Manager, ctx context.Context) error {
 
 	// Удаление.
@@ -819,7 +1018,11 @@ func layerDeleteLoginPassword(name string, s *Manager, ctx context.Context) erro
 // --- DeleteText ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerDeleteTextToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -845,7 +1048,11 @@ func layerDeleteTextToken(ctx context.Context) (token tokenData, err error) {
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается id клиента, имя и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerDeleteTextRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
 
 	idClient = req.IdClient
@@ -862,7 +1069,13 @@ func layerDeleteTextRx(req *pb.RequestDeleteName) (idClient, name string, err er
 	return idClient, name, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name - имя.
+//	s - указатель на экземпляр сервиса.
+//	ctx - контекст.
 func layerDeleteText(name string, s *Manager, ctx context.Context) error {
 
 	// Удаление.
@@ -877,7 +1090,11 @@ func layerDeleteText(name string, s *Manager, ctx context.Context) error {
 // --- DeleteBankCard ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerDeleteBankCardToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -903,7 +1120,11 @@ func layerDeleteBankCardToken(ctx context.Context) (token tokenData, err error) 
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса.  Возвращается id клиента, имя и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerDeleteBankCardRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
 
 	idClient = req.IdClient
@@ -920,7 +1141,13 @@ func layerDeleteBankCardRx(req *pb.RequestDeleteName) (idClient, name string, er
 	return idClient, name, nil
 }
 
-// Логика.
+// Логика. Возвращается ошибка.
+//
+// Параметры:
+//
+//	name - имя.
+//	s - указатель на экземпляр сервиса.
+//	ctx - контекст.
 func layerDeleteBankCard(name string, s *Manager, ctx context.Context) error {
 
 	// Удаление.
@@ -935,7 +1162,11 @@ func layerDeleteBankCard(name string, s *Manager, ctx context.Context) error {
 // --- DeleteFile ---
 //
 
-// Получение токена из запроса.
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
 func layerDeleteFileToken(ctx context.Context) (token tokenData, err error) {
 
 	// Считывание заголовков
@@ -961,7 +1192,11 @@ func layerDeleteFileToken(ctx context.Context) (token tokenData, err error) {
 	return token, nil
 }
 
-// Получение данных запроса.
+// Получение данных запроса. Возвращается id клиента, имя токен и ошибка.
+//
+// Параметры:
+//
+//	req - запрос.
 func layerDeleteFileRx(req *pb.RequestDeleteName) (idClient, name string, err error) {
 
 	idClient = req.IdClient
@@ -978,7 +1213,12 @@ func layerDeleteFileRx(req *pb.RequestDeleteName) (idClient, name string, err er
 	return idClient, name, nil
 }
 
-// Логика.
+// Логика. Возвращается  ошибка.
+//
+// Параметры:
+//
+//	name - имя.
+//	s - указатель на экземпляр сервиса.
 func layerDeleteFile(name string, s *Manager) error {
 
 	filePath := path.Join(s.flag.NameSubDirFiles, name)

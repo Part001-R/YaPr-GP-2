@@ -1,3 +1,4 @@
+// Создание экземпляра пакета.
 package udt
 
 // Подготовительные действия, перед запуском сервиса.
@@ -21,18 +22,27 @@ type TLSdata struct {
 
 // Конфигурация сервиса.
 type Configuration struct {
-	Lgr     *zap.Logger     // Указатель на логгер.
-	Srv     *grpc.Manager   // Указатель на экземпляр grpc.
-	TLS     TLSdata         // Ключи реалзизации GRPCS.
-	Storage domain.StorageI // БД
-	Flag    *flags.Config   // Флаги.
+	Lgr     *zap.Logger    // Указатель на логгер.
+	Srv     *grpc.Manager  // Указатель на экземпляр grpc.
+	TLS     TLSdata        // Ключи реалзизации GRPCS.
+	Storage domain.DomainI // БД
+	Flag    *flags.Config  // Флаги.
 }
 
 // Указатель на конфигурацию сервиса.
 var confInst *Configuration
 
-// Конструктор.
-func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage domain.StorageI, flag *flags.Config) *Configuration {
+// Конструктор. Возвращается указатель на экземпляр сервиса.
+//
+// Параметры:
+//
+//	l - логгер.
+//	g - указатель на grpc.
+//	keyPublic - публичный ключ.
+//	keyPrivate - приватный ключ.
+//	storage - указатель на домен.
+//	flag - указатель на флаги.
+func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage domain.DomainI, flag *flags.Config) *Configuration {
 	onceConf.Do(func() {
 		confInst = &Configuration{
 			Lgr: l,

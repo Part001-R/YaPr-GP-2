@@ -1,3 +1,4 @@
+// Типы данных и константы.
 package flags
 
 const (

@@ -1,3 +1,4 @@
+// Статические ошибки пакета.
 package ui
 
 import "errors"

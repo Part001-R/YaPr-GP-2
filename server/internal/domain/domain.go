@@ -8,7 +8,6 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/server/internal/adapters/sqlitestor"
 )
 
-// Интерфейс БД.
 type StorageI interface {
 	Close() error                                                                                               // Закрытие подключения.
 	AddUserContext(ctx context.Context, userName, userPwd string) error                                         // Регистрация пользователя.
@@ -31,6 +30,11 @@ type StorageI interface {
 	GetBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error)                       // Получение банковской карты по имени
 }
 
+// Интерфейс домена.
+type DomainI interface {
+	StorageI // Интерфейс БД
+}
+
 // БД.
 type storage struct {
 	actions interface{} // Приём интерфейсов различных БД.
@@ -41,7 +45,7 @@ type storage struct {
 // Параметры:
 //
 //	dsn - строка подключения.
-func NewStorage(dsn string) (StorageI, error) {
+func NewStorage(dsn string) (DomainI, error) {
 
 	// Выделение префикса из dsn.
 	prefix := extractPrefixDSN(dsn)

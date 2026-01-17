@@ -1,3 +1,4 @@
+// Вспомогательные функции пакета.
 package ui
 
 import (
@@ -18,21 +19,22 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/Part001-R/YaPr-GP-2/proto"
+	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jroimartin/gocui"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
-)
-
-const (
-	inputWidth  = 80
-	inputHeight = 2
 )
 
 // Флаг: создан ли интерфейс
 var layoutInitialized bool
 
-// Удаление видов.
+// Удаление видов. Возвращается ошибка.
+//
+// Параметры:
+//
+//	g - указатель Gui объекта.
 func deleteViews(g *gocui.Gui) error {
 
 	for name := range map[string]struct{}{
@@ -102,7 +104,12 @@ func deleteViews(g *gocui.Gui) error {
 	return nil
 }
 
-// Реализация проверки связи с сервером.
+// Реализация проверки связи с сервером. Возвращается true - если успешно и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	c - экземпляр интерфеса.
 func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 
 	// Проверка аргументов
@@ -136,7 +143,7 @@ func pingContext(ctx context.Context, c *handlerUI) (bool, error) {
 	return true, nil
 }
 
-// Создание JWT токена.
+// Создание JWT токена. Возвращается токен и ошибка.
 //
 // Параметры:
 //
@@ -249,22 +256,28 @@ func checkToken(tokenStr string, secretKey string) error {
 	return nil
 }
 
-// Проверка данных регистрации.
-func checkDataRegistration(userName, userPwd1, userPwd2 string) error {
+// Проверка данных регистрации. Возвращается ошибка.
+//
+// Параметры:
+//
+//	userName - имя пользователя.
+//	userPwd - пароль.
+//	userPwdRepeat - подтверждение пароля.
+func checkDataRegistration(userName, userPwd, userPwdRepeat string) error {
 
 	// Проверка аргументов.
 	if userName == "" {
 		return MissingDataArgumentUserName
 	}
-	if userPwd1 == "" {
+	if userPwd == "" {
 		return MissingDataArgumentUserPwd1
 	}
-	if userPwd2 == "" {
+	if userPwdRepeat == "" {
 		return MissingDataArgumentUserPwd2
 	}
 
 	// Проверка пароля.
-	if userPwd1 != userPwd2 {
+	if userPwd != userPwdRepeat {
 		return NotEqualPassword
 	}
 
@@ -355,52 +368,6 @@ func decrypt(data string, key [32]byte) (string, error) {
 	plaintext := plaintextPadded[:len(plaintextPadded)-padding]
 
 	return string(plaintext), nil
-}
-
-// Декодирование данных логин/пароль. Возвращаются декодированные данные и ошибка.
-//
-// Параметры:
-//
-//	encryptData - закодированные данные.
-//	key - секретный ключ.
-func decryptDataLoginPassword(encryptData []loginPassword, key [32]byte) (decryptData []loginPassword, err error) {
-
-	for _, v := range encryptData {
-		var el loginPassword
-
-		// Обработка поля - name
-		str, err := decrypt(v.name, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании name, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.name = str
-
-		// Обработка поля - login
-		str, err = decrypt(v.login, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании login, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.login = str
-
-		// Обработка поля - password
-		str, err = decrypt(v.password, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании password, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.password = str
-
-		// Обработка поля - createdAt
-		str, err = decrypt(v.createdAt, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании createdAt, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.createdAt = str
-
-		decryptData = append(decryptData, el)
-	}
-
-	// результат
-	return decryptData, nil
 }
 
 // Декодирование данных текста. Возвращаются декодированные данные и ошибка.
@@ -502,44 +469,6 @@ func decryptDataBankCard(encryptData []bankCard, key [32]byte) (decryptData []ba
 	return decryptData, nil
 }
 
-// Функция реализует получение пар логин/пароль из БД и выполняет декодирование. Возвращается количество записей и ошибка.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func showLoginPasswordWorkDB(c *handlerUI) (int, error) {
-
-	// Чтение из БД всех записей таблицы логин/пароль (data1).
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	encodeRxData, err := c.conf.DataBase.ReadTableLoginPasswordContext(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
-	}
-
-	// Перенос принятых закодированных данных логин/пароль, в in-memory.
-	c.data.encryptLoginPassword = []loginPassword{} // сброс содержимого слайса
-
-	for _, v := range encodeRxData {
-		var el loginPassword
-		el.name = v.Name
-		el.login = v.Login
-		el.password = v.Password
-		el.createdAt = v.CreatedAt
-
-		c.data.encryptLoginPassword = append(c.data.encryptLoginPassword, el)
-	}
-	// Декодирование принятых данных.
-	c.data.loginPassword, err = decryptDataLoginPassword(c.data.encryptLoginPassword, c.secret.secretKey)
-	if err != nil {
-		return 0, fmt.Errorf("ошибка декодирования данных логин/пароль: <%v>", err)
-	}
-
-	// Результат.
-	return len(c.data.loginPassword), nil
-}
-
 // Функция реализует получение банковских карт из БД и выполняет декодирование. Возвращается количество записей и ошибка.
 //
 // Параметры:
@@ -551,7 +480,7 @@ func showBankCardWorkDB(c *handlerUI) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	encodeRxData, err := c.conf.DataBase.ReadTableBankCardContext(ctx)
+	encodeRxData, err := c.conf.ActionsDB.ReadTableBankCardContext(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
 	}
@@ -591,7 +520,7 @@ func showTextWorkDB(c *handlerUI) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	encodeRxData, err := c.conf.DataBase.ReadTableTextContext(ctx)
+	encodeRxData, err := c.conf.ActionsDB.ReadTableTextContext(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("функция ReadTableTextContext, вернула ошибку: <%v>", err)
 	}
@@ -615,21 +544,6 @@ func showTextWorkDB(c *handlerUI) (int, error) {
 
 	// Результат.
 	return len(c.data.loginPassword), nil
-}
-
-// Получение данных логин/пароль по индексу. Возвращается запись.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func loginPasswordByIndex(c *handlerUI) (el loginPassword) {
-
-	el.name = c.data.loginPassword[c.index.loginPassword].name
-	el.login = c.data.loginPassword[c.index.loginPassword].login
-	el.password = c.data.loginPassword[c.index.loginPassword].password
-	el.createdAt = c.data.loginPassword[c.index.loginPassword].createdAt
-
-	return el
 }
 
 // Получение имени записи логин/пароль по индексу. Возвращается запись.
@@ -713,18 +627,6 @@ func fileNameByIndex(c *handlerUI) string {
 	return c.data.namesFile[c.index.file]
 }
 
-// Увеличение значения индекса для логин/пароль массива.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func incrIndexloginPassword(c *handlerUI) {
-
-	if c.index.loginPassword < len(c.data.loginPassword)-1 {
-		c.index.loginPassword++
-	}
-}
-
 // Увеличение значения индекса для имён логин/пароль массива.
 //
 // Параметры:
@@ -734,6 +636,18 @@ func incrIndexNamesloginPassword(c *handlerUI) {
 
 	if c.index.loginPassword < len(c.data.namesLoginPassword)-1 {
 		c.index.loginPassword++
+	}
+}
+
+// Уменьшение значения индекса для имён логин/пароль массива.
+//
+// Параметры:
+//
+//	с - конфигурация.
+func decrIndexNamesloginPassword(c *handlerUI) {
+
+	if c.index.loginPassword > 0 {
+		c.index.loginPassword--
 	}
 }
 
@@ -1026,7 +940,7 @@ func enterViewRequestSecretKey(v *gocui.View, g *gocui.Gui, c *handlerUI) error 
 	}
 
 	// Инициализация каналов.
-	c.initChannels()
+	c.initChannelsWDT()
 
 	// Запуск сторожевого таймера.
 	if !c.status.statusWDT {
@@ -1309,10 +1223,10 @@ func indicatorViewLoginPasswordData(g *gocui.Gui, c *handlerUI) error {
 			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
 
-		if c.status.readLoginPaaswordPassed { // обработка при чтении
-			if c.status.readLoginPaaswordSUCCESS {
+		if c.status.readNameLoginPaaswordPassed { // обработка при чтении
+			if c.status.readNameLoginPaaswordSUCCESS {
 				indicatorRead.Clear()
-				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.loginPassword))))
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.namesLoginPassword))))
 				indicatorRead.FgColor = gocui.ColorGreen
 				indicatorRead.BgColor = gocui.ColorDefault
 			} else {
@@ -2179,17 +2093,28 @@ func fileSize(filePath string) (int64, error) {
 	return fileInfo.Size() / 1024, nil
 }
 
-// Проверка существования файла.
-func isFileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
+// Проверка существования файла. Возвращается true - файл существует.
+//
+// Параметры:
+//
+//	fullFileName - полное имя файла.
+func isFileExists(fullFileName string) bool {
+	_, err := os.Stat(fullFileName)
 	if os.IsNotExist(err) {
 		return false // Файл не существует
 	}
 	return err == nil // Файл существует
 }
 
-// Функция принимает данные по каналам и транслирует их в экземпляр.
-func bufferProcessPushContainer(c *handlerUI, rxChProcess <-chan float64, rxChErr <-chan error, rxChOk <-chan struct{}) {
+// Функция принимает данные по каналам и транслирует их в экземпляр. Запускается в горутине.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	rxChProcess - канал приёма процентов процесса.
+//	rxChErr - канал приёма ошибки.
+//	rxChDone - канал приёма признака, что процесс выполнен.
+func bufferProcessPushContainer(c *handlerUI, rxChProcess <-chan float64, rxChErr <-chan error, rxChDone <-chan struct{}) {
 
 	defer func() {
 		c.conf.LgrFile.Write(fmt.Sprintf("Info: Завершён процесс добавления в контейнер файла:<%s>", c.typed.dataPathSrc))
@@ -2213,14 +2138,23 @@ func bufferProcessPushContainer(c *handlerUI, rxChProcess <-chan float64, rxChEr
 			c.updateStatusPushContainer(stageFault)
 			return
 
-		case <-rxChOk:
+		case <-rxChDone:
 			c.updateStatusPushContainer(stageOk)
 			return
 		}
 	}
 }
 
-// Приём данных и сборка файла.
+// Приём данных и сборка файла. Запускается в горутине.
+//
+// Параметры:
+//
+//	nameFile - имя файла.
+//	c - экземпляр интерфейса.
+//	rxChProcess - канал приёма процентов процесса.
+//	rxChErr - канал приёма ошибки.
+//	rxChDone - канал приёма признака, что процесс выполнен.
+//	txChBreak - канал передачи сигнала прекращения процесса.
 func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan float64, rxChErr <-chan error, rxChDone <-chan struct{}, rxChData <-chan []byte, txChBreak chan<- struct{}) {
 
 	var outFile *os.File
@@ -2310,7 +2244,14 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 	}
 }
 
-// Приём данных процесса получения файла от сервера.
+// Приём данных процесса получения файла от сервера. Запускается в горутине.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	rxChProcess - канал приёма процентов процесса.
+//	rxChErr - канал приёма ошибки.
+//	rxChDone - канал приёма признака, что процесс выполнен.
 func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr <-chan error, rxChDone <-chan struct{}) {
 
 	// Обработка каналов.
@@ -2350,7 +2291,14 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 	}
 }
 
-// Приём данных процесса передачи файла на сервера.
+// Приём данных процесса передачи файла на сервера. Запускается в горутине.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	rxChProcess - канал приёма процентов процесса.
+//	rxChErr - канал приёма ошибки.
+//	rxChDone - канал приёма признака, что процесс выполнен.
 func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr <-chan error, txChDone <-chan struct{}) {
 
 	// Обработка каналов.
@@ -2391,6 +2339,10 @@ func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr
 }
 
 // Логика процесса сохранения в окне BinaryData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doStoreViewBinaryData(c *handlerUI) error {
 
 	// Если режим - локальный
@@ -2467,6 +2419,10 @@ func doStoreViewBinaryData(c *handlerUI) error {
 }
 
 // Логика процесса сохранения в окне ViewBankCardData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doStoreViewBankCardData(c *handlerUI) error {
 
 	c.status.addBankCardPassed = true
@@ -2519,7 +2475,7 @@ func doStoreViewBankCardData(c *handlerUI) error {
 		}
 
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DataBase.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
+		if err := c.conf.ActionsDB.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
 			return nil
 		}
@@ -2565,6 +2521,10 @@ func doStoreViewBankCardData(c *handlerUI) error {
 }
 
 // Логика процесса сохранения в окне ViewTextData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doStoreViewTextData(c *handlerUI) error {
 
 	c.status.addTextPassed = true
@@ -2595,7 +2555,7 @@ func doStoreViewTextData(c *handlerUI) error {
 			return nil
 		}
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DataBase.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
+		if err := c.conf.ActionsDB.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
 			return nil
 		}
@@ -2638,6 +2598,10 @@ func doStoreViewTextData(c *handlerUI) error {
 }
 
 // Логика процесса сохранения в окне ViewLoginPasswordData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doStoreViewLoginPasswordData(c *handlerUI) error {
 
 	c.status.addLoginPaaswordPassed = true
@@ -2674,7 +2638,7 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 		}
 
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.DataBase.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
+		if err := c.conf.ActionsDB.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
 			return nil
 		}
@@ -2718,17 +2682,30 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 }
 
 // Логика перевода фокуса в окне viewLoginPasswordData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		if len(c.data.loginPassword) == 0 {
+		if len(c.data.namesLoginPassword) == 0 {
 			return nil
 		}
 
-		el := loginPasswordByIndex(c) // получение записи по индексу
-		incrIndexloginPassword(c)     // увеличение значения индекса
+		name := nameLoginPasswordByIndex(c) // получение записи по индексу
+		incrIndexNamesloginPassword(c)      // увеличение значения индекса
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		rxData, err := c.conf.ActionsDB.ReadLoginPassworByNameContext(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Функция ReadLoginPassworByNameContext, вернула ошибку: <%w>", err)
+		}
 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
@@ -2736,9 +2713,13 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
+		if rxData.Name != "" {
 			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
+			str, err := decrypt(rxData.Name, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента name, вернула ошибку:<%w>", err)
+			}
+			fieldName.Write([]byte(str))
 
 		} else {
 			fieldName.Clear()
@@ -2751,9 +2732,13 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
 			return nil
 		}
-		if el.login != "" {
+		if rxData.Login != "" {
 			fieldLogin.Clear()
-			fieldLogin.Write([]byte(el.login))
+			str, err := decrypt(rxData.Login, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента login, вернула ошибку:<%w>", err)
+			}
+			fieldLogin.Write([]byte(str))
 
 		} else {
 			fieldLogin.Clear()
@@ -2766,9 +2751,13 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
 			return nil
 		}
-		if el.password != "" {
+		if rxData.Password != "" {
 			fieldPassword.Clear()
-			fieldPassword.Write([]byte(el.password))
+			str, err := decrypt(rxData.Password, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента password, вернула ошибку:<%w>", err)
+			}
+			fieldPassword.Write([]byte(str))
 
 		} else {
 			fieldPassword.Clear()
@@ -2850,6 +2839,11 @@ func doShowNextElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 }
 
 // Логика перевода фокуса в окне viewTextData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный
@@ -2956,6 +2950,11 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика перевода фокуса в окне viewBankCardData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3148,6 +3147,11 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика перевода фокуса в окне viewBinaryData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowNextElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3220,13 +3224,26 @@ func doShowNextElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика перевода фокуса в окне viewLoginPasswordData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		decrIndexloginPassword(c)     // уменьшение значения индекса
-		el := loginPasswordByIndex(c) // получение записи по индексу
+		decrIndexNamesloginPassword(c)      // уменьшение значения индекса
+		name := nameLoginPasswordByIndex(c) // получение записи по индексу
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		rxData, err := c.conf.ActionsDB.ReadLoginPassworByNameContext(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Функция ReadLoginPassworByNameContext, вернула ошибку: <%w>", err)
+		}
 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
@@ -3234,9 +3251,13 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
+		if rxData.Name != "" {
 			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
+			str, err := decrypt(rxData.Name, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента name, вернула ошибку:<%w>", err)
+			}
+			fieldName.Write([]byte(str))
 
 		} else {
 			fieldName.Clear()
@@ -3249,9 +3270,13 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowLogin: <%v>", err))
 			return nil
 		}
-		if el.login != "" {
+		if rxData.Login != "" {
 			fieldLogin.Clear()
-			fieldLogin.Write([]byte(el.login))
+			str, err := decrypt(rxData.Login, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента login, вернула ошибку:<%w>", err)
+			}
+			fieldLogin.Write([]byte(str))
 
 		} else {
 			fieldLogin.Clear()
@@ -3264,9 +3289,13 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowPassword: <%v>", err))
 			return nil
 		}
-		if el.password != "" {
+		if rxData.Password != "" {
 			fieldPassword.Clear()
-			fieldPassword.Write([]byte(el.password))
+			str, err := decrypt(rxData.Password, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента password, вернула ошибку:<%w>", err)
+			}
+			fieldPassword.Write([]byte(str))
 
 		} else {
 			fieldPassword.Clear()
@@ -3348,6 +3377,11 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 }
 
 // Логика перевода фокуса в окне viewTextData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный
@@ -3443,6 +3477,11 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика перевода фокуса в окне viewBankCardData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3635,6 +3674,11 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика перевода фокуса в окне viewBinaryData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doShowPrevElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3703,6 +3747,11 @@ func doShowPrevElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика удаления в окне viewLoginPasswordData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3729,7 +3778,7 @@ func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		if err := c.conf.DataBase.DelDataLoginPasswordContext(ctx, textEl); err != nil {
+		if err := c.conf.ActionsDB.DelDataLoginPasswordContext(ctx, textEl); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelDataLoginPasswordContext, вернула ошибку: <%v>", err))
 			return nil
 		}
@@ -3778,6 +3827,11 @@ func doDeleteElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика удаления в окне viewTextData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3804,7 +3858,7 @@ func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		if err := c.conf.DataBase.DelTextContext(ctx, textEl); err != nil {
+		if err := c.conf.ActionsDB.DelTextContext(ctx, textEl); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelTextContext, вернула ошибку: <%v>", err))
 			return nil
 		}
@@ -3852,6 +3906,11 @@ func doDeleteElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика удаления в окне viewBankCardData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3878,7 +3937,7 @@ func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		if err := c.conf.DataBase.DelBankCardContext(ctx, textEl); err != nil {
+		if err := c.conf.ActionsDB.DelBankCardContext(ctx, textEl); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция DelBankCardContext, вернула ошибку: <%v>", err))
 			return nil
 		}
@@ -3926,6 +3985,11 @@ func doDeleteElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 }
 
 // Логика удаления в окне viewBinaryData. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	gui - указатель на объект Gui.
 func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 
 	// Если режим - локальный.
@@ -3989,7 +4053,11 @@ func doDeleteElementViewBinaryData(c *handlerUI, gui *gocui.Gui) error {
 	return nil
 }
 
-// Регистрации пользователя в режиме - Локальный.
+// Регистрации пользователя в режиме - Локальный. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doRegistrationUserLocal(c *handlerUI) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+W")
@@ -4012,7 +4080,7 @@ func doRegistrationUserLocal(c *handlerUI) error {
 	defer cancel()
 
 	// Проверка, что в БД уже есть регистрация пользователя.
-	busy, err := c.conf.DataBase.UserExistContext(ctx)
+	busy, err := c.conf.ActionsDB.UserExistContext(ctx)
 	if err != nil {
 		return fmt.Errorf("Error: функция UserExistContext, вернуля ошибку: <%v>", err)
 	}
@@ -4023,7 +4091,7 @@ func doRegistrationUserLocal(c *handlerUI) error {
 	}
 
 	// Добавление пользователя в БД.
-	if err := c.conf.DataBase.AddUserContext(ctx, userName, userPwd1); err != nil {
+	if err := c.conf.ActionsDB.AddUserContext(ctx, userName, userPwd1); err != nil {
 		return fmt.Errorf("Error: функция AddUserContext, вернуля ошибку: <%v>", err)
 	}
 
@@ -4035,7 +4103,11 @@ func doRegistrationUserLocal(c *handlerUI) error {
 	return nil
 }
 
-// Регистрации пользователя в режиме - Удалённый.
+// Регистрации пользователя в режиме - Удалённый. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doRegistrationUserRemote(c *handlerUI) error {
 
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+W")
@@ -4109,7 +4181,7 @@ func doRegistrationUserRemote(c *handlerUI) error {
 	return nil
 }
 
-// Создание токена для регистрации пользователя в режиме  - удалённый.
+// Создание токена для регистрации пользователя в режиме  - удалённый. Возвращаеются метаданные, ключ, имя токена и ошибка.
 func createTokenForRegistration() (txMD metadata.MD, secretKey, nameToken string, err error) {
 
 	// Создание ключа.
@@ -4132,7 +4204,11 @@ func createTokenForRegistration() (txMD metadata.MD, secretKey, nameToken string
 	return txMD, secretKey, nameToken, nil
 }
 
-// Аутентификация в режиме - локальный.
+// Аутентификация в режиме - локальный. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doAuthenticationUserModeLocal(c *handlerUI) error {
 
 	userName := c.typed.login
@@ -4143,7 +4219,7 @@ func doAuthenticationUserModeLocal(c *handlerUI) error {
 	defer cancel()
 
 	// Выполнение запроса.
-	ok, err := c.conf.DataBase.AuthenticateUserContext(ctx, userName, userPwd1)
+	ok, err := c.conf.ActionsDB.AuthenticateUserContext(ctx, userName, userPwd1)
 	if err != nil {
 		return fmt.Errorf("Error: функция AuthenticateUserContext, вернуля ошибку: <%v>", err)
 	}
@@ -4156,7 +4232,11 @@ func doAuthenticationUserModeLocal(c *handlerUI) error {
 	return nil
 }
 
-// Аутентификация в режиме - удалённый.
+// Аутентификация в режиме - удалённый. Возвращается ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
 func doAuthenticationUserModeRemote(c *handlerUI) error {
 
 	userName := c.typed.login
@@ -4177,7 +4257,12 @@ func doAuthenticationUserModeRemote(c *handlerUI) error {
 	return nil
 }
 
-// Расшифровка принятых данных логин/пароль на запрос по имени
+// Расшифровка принятых данных логин/пароль на запрос по имени. Возвращаются расшифрованные данные и ошибка.
+//
+// Параметры:
+//
+//	rxData - принятые данные.
+//	key - ключ.
 func DecryptRxLoginPasswordByName(rxData server.RxLoginPassword, key [32]byte) (data rxLoginPassword, err error) {
 
 	// Расшифровка For
@@ -4207,7 +4292,14 @@ func DecryptRxLoginPasswordByName(rxData server.RxLoginPassword, key [32]byte) (
 	return data, nil
 }
 
-// Буфер процесса BackUp
+// Буфер процесса BackUp. Для запуска в горутине.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	rxChProcess - канал приёма процентов процесса.
+//	rxChErr - канал приёма ошибки.
+//	rxChDone - канал приёма признака, что процесс выполнен.
 func bufferProcessBackUp(c *handlerUI, rxChProcess <-chan float32, rxChErr <-chan error, rxChDone <-chan struct{}) {
 
 	// Обработка каналов.
@@ -4247,7 +4339,14 @@ func bufferProcessBackUp(c *handlerUI, rxChProcess <-chan float32, rxChErr <-cha
 	}
 }
 
-// Буфер процесса Restore
+// Буфер процесса Restore. Для запуска в горутине.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	rxChProcess - канал приёма процентов процесса.
+//	rxChErr - канал приёма ошибки.
+//	rxChDone - канал приёма признака, что процесс выполнен.
 func bufferProcessRestore(c *handlerUI, rxChProcess <-chan float32, rxChErr <-chan error, rxChDone <-chan struct{}) {
 
 	// Обработка каналов.
@@ -4287,7 +4386,12 @@ func bufferProcessRestore(c *handlerUI, rxChProcess <-chan float32, rxChErr <-ch
 	}
 }
 
-// Проверка соответствия списков файлов.
+// Проверка соответствия списков файлов. Возвращается ошибка.
+//
+// Параметры:
+//
+//	rxList - принятый список.
+//	wantList - ожидаемый список.
 func chechRxNameFiles(rxList, wantList []string) error {
 
 	// Проверка аргументов.
@@ -4314,7 +4418,13 @@ func chechRxNameFiles(rxList, wantList []string) error {
 	return fmt.Errorf("Нет соответствия имён файлов. Нужно:<%v>, а принято:<%v>", wantList, rxList)
 }
 
-// Реализация сторожевого таймера.
+// Реализация сторожевого таймера. Для запуска в горутине.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+//	g - указатель на объект Gui.
+//	v - указатель на объект View.
 func wdt(c *handlerUI, g *gocui.Gui, v *gocui.View) {
 	c.conf.LgrFile.Write("Info: Запуск сторожевого таймера")
 
@@ -4345,4 +4455,39 @@ func wdt(c *handlerUI, g *gocui.Gui, v *gocui.View) {
 
 		}
 	}
+}
+
+// Подключение к серверу. Возвращается клиент, подключение и ошибка.
+//
+// Параметры:
+//
+//	c - экземпляр интерфейса.
+func connectSrv(c *handlerUI) (pb.PasswordManagerClient, *grpc.ClientConn, error) {
+
+	// Проверка аргументов
+	if c == nil {
+		return nil, nil, NilPtrArgumentC
+	}
+
+	// Логика
+	//
+	c.status.checkConnectPassed = true
+	srvAddr := c.typed.ip + ":" + c.typed.port
+
+	// Настройка TLS.
+	creds, err := credentials.NewClientTLSFromFile("tls/server.crt", "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("функция credentials.NewClientTLSFromFile, вернула ошибку: <%w>", err)
+	}
+
+	// Подключение к серверу.
+	conn, err := grpc.NewClient(srvAddr, grpc.WithTransportCredentials(creds))
+	if err != nil {
+		return nil, nil, fmt.Errorf("функция grpc.NewClient, вернула ошибку: <%w>", err)
+	}
+
+	// создание клиента.
+	client := pb.NewPasswordManagerClient(conn)
+
+	return client, conn, nil
 }

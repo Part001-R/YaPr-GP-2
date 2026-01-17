@@ -11,7 +11,7 @@ import (
 // Флаги сервиса.
 type Config struct {
 	Mode string // Режим работы клиента.
-	DSN  string
+	DSN  string // Строка подключения к БД.
 }
 
 // Обеспечение однократного выполнения.

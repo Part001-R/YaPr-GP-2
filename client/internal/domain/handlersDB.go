@@ -1,14 +1,14 @@
-// Вызовы обработчиков БД, в зависимости от типа БД.
+// Обработчики БД.
 package domain
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/Part001-R/YaPr-GP-2/server/internal/adapters/sqlitestor"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/sqlitestor"
 )
 
-// Закрытие подключения к БД. Возвращается ошибка.
+// Закрытие подключения. Возвращается ошибка.
 func (s *storage) Close() error {
 
 	switch actions := s.actions.(type) {
@@ -112,7 +112,7 @@ func (s *storage) ReadTableLoginPasswordContext(ctx context.Context) (list []Log
 	case sqlitestor.Actions:
 		rxArr, err := actions.ReadTableLoginPasswordContext(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("SQlite. Функция ReadTableLoginPasswordContext, вернула ошибку: <%w>", err)
+			return nil, err
 		}
 		for _, v := range rxArr {
 			var el LoginPassword
@@ -149,51 +149,6 @@ func (s *storage) DelDataLoginPasswordContext(ctx context.Context, field1 string
 	}
 }
 
-// Чтение имён записей - логин/пароль. Возвращаются данные и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (s *storage) GetNamesLoginPasswordContext(ctx context.Context) ([]string, error) {
-
-	switch actions := s.actions.(type) {
-	case sqlitestor.Actions:
-		rxData, err := actions.GetNamesLoginPasswordContext(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("SQlite. Функция GetNamesLoginPasswordContext, вернула ошибку: <%w>", err)
-		}
-		return rxData, nil
-	// ...
-	default:
-		return []string{}, fmt.Errorf("Неизвестный тип БД")
-	}
-}
-
-// Чтение данных логин/пароль по имени. Возвращаются данные и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-//	name - имя записи.
-func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string) (data LoginPassword, err error) {
-
-	switch actions := s.actions.(type) {
-	case sqlitestor.Actions:
-		rxData, err := actions.GetLoginPasswordByNameContext(ctx, name)
-		if err != nil {
-			return LoginPassword{}, fmt.Errorf("SQlite. Функция GetLoginPasswordByNameContext, вернула ошибку: <%w>", err)
-		}
-		data.Name = rxData.For
-		data.Login = rxData.Login
-		data.Password = rxData.Password
-		data.CreatedAt = rxData.CreatedAt
-		return data, nil
-	// ...
-	default:
-		return LoginPassword{}, fmt.Errorf("Неизвестный тип БД")
-	}
-}
-
 //
 // --- текст ---
 //
@@ -226,11 +181,11 @@ func (s *storage) ReadTableTextContext(ctx context.Context) (list []TextData, er
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		rxData, err := actions.ReadTableTextContext(ctx)
+		rxArr, err := actions.ReadTableTextContext(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("SQlite. Функция ReadTableTextContext, вернула ошибку: <%w>", err)
+			return nil, err
 		}
-		for _, v := range rxData {
+		for _, v := range rxArr {
 			var el TextData
 
 			el.Name = v.Name
@@ -239,6 +194,7 @@ func (s *storage) ReadTableTextContext(ctx context.Context) (list []TextData, er
 
 			list = append(list, el)
 		}
+
 		return list, nil
 	// ...
 	default:
@@ -261,50 +217,6 @@ func (s *storage) DelTextContext(ctx context.Context, field1 string) error {
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
-	}
-}
-
-// Получение имен записей текста. Возвращаются данные и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (s *storage) GetNamesTextContext(ctx context.Context) ([]string, error) {
-
-	switch actions := s.actions.(type) {
-	case sqlitestor.Actions:
-		rxData, err := actions.GetNamesTextContext(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("SQlite. Функция GetNamesTextContext, вернула ошибку: <%w>", err)
-		}
-		return rxData, nil
-	// ...
-	default:
-		return []string{}, fmt.Errorf("Неизвестный тип БД")
-	}
-}
-
-// Получение записb текста, по имени. Возвращаются данные и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-//	name - имя записи.
-func (s *storage) GetTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
-
-	switch actions := s.actions.(type) {
-	case sqlitestor.Actions:
-		rxData, err := actions.GetTextByNameContext(ctx, name)
-		if err != nil {
-			return TextData{}, fmt.Errorf("SQlite. Функция GetTextByNameContext, вернула ошибку: <%w>", err)
-		}
-		data.Name = rxData.Name
-		data.Text = rxData.Text
-		data.CreatedAt = rxData.CreatedAt
-		return data, nil
-	// ...
-	default:
-		return TextData{}, fmt.Errorf("Неизвестный тип БД")
 	}
 }
 
@@ -343,11 +255,11 @@ func (s *storage) ReadTableBankCardContext(ctx context.Context) (list []BankCard
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		rxData, err := actions.ReadTableBankCardContext(ctx)
+		rxArr, err := actions.ReadTableBankCardContext(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("SQlite. Функция ReadTableBankCardContext, вернула ошибку: <%w>", err)
+			return nil, err
 		}
-		for _, v := range rxData {
+		for _, v := range rxArr {
 			var el BankCard
 
 			el.Name = v.Name
@@ -383,49 +295,45 @@ func (s *storage) DelBankCardContext(ctx context.Context, field1 string) error {
 	}
 }
 
-// Получение имен записей банковских карт. Возвращаются данные и ошибка.
+// получение имён записей логин/пароль. Возвращается ошибка.
 //
 // Параметры:
 //
 //	ctx - контекст.
-func (s *storage) GetNamesBankCardContext(ctx context.Context) ([]string, error) {
+func (s *storage) ReadNamesTableLoginPasswordContext(ctx context.Context) ([]string, error) {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		rxData, err := actions.GetNamesBankCardContext(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("SQlite. Функция GetNamesBankCardContext, вернула ошибку: <%w>", err)
-		}
-		return rxData, nil
+		return actions.ReadNamesTableLoginPasswordContext(ctx)
 	// ...
 	default:
-		return []string{}, fmt.Errorf("Неизвестный тип БД")
+		return nil, fmt.Errorf("Неизвестный тип БД")
 	}
 }
 
-// Получение записи банковской карты, по имени. Возвращаются данные и ошибка.
+// ReadLoginPassworByNameContext(ctx context.Context, name string) (data LoginPassword, err error)
+
+// получение имён записей логин/пароль. Возвращается ошибка.
 //
 // Параметры:
 //
 //	ctx - контекст.
-//	name - имя записи.
-func (s *storage) GetBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error) {
+func (s *storage) ReadLoginPassworByNameContext(ctx context.Context, name string) (data LoginPassword, err error) {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		rxData, err := actions.GetBankCardByNameContext(ctx, name)
+		var rxData sqlitestor.LoginPassword
+		rxData, err = actions.ReadLoginPassworByNameContext(ctx, name)
 		if err != nil {
-			return BankCard{}, fmt.Errorf("SQlite. Функция GetBankCardByNameContext, вернула ошибку: <%w>", err)
+			return LoginPassword{}, err
 		}
 		data.Name = rxData.Name
-		data.Owner = rxData.Owner
-		data.Numb = rxData.Numb
-		data.Valid = rxData.Valid
-		data.Code = rxData.Code
+		data.Login = rxData.Login
+		data.Password = rxData.Password
 		data.CreatedAt = rxData.CreatedAt
 		return data, nil
 	// ...
 	default:
-		return BankCard{}, fmt.Errorf("Неизвестный тип БД")
+		return LoginPassword{}, fmt.Errorf("Неизвестный тип БД")
 	}
 }

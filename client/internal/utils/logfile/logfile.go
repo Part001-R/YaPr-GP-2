@@ -1,3 +1,4 @@
+// Обработчики пакета.
 package logfile
 
 import (
@@ -8,17 +9,23 @@ import (
 	"time"
 )
 
+// Разовая инициализация.
 var once sync.Once
 
 // Файл логов.
 type LogFile struct {
-	PtrLogFile *os.File
-	mu         sync.Mutex
+	PtrLogFile *os.File   // Указатель на файл.
+	mu         sync.Mutex // Мьютекс доступа.
 }
 
+// Экземпляр.
 var inst *LogFile
 
-// Создание файла логов.
+// Конструктор. Возвращается экземпляр и ошибка.
+//
+// Параметры:
+//
+//	nameLogFile  - имя файла.
 func New(nameLogFile string) (*LogFile, error) {
 
 	var err error
@@ -48,7 +55,11 @@ func New(nameLogFile string) (*LogFile, error) {
 	return inst, nil
 }
 
-// Функция реализации записи логов в файл.
+// Функция реализации записи логов в файл. Возвращается ошибка.
+//
+// Параметры:
+//
+//	msg - сообщение для записи.
 func (f *LogFile) Write(msg string) error {
 
 	f.mu.Lock()

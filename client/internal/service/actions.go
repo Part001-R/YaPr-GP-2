@@ -1,3 +1,4 @@
+// Действия пакета.
 package service
 
 import (
@@ -7,7 +8,11 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/client/internal/ui"
 )
 
-// Действия сервиса.
+// Действия сервиса. Возвращается ошибка.
+//
+// Параметры:
+//
+//	conf - конфигурация сервиса.
 func actions(conf *udt.Configuration) error {
 
 	// Проверка аргументов.
