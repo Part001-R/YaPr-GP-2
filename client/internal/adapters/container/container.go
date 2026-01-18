@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sync"
 )
@@ -22,10 +21,18 @@ type FileEntry struct {
 	Content []byte `json:"content"`
 }
 
+/*
 // Защифрованный контейнер.
 type Container struct {
 	name  string      // имя контейнера.
 	key   [32]byte    // ключ шифрования.
+	Files []FileEntry `json:"files"` // файлы в контейнере.
+}
+*/
+
+type Container struct {
+	Name  string      `json:"name"`
+	Key   [32]byte    `json:"key"`
 	Files []FileEntry `json:"files"` // файлы в контейнере.
 }
 
@@ -46,98 +53,34 @@ var inst *Container
 //
 //	name - имя контейнера.
 //	key - ключ шифрования.
-func New(name string, key [32]byte) Actions {
-	onceInst.Do(func() {
-		// Проверка присутствия файла контейнера.
-		if _, err := os.Stat(name); os.IsNotExist(err) {
+func New(name string, key [32]byte) (Actions, error) {
 
-			// Если файла нет - создание
-			emptyContainer := Container{
-				name: name,
-				key:  key,
+	var errNew error
+
+	onceInst.Do(func() {
+		if _, err := os.Stat(name); os.IsNotExist(err) {
+			container := Container{
+				Name: name,
+				Key:  key,
 			}
-			data, err := json.Marshal(emptyContainer)
+			data, err := json.Marshal(container)
 			if err != nil {
-				log.Fatalf("Ошибка сериализации контейнера: <%v>", err)
+				errNew = fmt.Errorf("ошибка сериализации контейнера: %w", err)
 				return
 			}
 
+			// Проверка записью.
 			if err := os.WriteFile(name, data, 0644); err != nil {
-				log.Fatalf("Ошибка создания файла контейнера: <%v>", err)
+				errNew = fmt.Errorf("ошибка создания файла контейнера: %w", err)
 				return
 			}
 		}
-		// Инициализация экземпляра.
 		inst = &Container{
-			name: name,
-			key:  key,
+			Name: name,
+			Key:  key,
 		}
 	})
-	// Рузультат.
-	return inst
-}
-
-// Чтение контейнера из файла. Возвращается указатель на контейнер и ошибка.
-//
-// Параметры:
-//
-//	key - ключ шифрования.
-func (c Container) readContainer(key [32]byte) (*Container, error) {
-
-	data, err := os.ReadFile(c.name)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &Container{}, nil // пустой контейнер
-		}
-		return nil, fmt.Errorf("Функция os.ReadFile, вернула ошибку:<%w>, при чтении файла:<%s>", err, c.name)
-	}
-
-	var container Container
-	err = json.Unmarshal(data, &container)
-	if err != nil {
-		return nil, fmt.Errorf("Функция json.Unmarshal, вернула ошибку:<%w>, при обработке данных файла:<%s>", err, c.name)
-	}
-
-	// Дешифруем содержимое каждого файла
-	for i, file := range container.Files {
-		decrypted, err := decrypt(file.Content, key)
-		if err != nil {
-			return nil, fmt.Errorf("не удалось дешифровать файл %s: %v", file.Name, err)
-		}
-		container.Files[i].Content = decrypted
-	}
-
-	return &container, nil
-}
-
-// Запись контейнера в файл. Возвращается ошибка.
-//
-// Параметры:
-//
-//	container - указатель на контейнер.
-//	key - ключ шифрования.
-func (c *Container) writeContainer(container *Container, key [32]byte) error {
-
-	// Шифрование каждого файла перед сохранением.
-	encryptedFiles := make([]FileEntry, len(container.Files))
-	for i, file := range container.Files {
-		encrypted, err := encrypt(file.Content, key)
-		if err != nil {
-			return err
-		}
-		encryptedFiles[i] = FileEntry{
-			Name:    file.Name,
-			Content: encrypted,
-		}
-	}
-
-	containerToSave := Container{Files: encryptedFiles}
-	data, err := json.Marshal(containerToSave)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(c.name, data, 0644)
+	return inst, errNew
 }
 
 // Добавление файла в контейнер. Для запуска в горутине.
@@ -174,7 +117,7 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 	buffer := make([]byte, 1024) // Буфер 1КБ
 
 	// Чтение контейнера.
-	container, err := c.readContainer(key)
+	container, err := readContainer(key, c)
 	if err != nil {
 		chError <- fmt.Errorf("функция c.readContainer, вернула ошибку: <%v>", err)
 		return
@@ -216,7 +159,7 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 	// Добавление файла в контейнер
 	container.Files = append(container.Files, newFileEntry)
 
-	if err := c.writeContainer(container, key); err != nil {
+	if err := writeContainer(container, key, c); err != nil {
 		chError <- fmt.Errorf("функция writeContainer, вернула ошибку: <%w>", err)
 		return
 	}
@@ -236,7 +179,7 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 //	txChDone - канал передачи признака успешного завершения процесса.
 //	txChData - канал передачи данных.
 //	rxChBreak - канал приёма сигнала остановки процесса.
-func (c Container) GetFileFromContainer(fileName string, key [32]byte, txChPercent chan<- float64, txChErr chan<- error, txChDone chan<- struct{}, txChData chan<- []byte, rxChBreak <-chan struct{}) {
+func (c *Container) GetFileFromContainer(fileName string, key [32]byte, txChPercent chan<- float64, txChErr chan<- error, txChDone chan<- struct{}, txChData chan<- []byte, rxChBreak <-chan struct{}) {
 	defer func() {
 		close(txChPercent)
 		close(txChErr)
@@ -245,7 +188,7 @@ func (c Container) GetFileFromContainer(fileName string, key [32]byte, txChPerce
 	}()
 
 	// Чтение контейнера
-	container, err := c.readContainer(key)
+	container, err := readContainer(key, c)
 	if err != nil {
 		txChErr <- err
 		return
@@ -295,10 +238,10 @@ func (c Container) GetFileFromContainer(fileName string, key [32]byte, txChPerce
 // Параметры:
 //
 //	key - ключ шифрования.
-func (c Container) ListFilesInContainer(key [32]byte) (files []string, err error) {
+func (c *Container) ListFilesInContainer(key [32]byte) (files []string, err error) {
 
 	// чтение контейнера.
-	container, err := c.readContainer(key)
+	container, err := readContainer(key, c)
 	if err != nil {
 		return nil, fmt.Errorf("функция c.readContainer, вернула ошибку:<%w>", err)
 	}
@@ -318,8 +261,9 @@ func (c Container) ListFilesInContainer(key [32]byte) (files []string, err error
 //	fileName - имя файла.
 //	key - ключ шифрования.
 func (c *Container) RemoveFileFromContainer(fileName string, key [32]byte) error {
+
 	// Чтение контейнера
-	container, err := c.readContainer(key)
+	container, err := readContainer(key, c)
 	if err != nil {
 		return err
 	}
@@ -339,8 +283,8 @@ func (c *Container) RemoveFileFromContainer(fileName string, key [32]byte) error
 	// Удаление файла из контейнера.
 	container.Files = append(container.Files[:indexToRemove], container.Files[indexToRemove+1:]...)
 
-	// Записываем обновленный контейнер обратно в файл
-	if err := c.writeContainer(container, key); err != nil {
+	// Запись обновленного контейнер обратно в файл
+	if err := writeContainer(container, key, c); err != nil {
 		return fmt.Errorf("ошибка при записи контейнера: <%w>", err)
 	}
 

@@ -3,9 +3,10 @@ package container
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"strings"
+	"os"
+	"path"
 
 	"golang.org/x/crypto/nacl/secretbox"
 )
@@ -45,19 +46,76 @@ func decrypt(encrypted []byte, key [32]byte) ([]byte, error) {
 	return decrypted, nil
 }
 
-// Выделение имени файла и его тип из полного пути. Возвращается имя файла и его тип.
+// Выделение имени файла из полного пути. Возвращается имя файла и его тип.
 //
 // Параметры:
 //
 //	fullPath - полный путь к файлу.
 func getFileNameAndExtension(fullPath string) string {
 
-	fileName := filepath.Base(fullPath)
-	fileType := filepath.Ext(fileName)
+	return path.Base(fullPath)
+}
 
-	if strings.Contains(fileName, fileType) {
-		return fileName
+// Чтение контейнера из файла. Возвращается указатель на контейнер и ошибка.
+//
+// Параметры:
+//
+//	key - ключ шифрования.
+func readContainer(key [32]byte, c *Container) (*Container, error) {
+
+	data, err := os.ReadFile(c.Name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &Container{}, nil // пустой контейнер
+		}
+		return nil, fmt.Errorf("Функция os.ReadFile, вернула ошибку:<%w>, при чтении файла:<%s>", err, c.Name)
 	}
 
-	return fileName + fileType
+	var container Container
+	err = json.Unmarshal(data, &container)
+	if err != nil {
+		return nil, fmt.Errorf("Функция json.Unmarshal, вернула ошибку:<%w>, при обработке данных файла:<%s>", err, c.Name)
+	}
+
+	// Дешифрация файлов.
+	for i, file := range container.Files {
+		decrypted, err := decrypt(file.Content, key)
+		if err != nil {
+			return nil, fmt.Errorf("не удалось дешифровать файл %s: %v", file.Name, err)
+		}
+		container.Files[i].Content = decrypted
+	}
+
+	return &container, nil
+}
+
+// Запись контейнера в файл. Возвращается ошибка.
+//
+// Параметры:
+//
+//	container - указатель на контейнер.
+//	key - ключ шифрования.
+func writeContainer(container *Container, key [32]byte, c *Container) error {
+
+	// Шифрование каждого файла перед сохранением.
+	encryptedFiles := make([]FileEntry, len(container.Files))
+
+	for i, file := range container.Files {
+		encrypted, err := encrypt(file.Content, key)
+		if err != nil {
+			return err
+		}
+		encryptedFiles[i] = FileEntry{
+			Name:    file.Name,
+			Content: encrypted,
+		}
+	}
+
+	containerToSave := Container{Files: encryptedFiles}
+	data, err := json.Marshal(containerToSave)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(c.Name, data, 0644)
 }

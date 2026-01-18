@@ -1010,9 +1010,11 @@ func layerShowSelectTypeReset(c *handlerUI) error {
 func layerShowSelectTypeNewInstContainer(c *handlerUI) error {
 
 	if c.conf.Flag.Mode == flags.ModeLocal {
-		inst := container.New(c.conf.Flag.LocalNameContainer, c.secret.secretKey)
+		inst, err := container.New(c.conf.Flag.LocalNameContainer, c.secret.secretKey)
+		if err != nil {
+			return fmt.Errorf("Ошибка создания контейнера:<%w>", err)
+		}
 		c.conf.Container = inst
-
 		c.conf.LgrFile.Write(fmt.Sprintf("Info: стартовая обработка контейнера <%s> пройдена", c.conf.Flag.LocalNameContainer))
 	}
 
