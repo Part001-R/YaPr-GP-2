@@ -176,6 +176,8 @@ func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServe
 			if !isRemovedFile {
 				isRemovedFile = true
 
+				rxFileName = path.Join(s.flag.NameSubDirBackUp, rxFileName) // Добавление директории расположения
+
 				if fileExists(rxFileName) {
 					if err := os.Remove(rxFileName); err != nil {
 						errReturn = status.Error(codes.Internal, fmt.Sprintf("ошибка:<%v>, предварительного удаления существующего файла:<%s>", err, rxFileName))
@@ -234,6 +236,8 @@ func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServe
 	s.logger.Info("BackUp, выполнен")
 
 	// Финальное сообщение сервера.
+	rxFileName = path.Base(rxFileName) // Выделение имени файла.
+
 	return stream.SendAndClose(&pb.LocalBackupFileResponse{
 		FileName: rxFileName,
 	})
@@ -273,6 +277,8 @@ func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Pa
 	//
 
 	reqFileName := req.FileName
+	reqFileName = path.Join(s.flag.NameSubDirBackUp, reqFileName) // Добавление названия директории
+
 	fileContent, err := os.ReadFile(reqFileName)
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("Запрошенный файл <%s>, отсутствует", req.FileName))
@@ -293,7 +299,7 @@ func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Pa
 		}
 
 		if err := stream.Send(&pb.LocalRestoreFileResponse{
-			FileName: reqFileName,
+			FileName: path.Base(reqFileName),
 			Content:  fileContent[i:end],
 		}); err != nil {
 			return err
@@ -302,6 +308,7 @@ func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Pa
 
 	// Добавление метаданных Trailer
 	mdTrailer := metadata.Pairs("hash", fileHash, "token", token[0])
+
 	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
 		s.logger.Info("ошибка установки трейлера, для файла", zap.String("имя", reqFileName))
 		return status.Error(codes.Aborted, fmt.Sprintf("ошибка установки трейлера, для файла:<%s>", reqFileName))
@@ -339,13 +346,19 @@ func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*prot
 
 	s.logger.Debug("Принят FilesInfo запрос")
 
-	// Подготовка.
 	fileInfos := &pb.LocalFilesInfoResponse{}
-	files := []string{"manager.db", "container.data"}
+
+	// Получение имён файлов в директории.
+	files, err := ReadFilesInDirectory(s.flag.NameSubDirBackUp)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "ошибка получения имён файлов backUp")
+	}
 
 	// Сбор информации по файлам.
 	for _, f := range files {
 		var el pb.FileInfo
+
+		f = path.Join(s.flag.NameSubDirBackUp, f) // Добавление имени директории.
 
 		size, err := sizeFile(f)
 		if err != nil {
@@ -354,6 +367,8 @@ func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*prot
 			}
 			return nil, status.Error(codes.Internal, fmt.Sprintf("Ошибка:<%v>, при обработке файла:<%s>", err, f))
 		}
+
+		f = path.Base(f) // Выделение имени файла.
 
 		el.FileName = f
 		el.Size = size

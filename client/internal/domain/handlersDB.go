@@ -100,38 +100,6 @@ func (s *storage) AddDataLoginPasswordContext(ctx context.Context, field1, field
 	}
 }
 
-// Получение всех записей логин/пароль из БД. Возвращается массив записей и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (s *storage) ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error) {
-
-	switch actions := s.actions.(type) {
-
-	case sqlitestor.Actions:
-		rxArr, err := actions.ReadTableLoginPasswordContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range rxArr {
-			var el LoginPassword
-
-			el.Name = v.Name
-			el.Login = v.Login
-			el.Password = v.Password
-			el.CreatedAt = v.CreatedAt
-
-			list = append(list, el)
-		}
-		return list, nil
-	// ...
-	default:
-		return nil, fmt.Errorf("Неизвестный тип БД")
-	}
-
-}
-
 // Удаление пары логин/пароль. Возвращается ошибка.
 //
 // Параметры:
@@ -170,37 +138,6 @@ func (s *storage) AddDataTextContext(ctx context.Context, field1, field2, create
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
 	}
-}
-
-// Получение всех записей текста из БД. Возвращается массив записей и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (s *storage) ReadTableTextContext(ctx context.Context) (list []TextData, err error) {
-
-	switch actions := s.actions.(type) {
-	case sqlitestor.Actions:
-		rxArr, err := actions.ReadTableTextContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range rxArr {
-			var el TextData
-
-			el.Name = v.Name
-			el.Text = v.Text
-			el.CreatedAt = v.CreatedAt
-
-			list = append(list, el)
-		}
-
-		return list, nil
-	// ...
-	default:
-		return nil, fmt.Errorf("Неизвестный тип БД")
-	}
-
 }
 
 // Удаление текста. Возвращается ошибка.
@@ -246,38 +183,6 @@ func (s *storage) AddDataBankCardContext(ctx context.Context, field1, field2, fi
 	}
 }
 
-// Получение всех записей банковских карт из БД. Возвращается массив записей и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (s *storage) ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error) {
-
-	switch actions := s.actions.(type) {
-	case sqlitestor.Actions:
-		rxArr, err := actions.ReadTableBankCardContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range rxArr {
-			var el BankCard
-
-			el.Name = v.Name
-			el.Owner = v.Owner
-			el.Numb = v.Numb
-			el.Valid = v.Valid
-			el.Code = v.Code
-			el.CreatedAt = v.CreatedAt
-
-			list = append(list, el)
-		}
-		return list, nil
-	// ...
-	default:
-		return nil, fmt.Errorf("Неизвестный тип БД")
-	}
-}
-
 // Удаление банковской карты. Возвращается ошибка.
 //
 // Параметры:
@@ -311,9 +216,7 @@ func (s *storage) ReadNamesTableLoginPasswordContext(ctx context.Context) ([]str
 	}
 }
 
-// ReadLoginPassworByNameContext(ctx context.Context, name string) (data LoginPassword, err error)
-
-// получение имён записей логин/пароль. Возвращается ошибка.
+// получение записи логин/пароль, по имени. Возвращается ошибка.
 //
 // Параметры:
 //
@@ -335,5 +238,88 @@ func (s *storage) ReadLoginPassworByNameContext(ctx context.Context, name string
 	// ...
 	default:
 		return LoginPassword{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// получение имён записей текста. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+func (s *storage) ReadNamesTableTextContext(ctx context.Context) (names []string, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		return actions.ReadNamesTableTextContext(ctx)
+	// ...
+	default:
+		return nil, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// получение имени записи текста по имени. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+func (s *storage) ReadTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		var rxData sqlitestor.TextData
+		rxData, err = actions.ReadTextByNameContext(ctx, name)
+		if err != nil {
+			return TextData{}, err
+		}
+		data.Name = rxData.Name
+		data.Text = rxData.Text
+		data.CreatedAt = rxData.CreatedAt
+		return data, nil
+	// ...
+	default:
+		return TextData{}, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// получение имён записей текста. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+func (s *storage) ReadNamesTableBankCardContext(ctx context.Context) (names []string, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		return actions.ReadNamesTableBankCardContext(ctx)
+	// ...
+	default:
+		return nil, fmt.Errorf("Неизвестный тип БД")
+	}
+}
+
+// получение имени записи текста по имени. Возвращается ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+func (s *storage) ReadBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error) {
+
+	switch actions := s.actions.(type) {
+	case sqlitestor.Actions:
+		var rxData sqlitestor.BankCard
+		rxData, err = actions.ReadBankCardByNameContext(ctx, name)
+		if err != nil {
+			return BankCard{}, err
+		}
+		data.Name = rxData.Name
+		data.Owner = rxData.Owner
+		data.Numb = rxData.Numb
+		data.Valid = rxData.Valid
+		data.Code = rxData.Code
+		data.CreatedAt = rxData.CreatedAt
+		return data, nil
+	// ...
+	default:
+		return BankCard{}, fmt.Errorf("Неизвестный тип БД")
 	}
 }

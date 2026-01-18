@@ -15,16 +15,17 @@ type actionsDB interface {
 	AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error)                        // Аутентификация пользователя.
 	UserExistContext(ctx context.Context) (bool, error)                                                         // Проверка, что в системе уже есть пользователь.
 	AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error            // Добавление данных - логин/пароль.
-	ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error)                        // Чтение данных - логин/пароль.
 	DelDataLoginPasswordContext(ctx context.Context, field1 string) error                                       // Удаление данных - логин/пароль.
 	AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error                             // Добавлеение данных - текст.
-	ReadTableTextContext(ctx context.Context) (list []TextData, err error)                                      // Чтение данных - текст.
 	DelTextContext(ctx context.Context, field1 string) error                                                    // Удаление данных - текст.
 	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error // Добавление данных - банковские карты.
-	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)                                  // Чтение данных - банковские карты.
 	DelBankCardContext(ctx context.Context, field1 string) error                                                // Удаление данных - банковские карты.
 	ReadNamesTableLoginPasswordContext(ctx context.Context) (names []string, err error)                         // Чтение имён записей логин/пароль.
 	ReadLoginPassworByNameContext(ctx context.Context, name string) (data LoginPassword, err error)             // Чтение записи логин/пароль по имени.
+	ReadNamesTableTextContext(ctx context.Context) (names []string, err error)                                  // Чтение имён записей текст.
+	ReadTextByNameContext(ctx context.Context, name string) (data TextData, err error)                          // Чтение записи текста по имени.
+	ReadNamesTableBankCardContext(ctx context.Context) (names []string, err error)                              // Чтение имён записей банковских карт.
+	ReadBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error)                      // Чтение записи банковской карты по имени.
 }
 
 // Интерфейс.

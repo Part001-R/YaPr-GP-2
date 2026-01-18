@@ -26,7 +26,11 @@ func prepare() (*udt.Configuration, error) {
 
 	// Создание дирекотрии для файлов.
 	if err := createSubdirectory(flag.NameSubDirFiles); err != nil {
-		return nil, fmt.Errorf("функция logger.NewLogger, вернула ошибку: <%w>", err)
+		return nil, fmt.Errorf("Создание директории для файлов. функция createSubdirectory, вернула ошибку: <%w>", err)
+	}
+	// Создание дирекотрии для backUp.
+	if err := createSubdirectory(flag.NameSubDirBackUp); err != nil {
+		return nil, fmt.Errorf("Создание директории для backUp. функция createSubdirectory, вернула ошибку: <%w>", err)
 	}
 
 	// БД.

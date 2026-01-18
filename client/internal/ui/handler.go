@@ -8,15 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Part001-R/YaPr-GP-2/client/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/jroimartin/gocui"
-)
-
-const (
-	// Имя контейнера.
-	containerName = "container.data"
 )
 
 var once sync.Once // Разовая инициализация.
@@ -1110,101 +1104,38 @@ func (c *handlerUI) doExtract(g *gocui.Gui, v *gocui.View) error {
 //	_ - заглушка на View.
 func (c *handlerUI) showRequestEncryptKey(g *gocui.Gui, _ *gocui.View) error {
 
-	c.view.activeView = "" // Сброс признака активного окна
+	c.conf.LgrFile.Write("Info: Запущен обработчик запроса серкетного ключа")
 
-	// Очистка.
-	if err := deleteViews(g); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
+	// Сброс переменных.
+	if err := layerShowRequestEncryptKeyReset(c); err != nil {
+		return fmt.Errorf("функция layerShowRequestEncryptKeyReset, вернула ошибку: <%w>", err)
 	}
 
-	// Сброс состояния.
-	layoutInitialized = false
-
-	// Создание контейнера запроса ввода дополнительного секретного ключа.
-	view, err := g.SetView(viewRequestSecretKey, 0, 0, screenWidth-1, screenHeight-1)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
-	}
-	view.Title = "Секретный ключ"
-	view.Wrap = true
-	view.Clear()
-
-	//
-	// --- Поля ввода ---
-	//
-	if v, err := g.SetView("scrtKey", 50, 7, inputWidth+1, inputHeight+1+6); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-			return fmt.Errorf("Не удалось установить фокус: <%w>", err)
-		}
-		v.Title = "Ключ"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorBlack
-		v.SelBgColor = gocui.ColorCyan
-		v.SelFgColor = gocui.ColorBlack
+	// Очистка экрана.
+	if err := layerShowRequestEncryptKeyClear(c, g); err != nil {
+		return fmt.Errorf("функция layerShowRequestEncryptKeyClear, вернула ошибку: <%w>", err)
 	}
 
-	//
-	// --- Пояснение к действию ---
-	//
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 15))
-	fmt.Fprintf(view, "%sОпционально. Укажите дополнительный ключ шифрования.\n", strings.Repeat(" ", 38))
-	fmt.Fprintf(view, "%sИли оставьте поле пустым.", strings.Repeat(" ", 38))
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 2))
-	fmt.Fprintf(view, "%sНажмите на Enter.\n", strings.Repeat(" ", 38))
-
-	//
-	// --- Пояснение по навигации ---
-	//
-	if v, err := g.SetView("Enter", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Enter - фиксация ввода"))
-	}
-	if v, err := g.SetView("MainMenu", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+H - главное меню"))
-	}
-	if v, err := g.SetView("Exit", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+C - выход"))
+	// Создание окна.
+	window, err := layerShowRequestEncryptKeyWindow(c, g)
+	if err != nil {
+		return fmt.Errorf("функция layerShowRequestEncryptKeyWindow, вернула ошибку: <%w>", err)
 	}
 
-	// Установка фокуса на поле ввода "scrtKey"
-	if _, err := g.SetCurrentView("scrtKey"); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус на 'scrtKey': <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус на 'scrtKey': <%v>", err)
+	// Отрисовка полей ввода.
+	if err := layerShowRequestEncryptKeyDrawInput(c, g); err != nil {
+		return fmt.Errorf("функция layerShowRequestEncryptKeyDrawInput, вернула ошибку: <%w>", err)
 	}
 
-	layoutInitialized = true
-	c.view.activeView = viewRequestSecretKey // Установка признака активного окна
+	// Отрисовка пояснений.
+	if err := layerShowRequestEncryptKeyDrawGuide(c, g, window); err != nil {
+		return fmt.Errorf("функция layerShowRequestEncryptKeyDrawGuide, вернула ошибку: <%w>", err)
+	}
+
+	// Установка фокуса.
+	if err := layerShowRequestEncryptKeySetFocus(c, g, "scrtKey"); err != nil {
+		return fmt.Errorf("функция layerShowRequestEncryptKeySetFocus, вернула ошибку: <%w>", err)
+	}
 
 	return nil
 }
@@ -1287,6 +1218,8 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 //	_ - заглушка на View.
 func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.LgrFile.Write("Info: Запущен обработчик логин/пароль")
+
 	// Ограничение.
 	if layerShowLoginPasswordRestraintRun(c) {
 		return nil
@@ -1341,7 +1274,7 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 	return nil
 }
 
-// Окно для взаимодействия с логин/пароль. Возвращается ошибка.
+// Окно для взаимодействия с тектом. Возвращается ошибка.
 //
 // Параметры:
 //
@@ -1349,323 +1282,63 @@ func (c *handlerUI) showLoginPassword(g *gocui.Gui, _ *gocui.View) error {
 //	_ - заглушка на View.
 func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 
+	c.conf.LgrFile.Write("Info: Запущен обработчик текста")
+
 	// ограничение.
-	if c.view.activeView != viewSelectType {
+	if layerShowTextRestraintRun(c) {
 		return nil
 	}
 
 	// Подключение к БД.
-	if c.conf.Flag.Mode == flags.ModeLocal {
-		storage, err := domain.NewStorage(c.conf.Flag.DSN)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
-			return nil
-		}
-		c.conf.ActionsDB = storage
+	if err := layerShowTextNewInstDB(c); err != nil {
+		return fmt.Errorf("Функция layerShowTextNewInstDB, вернула ошибку:<%w>", err)
 	}
 
-	c.conf.LgrFile.Write("Debug: выполнен вход в окно typeText")
-
-	c.status.readTextPassed = false // Сброс признака.
-	c.status.readNameTextPassed = false
-	c.status.addTextPassed = false
-	c.status.delTextPassed = false
-	c.status.readTextSUCCESS = false
-	c.index.text = 0 // Сброс индекса навигации по массиву логин/пароль.
-
-	// Логика.
-	//
-	c.view.activeView = "" // Сброс признака активного окна
+	// Сброс переменных.
+	if err := layerShowTextReset(c); err != nil {
+		return fmt.Errorf("Функция layerShowTextReset, вернула ошибку:<%w>", err)
+	}
 
 	// Удаляем все зависимые виды
-	if err := deleteViews(g); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
+	if err := layerShowTextClear(c, g); err != nil {
+		return fmt.Errorf("функция layerShowTextClear, вернула ошибку: <%w>", err)
 	}
 
-	// Сброс состояния
-	layoutInitialized = false
-	c.view.currentFocus = "fieldAddFor" // Установка фокуса на элемент окна.
-
-	// Создание контейнера запроса ввода дополнительного секретного ключа.
-	view, err := g.SetView(viewTextData, 0, 0, screenWidth-1, screenHeight-1)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
-	}
-	view.Title = "Текст"
-	view.Wrap = true
-	view.Clear()
-
-	//
-	// --- Индикаторы ---
-	//
-
-	// Результат чтения данных.
-	indicatorY := inputHeight * 3
-	indicatorX := 51
-	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-	}
-	vRead.Frame = false
-	vRead.BgColor = gocui.ColorDefault
-	vRead.FgColor = gocui.ColorDefault
-
-	// Результат добавления данных.
-	indicatorY = inputHeight*3 + 8
-	indicatorX = 53
-	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-	}
-	vAdd.Frame = false
-	vAdd.BgColor = gocui.ColorDefault
-	vAdd.FgColor = gocui.ColorDefault
-
-	//
-	// --- Отображение разделов ---
-	//
-
-	// Просмотр.
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
-	fmt.Fprintf(view, "%sПросмотр.\n", strings.Repeat(" ", 56))
-
-	if v, err := g.SetView("fieldShowFor", 1, 4, inputWidth-48, inputHeight+1+3); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Для"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowFor")
-	}
-	if v, err := g.SetView("fieldShowText", 33, 4, inputWidth+48, inputHeight+1+3); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Текст"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowText")
+	// Создание окна.
+	window, err := layerShowTextdWindow(c, g)
+	if err != nil {
+		return fmt.Errorf("функция layerShowTextdWindow, вернула ошибку: <%w>", err)
 	}
 
-	// Добавление
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 7))
-	fmt.Fprintf(view, "%sДобавление.\n", strings.Repeat(" ", 55))
-
-	if v, err := g.SetView("fieldAddFor", 1, 12, inputWidth-48, inputHeight+1+11); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Для"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorBlack
-		v.SelBgColor = gocui.ColorCyan
-		v.SelFgColor = gocui.ColorBlack
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddFor")
-	}
-	if v, err := g.SetView("fieldAddText", 33, 12, inputWidth+48, inputHeight+1+11); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Текст"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorBlack
-		v.SelBgColor = gocui.ColorCyan
-		v.SelFgColor = gocui.ColorBlack
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddText")
+	// Отрисовка индикаторов.
+	if err := layerShowTextDrawIndicator(c, g); err != nil {
+		return fmt.Errorf("функция layerShowTextDrawIndicator, вернула ошибку: <%w>", err)
 	}
 
-	//
-	// --- Краткое пояснение ---
-	//
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 8))
-	fmt.Fprintf(view, "%sПри изменении данных, выполните Crl+U.\n", strings.Repeat(" ", 42))
-
-	//
-	// --- Нижняя часть экрана ---
-	//
-
-	// Верхний ряд.
-	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+F - сохранение"))
-	}
-	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctr+E - Далее"))
-	}
-	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+G - Назад"))
-	}
-	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+J - Удаление"))
+	// Отрисовка полей ввода.
+	if err := layerShowTextDrawInput(c, g); err != nil {
+		return fmt.Errorf("функция layerShowTextDrawInput, вернула ошибку: <%w>", err)
 	}
 
-	// Нижний ряд
-	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Tab - перевод фокуса"))
-	}
-	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Enter - переход"))
-	}
-	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+H - главное меню"))
-	}
-	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+C - выход"))
-	}
-	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+U - назад"))
+	// Отрисовка пояснений.
+	if err := layerShowTextDrawGuide(c, g, window); err != nil {
+		return fmt.Errorf("функция layerShowTextDrawGuide, вернула ошибку: <%w>", err)
 	}
 
 	// Получение сохранённых значений текста.
-	if c.conf.Flag.Mode == flags.ModeLocal {
-		c.status.readTextPassed = true // Установка признака, что был запущен процесс получения значений текста.
-
-		_, err = showTextWorkDB(c)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция showTextWorkDB, вернула ошибку: <%v>", err))
-		} else {
-			c.conf.LgrFile.Write("Debug: данные текста успешно прочитаны")
-			c.status.readTextSUCCESS = true
-		}
-	}
-
-	if c.conf.Flag.Mode == flags.ModeRemote {
-
-		c.status.readNameTextPassed = true // Установка признака, что был запущен процесс получения имён текста.
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Запрос у сервера имен записей
-		rxData, err := c.conf.Server.RequestTextNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
-			c.status.readNameTextSUCCESS = false
-		} else {
-			c.data.namesText = rxData // передача результата
-			c.conf.LgrFile.Write("Debug: данные текста успешно прочитаны")
-			c.status.readNameTextSUCCESS = true
-		}
+	if err := layerShowTextActions(c); err != nil {
+		return fmt.Errorf("функция layerShowTextActions, вернула ошибку: <%w>", err)
 	}
 
 	// Установка фокуса.
-	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
+	if err := layerShowTextSetFocus(c, g, "fieldAddFor"); err != nil {
+		return fmt.Errorf("функция layerShowTextSetFocus, вернула ошибку: <%w>", err)
 	}
-	layoutInitialized = true
-	c.view.activeView = viewTextData // Установка признака активного окна
 
 	return nil
 }
 
-// Окно для взаимодействия с логин/пароль. Возвращается ошибка.
+// Окно для взаимодействия с файлами. Возвращается ошибка.
 //
 // Параметры:
 //
@@ -1673,341 +1346,63 @@ func (c *handlerUI) showText(g *gocui.Gui, _ *gocui.View) error {
 //	_ - заглушка на View.
 func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 
-	// ограничение.
-	if c.view.activeView != viewSelectType {
+	c.conf.LgrFile.Write("Info: Запущен обработчик файлов")
+
+	// Ограничение.
+	if layerShowBinaryRestraintRun(c) {
 		return nil
 	}
 
 	// Подключение к БД.
-	if c.conf.Flag.Mode == flags.ModeLocal {
-		storage, err := domain.NewStorage(c.conf.Flag.DSN)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
-			return nil
-		}
-		c.conf.ActionsDB = storage
+	if err := layerShowBinaryNewInstDB(c); err != nil {
+		return fmt.Errorf("Функция layerShowBinaryNewInstDB, вернула ошибку:<%w>", err)
 	}
 
-	c.view.activeView = "" // Сброс
-	c.index.file = 0
-
-	c.updateStatusPopContainer(stageNotActive)
-	c.updateStatusPushContainer(stageNotActive)
-	c.updateStatusFileRx(stageNotActive)
-	c.updateStatusFileTx(stageNotActive)
-
-	c.status.readFilePassed = false // Для локального режима
-	c.status.readFileSUCCESS = false
-
-	c.status.readNameFilePassed = false // Для удалённого режима
-	c.status.readNameFileSUCCESS = false
-
-	c.status.delFilePassed = false
-	c.status.delFileSUCCESS = false
-
-	c.status.extractFilePassed = false
-	c.status.extractFileSUCCESS = false
+	// Сброс.
+	if err := layerShowBinaryReset(c); err != nil {
+		return fmt.Errorf("Функция layerShowBinaryReset, вернула ошибку:<%w>", err)
+	}
 
 	// Очистка.
-	if err := deleteViews(g); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
+	if err := layerShowBinaryClear(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBinaryClear, вернула ошибку: <%w>", err)
 	}
 
-	// Сброс состояния.
-	layoutInitialized = false
-	c.view.currentFocus = "fieldPathSource" // Установка фокуса на поле ввода.
-
-	// Создание контейнера запроса ввода дополнительного секретного ключа.
-	view, err := g.SetView(viewBinaryData, 0, 0, screenWidth-1, screenHeight-1)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
-	}
-	view.Title = "Файлы"
-	view.Wrap = true
-	view.Clear()
-
-	//
-	// --- Вывод надписей ---
-	//
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
-	fmt.Fprintf(view, "%sФайл в хранилище:\n", strings.Repeat(" ", 2))
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
-	fmt.Fprintf(view, "%sОткуда (файл):\n", strings.Repeat(" ", 2))
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 3))
-	fmt.Fprintf(view, "%sКуда (директория):\n", strings.Repeat(" ", 2))
-
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 5))
-	fmt.Fprintf(view, "%sПри внесении изменений, выполните Crl+U.\n", strings.Repeat(" ", 45))
-
-	//
-	// --- Индикаторы ---
-	//
-
-	// Результат чтения данных.
-	indicatorY := 2
-	indicatorX := 105
-	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-	}
-	vRead.Frame = false
-	vRead.BgColor = gocui.ColorDefault
-	vRead.FgColor = gocui.ColorDefault
-
-	// Процент выполнения.
-	if v, err := g.SetView("indicatorPercent", 56, 20, inputWidth+7, inputHeight+1+19); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = false
-		v.Frame = false
-		v.BgColor = gocui.ColorDefault
-		v.SelBgColor = gocui.ColorDefault
-		v.SelFgColor = gocui.ColorDefault
+	// Создание окна.
+	window, err := layerShowBinaryWindow(c, g)
+	if err != nil {
+		return fmt.Errorf("функция layerShowBinaryWindow, вернула ошибку: <%w>", err)
 	}
 
-	//
-	// --- Поля вывода ---
-	//
-
-	// Отображение имени файла
-	if v, err := g.SetView("fieldShowFor", 22, 2, inputWidth+20, inputHeight+1+1); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowFor")
+	// Отрисовка пояснений
+	if err := layerShowBinaryDrawGuide(c, g, window); err != nil {
+		return fmt.Errorf("функция layerShowBinaryDrawGuide, вернула ошибку: <%w>", err)
 	}
 
-	//
-	// --- Поля ввода ---
-	//
-
-	// Полный путь к файлу.
-	if v, err := g.SetView("fieldPathSource", 22, 6, inputWidth+48, inputHeight+1+5); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = true
-		v.Editable = true
-		v.Wrap = false
-		v.Frame = true
-		v.BgColor = gocui.ColorBlack
-		v.SelBgColor = gocui.ColorCyan
-		v.SelFgColor = gocui.ColorBlack
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldPathSource")
-	}
-	// Директория назначения.
-	if v, err := g.SetView("fieldPathTarget", 22, 10, inputWidth+48, inputHeight+1+9); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = true
-		v.Editable = true
-		v.Wrap = false
-		v.Frame = true
-		v.BgColor = gocui.ColorBlack
-		v.SelBgColor = gocui.ColorCyan
-		v.SelFgColor = gocui.ColorBlack
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldPathTarget")
+	// Оотрисовка индикаторов.
+	if err := layerShowBinaryIndicator(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBinaryIndicator, вернула ошибку: <%w>", err)
 	}
 
-	//
-	// --- Нижняя часть экрана ---
-	//
-
-	// Верхний ряд.
-	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+F - сохранение"))
-	}
-	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctr+E - Далее"))
-	}
-	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+G - Назад"))
-	}
-	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+J - Удаление"))
-	}
-	if v, err := g.SetView("Extraction", 104, 23, inputWidth+48, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+K - Извлечение"))
+	// Отрирсовка полей вывода.
+	if err := layerShowBinaryDrawOut(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBinaryDrawOut, вернула ошибку: <%w>", err)
 	}
 
-	//Нижний ряд.
-	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Tab - перевод фокуса"))
-	}
-	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Enter - Фиксация"))
-	}
-	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+H - главное меню"))
-	}
-	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+C - выход"))
-	}
-	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+U - назад"))
+	// Отрисовка полей ввода.
+	if err := layerShowBinaryDrawInput(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBinaryDrawInput, вернула ошибку: <%w>", err)
 	}
 
-	// Получение списка названий файлов.
-	c.status.readFilePassed = true // Установка признака, что был запущен процесс получения значений текста.
-
-	// Если режим - локальный
-	if c.conf.Flag.Mode == flags.ModeLocal {
-		c.data.files, err = c.conf.Container.ListFilesInContainer(c.secret.secretKey)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция ListFilesInContainer, вернула ошибку: <%v>", err))
-		} else {
-			c.conf.LgrFile.Write("Debug: имена файлов в контейнере, успешно прочитаны")
-			c.status.readFileSUCCESS = true
-		}
-	}
-
-	// Если режим - удалённый
-	if c.conf.Flag.Mode == flags.ModeRemote {
-
-		c.status.readNameFilePassed = true // Установка признака, что был запущен процесс получения имён банковских карт.
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Запрос у сервера имен записей
-		rxData, isBusyServer, err := c.conf.Server.RequestFileNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestFileNames, вернула ошибку: <%v>", err))
-			c.status.readNameFileSUCCESS = false
-		} else {
-			if !isBusyServer {
-				c.updateStatusIsBusyServer(false)
-				c.data.namesFile = rxData
-				c.conf.LgrFile.Write("Debug: данные файлов, успешно прочитаны")
-				c.status.readNameFileSUCCESS = true
-			} else { // На сервере активна работа с файлами.
-				c.updateStatusIsBusyServer(true)
-				c.data.namesFile = []string{}
-				c.conf.LgrFile.Write("Debug: На сервере активна работа с файлами. Нет актуальных данных.")
-			}
-		}
+	// Действия.
+	if err := layerShowBinaryActions(c); err != nil {
+		return fmt.Errorf("функция layerShowBinaryActions, вернула ошибку: <%w>", err)
 	}
 
 	// Установка фокуса.
-	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
+	if err := layerShowBinarySetFocus(c, g, "fieldPathSource"); err != nil {
+		return fmt.Errorf("функция layerShowBinarySetFocus, вернула ошибку: <%w>", err)
 	}
-	layoutInitialized = true
-	c.view.activeView = viewBinaryData // Установка признака активного окна
 
 	return nil
 }
@@ -2020,395 +1415,63 @@ func (c *handlerUI) showBinary(g *gocui.Gui, _ *gocui.View) error {
 //	_ - заглушка на View.
 func (c *handlerUI) showBankCard(g *gocui.Gui, _ *gocui.View) error {
 
-	// ограничение.
-	if c.view.activeView != viewSelectType {
+	c.conf.LgrFile.Write("Info: Запущен обработчик банковских карт")
+
+	// Ограничение.
+	if layerShowBankCardRestraintRun(c) {
 		return nil
 	}
 
 	// Подключение к БД.
-	if c.conf.Flag.Mode == flags.ModeLocal {
-		storage, err := domain.NewStorage(c.conf.Flag.DSN)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка подключения к БД:<%v>", err))
-			return nil
-		}
-		c.conf.ActionsDB = storage
+	if err := layerShowBankCardNewInstDB(c); err != nil {
+		return fmt.Errorf("Функция layerShowBankCardNewInstDB, вернула ошибку:<%w>", err)
 	}
 
-	c.conf.LgrFile.Write("Debug: выполнен вход в окно typeBankCard")
-
-	c.status.readBankCardPassed = false // Сброс признака.
-	c.status.readNameBankCardPassed = false
-	c.status.addBankCardPassed = false
-	c.status.delBankCardPassed = false
-	c.index.bankCard = 0 // Сброс индекса навигации по массиву логин/пароль.
-	c.status.readBankCardSUCCESS = false
-
-	// Логика.
-	//
-	c.view.activeView = "" // Сброс признака активного окна
-
-	// Очистка.
-	if err := deleteViews(g); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция deleteViews, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
+	// Сброс переменных.
+	if err := layerShowBankCardReset(c); err != nil {
+		return fmt.Errorf("Функция layerShowBankCardReset, вернула ошибку:<%w>", err)
 	}
 
-	// Сброс состояния
-	layoutInitialized = false
-	c.view.currentFocus = "fieldAddFor" // Установка фокуса на элемент окна.
-
-	// Окно для банковской карты.
-	view, err := g.SetView(viewBankCardData, 0, 0, screenWidth-1, screenHeight-1)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
-	}
-	view.Title = "Банковские карты"
-	view.Wrap = true
-	view.Clear()
-
-	//
-	// --- Отображение разделов ---
-	//
-
-	// Просмотр.
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 1))
-	fmt.Fprintf(view, "%sПросмотр.\n", strings.Repeat(" ", 56))
-
-	if v, err := g.SetView("fieldShowFor", 1, 2, inputWidth-48, inputHeight+1+1); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Для"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowFor")
-	}
-	if v, err := g.SetView("fieldShowOwner", 33, 2, inputWidth-4, inputHeight+1+1); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Владелец"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowOwner")
-	}
-	if v, err := g.SetView("fieldShowNumber", 33, 5, inputWidth-4, inputHeight+1+4); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Номер"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowNumber")
-	}
-	if v, err := g.SetView("fieldShowValid", 33, 8, inputWidth-30, inputHeight+1+7); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Дата"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowValid")
-	}
-	if v, err := g.SetView("fieldShowCode", 59, 8, inputWidth-4, inputHeight+1+7); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Код"
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldShowCode")
+	// Очистка экрана.
+	if err := layerShowBankCardClear(c, g); err != nil {
+		return fmt.Errorf("Функция layerShowBankCardClear, вернула ошибку:<%w>", err)
 	}
 
-	// Добавление
-	fmt.Fprintf(view, "%s", strings.Repeat("\n", 10))
-	fmt.Fprintf(view, "%sДобавление. %sПри изменении данных, выполните Crl+U\n", strings.Repeat(" ", 55), strings.Repeat(" ", 15))
-
-	if v, err := g.SetView("fieldAddFor", 1, 13, inputWidth-48, inputHeight+1+12); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Для"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddFor")
-	}
-	if v, err := g.SetView("fieldAddOwner", 33, 13, inputWidth-4, inputHeight+1+12); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Владелец"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddOwner")
-	}
-	if v, err := g.SetView("fieldAddNumber", 33, 16, inputWidth-4, inputHeight+1+15); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Номер"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddNumber")
-	}
-	if v, err := g.SetView("fieldAddValid", 33, 19, inputWidth-30, inputHeight+1+18); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Дата"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddValid")
-	}
-	if v, err := g.SetView("fieldAddCode", 59, 19, inputWidth-4, inputHeight+1+18); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Title = "Код"
-		v.Editable = true
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-
-		v.Write([]byte("....."))
-		c.setFocusStyle(v, "fieldAddCode")
+	// Создание окна.
+	window, err := layerShowBankCardWindow(c, g)
+	if err != nil {
+		return fmt.Errorf("Функция layerShowBankCarddWindow, вернула ошибку:<%w>", err)
 	}
 
-	//
-	// --- Индикаторы ---
-	//
-
-	// Результат чтения данных.
-
-	indicatorY := inputHeight*3 - 1
-	indicatorX := 80
-	vRead, err := g.SetView("indicatorReadStatus", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-	}
-	vRead.Frame = false
-	vRead.BgColor = gocui.ColorDefault
-	vRead.FgColor = gocui.ColorDefault
-
-	// Результат добавления данных.
-	indicatorY = inputHeight*3 + 10
-	indicatorX = 80
-	vAdd, err := g.SetView("indicatorAddSuccess", indicatorX, indicatorY, indicatorX+20, indicatorY+2)
-	if err != nil && err != gocui.ErrUnknownView {
-		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-		return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-	}
-	vAdd.Frame = false
-	vAdd.BgColor = gocui.ColorDefault
-	vAdd.FgColor = gocui.ColorDefault
-
-	//
-	// --- Нижняя часть экрана ---
-	//
-
-	// Верхний ряд.
-	if v, err := g.SetView("Save", 1, 23, inputWidth-55, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+F - сохранение"))
-	}
-	if v, err := g.SetView("NextElement", 26, 23, inputWidth-29, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctr+E - Далее"))
-	}
-	if v, err := g.SetView("PrevElement", 52, 23, inputWidth-3, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+G - Назад"))
-	}
-	if v, err := g.SetView("DeleteElement", 78, 23, inputWidth+23, inputHeight+1+22); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+J - Удаление"))
+	// Вывод пояснений.
+	if err := layerShowBankCardDrawGuide(c, g, window); err != nil {
+		return fmt.Errorf("функция layerShowBankCardDrawGuide, вернула ошибку: <%w>", err)
 	}
 
-	//Нижний ряд.
-	if v, err := g.SetView("TAB", 1, 26, inputWidth-55, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Tab - перевод фокуса"))
-	}
-	if v, err := g.SetView("Enter", 26, 26, inputWidth-29, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Enter - фиксация"))
-	}
-	if v, err := g.SetView("MainMenu", 52, 26, inputWidth-3, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+H - главное меню"))
-	}
-	if v, err := g.SetView("Exit", 78, 26, inputWidth+23, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+C - выход"))
-	}
-	if v, err := g.SetView("Back", 104, 26, inputWidth+48, inputHeight+1+25); err != nil {
-		if err != gocui.ErrUnknownView {
-			c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
-			return fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
-		}
-		v.Editable = false
-		v.Wrap = true
-		v.Frame = true
-		v.BgColor = gocui.ColorDefault
-		v.FgColor = gocui.ColorWhite
-		v.Write([]byte("Ctrl+U - назад"))
+	// Отрисовка полей ввода.
+	if err := layerShowBankCardDrawInput(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBankCardDrawInput, вернула ошибку: <%w>", err)
 	}
 
-	// Если режим - локальный.
-	if c.conf.Flag.Mode == flags.ModeLocal {
-
-		// Получение сохранённых значений банковских карт.
-		c.status.readBankCardPassed = true // Установка признака, что был запущен процесс получения значений банковских карт.
-
-		_, err = showBankCardWorkDB(c)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция showBankCardWorkDB, вернула ошибку: <%v>", err))
-		} else {
-			c.conf.LgrFile.Write("Debug: данные банковских карт успешно прочитаны")
-			c.status.readBankCardSUCCESS = true
-		}
+	// Отрисовка полей вывода.
+	if err := layerShowBankCardDrawOut(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBankCardDrawOut, вернула ошибку: <%w>", err)
 	}
 
-	// Если режим - удалённый.
-	if c.conf.Flag.Mode == flags.ModeRemote {
+	// Отрисовка индикаторов.
+	if err := layerShowBankCardIndicator(c, g); err != nil {
+		return fmt.Errorf("функция layerShowBankCardIndicator, вернула ошибку: <%w>", err)
+	}
 
-		c.status.readNameBankCardPassed = true // Установка признака, что был запущен процесс получения имён банковских карт.
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Запрос у сервера имен записей
-		rxData, err := c.conf.Server.RequestBankCardNames(ctx, c.conf.Server.GetTokenAuthentication(), c.secret.secretKey)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: функция RequestTextNames, вернула ошибку: <%v>", err))
-			c.status.readNameBankCardSUCCESS = false
-		} else {
-			c.data.namesBankCard = rxData // передача результата
-			c.conf.LgrFile.Write("Debug: данные банковской карты, успешно прочитаны")
-			c.status.readNameBankCardSUCCESS = true
-		}
+	// Действия.
+	if err := layerShowBankCardActions(c); err != nil {
+		return fmt.Errorf("функция layerShowBankCardActions, вернула ошибку: <%w>", err)
 	}
 
 	// Установка фокуса.
-	if _, err := g.SetCurrentView(c.view.currentFocus); err != nil {
-		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
-		return fmt.Errorf("Не удалось установить фокус: <%w>", err)
+	if err := layerShowBankCardSetFocus(c, g, "fieldAddFor"); err != nil {
+		return fmt.Errorf("функция layerShowBankCardSetFocus, вернула ошибку: <%w>", err)
 	}
-	layoutInitialized = true
-	c.view.activeView = viewBankCardData // Установка признака активного окна
 
 	return nil
 }
@@ -2428,48 +1491,21 @@ func (c *handlerUI) doBackup(g *gocui.Gui, v *gocui.View) (err error) {
 		c.ch.resetWDT <- struct{}{} // Сброс таймера.
 	}
 
-	// Запрет отработки, если уже есть активный процесс.
-	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
+	// Запрет отработки.
+	if layerDoBackUpRestraintRun(c) {
 		return nil
 	}
 
-	// Логика работает только из окна выбора типа.
-	if c.view.activeView == viewSelectType {
-
-		c.updateStatusBackUp(stageActive)
-		c.updateStatusRestore(stageNotActive) // сброс признака, чтобы убрать подсветку.
-
-		c.conf.LgrFile.Write("Info: Запущен процесс BackUp")
-
-		// Логика процесса.
-		//
-		files := []string{"manager.db", "container.data"}
-
-		// Определение общего размера файлов.
-		totalSizeKB, err := totalFileSize(files)
-		if err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
-			c.updateStatusBackUp(stageFault)
-			return nil
-		}
-
-		// Инициализация данных процесса BackUp.
-		if err := c.conf.Server.InitDataBackUp(files, totalSizeKB, c.secret.secretKey); err != nil {
-			c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция InitDataBackUp, вернула ошибку: <%v>", err))
-			c.updateStatusBackUp(stageFault)
-			return nil
-		}
-
-		chProcess := make(chan float32)
-		chErr := make(chan error)
-		chDone := make(chan struct{})
-
-		// Передача файлов.
-		go c.conf.Server.BackUp(chProcess, chErr, chDone)
-
-		// Буфер процесса BackUp.
-		go bufferProcessBackUp(c, chProcess, chErr, chDone)
+	// Закрытие подключения к БД
+	if err := layerDoBackUpCloseDB(c); err != nil {
+		return fmt.Errorf("функция layerDoRestoreCloseDB, вернула ошибку: <%w>", err)
 	}
+
+	// Логика обработчика.
+	if err := layerDoBackUpActions(c); err != nil {
+		return fmt.Errorf("функция layerDoBackUpActions, вернула ошибку: <%w>", err)
+	}
+
 	return nil
 }
 
@@ -2488,50 +1524,21 @@ func (c *handlerUI) doRestore(g *gocui.Gui, v *gocui.View) error {
 		c.ch.resetWDT <- struct{}{} // Сброс таймера.
 	}
 
-	// Запрет отработки, если уже есть активный процесс.
-	if c.getStatusBackUp() == stageActive || c.getStatusRestore() == stageActive {
+	// Запрет отработки.
+	if layerDoRestoreRestraintRun(c) {
 		return nil
 	}
 
-	// Логика работает только из окна выбора типа.
-	if c.view.activeView == viewSelectType {
-
-		c.conf.LgrFile.Write("Info: Запущен поцесс Restore")
-
-		c.updateStatusBackUp(stageNotActive) // сброс признака, чтобы убрать подсветку.
-		c.updateStatusRestore(stageActive)
-
-		// Предварительный запрос у сервера данных по файлам.
-		rxFilesInfo, err := c.conf.Server.RestoreRequestFilesInfo()
-		if err != nil {
-			return fmt.Errorf("Функция RestoreRequestFilesInfo, вернула ошибку:<%w>", err)
-		}
-
-		// Проверка, что сервер предоставил данные по всем нужным файлам.
-		wantNames := []string{"manager.db", "container.data"}
-		rxNames := make([]string, 0, 2)
-		for _, f := range rxFilesInfo {
-			rxNames = append(rxNames, f.Name)
-		}
-		if err := chechRxNameFiles(rxNames, wantNames); err != nil {
-			return fmt.Errorf("Функция chechRxNameFiles, вернула ошибку:<%w>", err)
-		}
-
-		// Инициализация данных для выполнения Restore.
-		if err := c.conf.Server.InitDataRestore(rxFilesInfo); err != nil {
-			return fmt.Errorf("Функция InitDataRestore, вернула ошибку:<%w>", err)
-		}
-
-		chProcess := make(chan float32)
-		chErr := make(chan error)
-		chDone := make(chan struct{})
-
-		// Приём файлов.
-		go c.conf.Server.Restore(chProcess, chErr, chDone)
-
-		// Буфер процесса.
-		go bufferProcessRestore(c, chProcess, chErr, chDone)
+	// Закрытие подключения к БД
+	if err := layerDoRestoreCloseDB(c); err != nil {
+		return fmt.Errorf("функция layerDoRestoreCloseDB, вернула ошибку: <%w>", err)
 	}
+
+	// Логика обработчика.
+	if err := layerDoRestoreActions(c); err != nil {
+		return fmt.Errorf("Функция layerDoRestoreActions, вернула ошибку:<%w>", err)
+	}
+
 	return nil
 }
 

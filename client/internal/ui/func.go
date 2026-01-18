@@ -370,182 +370,6 @@ func decrypt(data string, key [32]byte) (string, error) {
 	return string(plaintext), nil
 }
 
-// Декодирование данных текста. Возвращаются декодированные данные и ошибка.
-//
-// Параметры:
-//
-//	encryptData - закодированные данные.
-//	key - секретный ключ.
-func decryptDataText(encryptData []textData, key [32]byte) (decryptData []textData, err error) {
-
-	for _, v := range encryptData {
-		var el textData
-
-		// Обработка поля - name
-		str, err := decrypt(v.name, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании name, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.name = str
-
-		// Обработка поля - text
-		str, err = decrypt(v.text, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании text, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.text = str
-
-		// Обработка поля - createdAt
-		str, err = decrypt(v.createdAt, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании createdAt, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.createdAt = str
-
-		decryptData = append(decryptData, el)
-	}
-
-	// результат
-	return decryptData, nil
-}
-
-// Декодирование данных банковских карт. Возвращаются декодированные данные и ошибка.
-//
-// Параметры:
-//
-//	encryptData - закодированные данные.
-//	key - секретный ключ.
-func decryptDataBankCard(encryptData []bankCard, key [32]byte) (decryptData []bankCard, err error) {
-
-	for _, v := range encryptData {
-		var el bankCard
-
-		// Обработка поля - имя
-		str, err := decrypt(v.name, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании name, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.name = str
-
-		// Обработка поля - владелец
-		str, err = decrypt(v.owner, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании owner, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.owner = str
-
-		// Обработка поля - номер карты
-		str, err = decrypt(v.numb, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании numb, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.numb = str
-
-		// Обработка поля - валидность
-		str, err = decrypt(v.valid, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании valid, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.valid = str
-
-		// Обработка поля - код
-		str, err = decrypt(v.code, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании code, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.code = str
-
-		// Обработка поля - createdAt
-		str, err = decrypt(v.createdAt, key)
-		if err != nil {
-			return nil, fmt.Errorf("при декодировании createdAt, функция decrypt, вернула ошибку: <%w>", err)
-		}
-		el.createdAt = str
-
-		decryptData = append(decryptData, el)
-	}
-
-	// результат
-	return decryptData, nil
-}
-
-// Функция реализует получение банковских карт из БД и выполняет декодирование. Возвращается количество записей и ошибка.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func showBankCardWorkDB(c *handlerUI) (int, error) {
-
-	// Чтение из БД всех записей таблицы логин/пароль (data1).
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	encodeRxData, err := c.conf.ActionsDB.ReadTableBankCardContext(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("функция ReadTableLoginPasswordContext, вернула ошибку: <%v>", err)
-	}
-
-	// Перенос принятых закодированных данных логин/пароль, в in-memory.
-	c.data.encryptBankCard = []bankCard{} // сброс содержимого слайса
-
-	for _, v := range encodeRxData {
-		var el bankCard
-		el.name = v.Name
-		el.owner = v.Owner
-		el.numb = v.Numb
-		el.valid = v.Valid
-		el.code = v.Code
-		el.createdAt = v.CreatedAt
-
-		c.data.encryptBankCard = append(c.data.encryptBankCard, el)
-	}
-	// Декодирование принятых данных.
-	c.data.bankCard, err = decryptDataBankCard(c.data.encryptBankCard, c.secret.secretKey)
-	if err != nil {
-		return 0, fmt.Errorf("ошибка декодирования данных логин/пароль: <%v>", err)
-	}
-
-	// Результат.
-	return len(c.data.bankCard), nil
-}
-
-// Функция реализует получение данных текста из БД и выполняет декодирование. Возвращается количество записей и ошибка.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func showTextWorkDB(c *handlerUI) (int, error) {
-
-	// Чтение из БД всех записей таблицы логин/пароль (data1).
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	encodeRxData, err := c.conf.ActionsDB.ReadTableTextContext(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("функция ReadTableTextContext, вернула ошибку: <%v>", err)
-	}
-
-	// Перенос принятых закодированных данных логин/пароль, в in-memory.
-	c.data.encryptTextData = []textData{} // сброс содержимого слайса
-
-	for _, v := range encodeRxData {
-		var el textData
-		el.name = v.Name
-		el.text = v.Text
-		el.createdAt = v.CreatedAt
-
-		c.data.encryptTextData = append(c.data.encryptTextData, el)
-	}
-	// Декодирование принятых данных.
-	c.data.textData, err = decryptDataText(c.data.encryptTextData, c.secret.secretKey)
-	if err != nil {
-		return 0, fmt.Errorf("ошибка декодирования данных логин/пароль: <%v>", err)
-	}
-
-	// Результат.
-	return len(c.data.loginPassword), nil
-}
-
 // Получение имени записи логин/пароль по индексу. Возвращается запись.
 //
 // Параметры:
@@ -574,37 +398,6 @@ func nameTextByIndex(c *handlerUI) string {
 func nameBankCardByIndex(c *handlerUI) string {
 
 	return c.data.namesBankCard[c.index.bankCard]
-}
-
-// Получение данных текста по индексу. Возвращается запись.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func textByIndex(c *handlerUI) (el textData) {
-
-	el.name = c.data.textData[c.index.text].name
-	el.text = c.data.textData[c.index.text].text
-	el.createdAt = c.data.textData[c.index.text].createdAt
-
-	return el
-}
-
-// Получение данных банковской карты по индексу. Возвращается запись.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func bankCardByIndex(c *handlerUI) (el bankCard) {
-
-	el.name = c.data.bankCard[c.index.bankCard].name
-	el.owner = c.data.bankCard[c.index.bankCard].owner
-	el.numb = c.data.bankCard[c.index.bankCard].numb
-	el.valid = c.data.bankCard[c.index.bankCard].valid
-	el.code = c.data.bankCard[c.index.bankCard].code
-	el.createdAt = c.data.bankCard[c.index.bankCard].createdAt
-
-	return el
 }
 
 // Получение данных файла по индексу. Возвращается запись.
@@ -675,30 +468,6 @@ func incrIndexNamesBankCard(c *handlerUI) {
 	}
 }
 
-// Увеличение значения индекса для текст массива.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func incrIndexText(c *handlerUI) {
-
-	if c.index.text < len(c.data.textData)-1 {
-		c.index.text++
-	}
-}
-
-// Увеличение значения индекса для массива банковских карт.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func incrIndexBankCard(c *handlerUI) {
-
-	if c.index.bankCard < len(c.data.bankCard)-1 {
-		c.index.bankCard++
-	}
-}
-
 // Увеличение значения индекса для массива файлов.
 //
 // Параметры:
@@ -735,18 +504,6 @@ func decrIndexloginPassword(c *handlerUI) {
 	}
 }
 
-// Уменьшение значения индекса для текст массива.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func decrIndexText(c *handlerUI) {
-
-	if c.index.text > 0 {
-		c.index.text--
-	}
-}
-
 // Уменьшение значения индекса для массива имён текста.
 //
 // Параметры:
@@ -756,18 +513,6 @@ func decrIndexNamesText(c *handlerUI) {
 
 	if c.index.text > 0 {
 		c.index.text--
-	}
-}
-
-// Уменьшение значения индекса для массива банковских карт.
-//
-// Параметры:
-//
-//	с - конфигурация.
-func decrIndexBankCard(c *handlerUI) {
-
-	if c.index.bankCard > 0 {
-		c.index.bankCard--
 	}
 }
 
@@ -1374,10 +1119,10 @@ func indicatorViewTextData(g *gocui.Gui, c *handlerUI) error {
 			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
 
-		if c.status.readTextPassed { // обработка при чтении
-			if c.status.readTextSUCCESS {
+		if c.status.readNameTextPassed { // обработка при чтении
+			if c.status.readNameTextSUCCESS {
 				indicatorRead.Clear()
-				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.textData))))
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.namesText))))
 				indicatorRead.FgColor = gocui.ColorGreen
 				indicatorRead.BgColor = gocui.ColorDefault
 			} else {
@@ -1526,10 +1271,10 @@ func indicatorViewBankCardData(g *gocui.Gui, c *handlerUI) error {
 		if indicatorRead == nil {
 			return fmt.Errorf("Нет указателя на элемент: <%s>", name)
 		}
-		if c.status.readBankCardPassed { // обработка при чтении
-			if c.status.readBankCardSUCCESS {
+		if c.status.readNameBankCardPassed { // обработка при чтении
+			if c.status.readNameBankCardSUCCESS {
 				indicatorRead.Clear()
-				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.bankCard))))
+				indicatorRead.Write([]byte(fmt.Sprintf("Всего записей: %d", len(c.data.namesBankCard))))
 				indicatorRead.FgColor = gocui.ColorGreen
 				indicatorRead.BgColor = gocui.ColorDefault
 			} else {
@@ -1538,7 +1283,7 @@ func indicatorViewBankCardData(g *gocui.Gui, c *handlerUI) error {
 				indicatorRead.FgColor = gocui.ColorRed
 				indicatorRead.BgColor = gocui.ColorDefault
 			}
-			c.status.readBankCardPassed = false
+			c.status.readNameBankCardPassed = false
 		}
 
 		if c.status.delBankCardPassed { // обработка при удалении
@@ -2849,12 +2594,20 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 	// Если режим - локальный
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		if len(c.data.textData) == 0 {
+		if len(c.data.namesText) == 0 {
 			return nil
 		}
 
-		el := textByIndex(c) // получение записи по индексу
-		incrIndexText(c)     // увеличение значения индекса
+		name := nameTextByIndex(c) // получение записи по индексу
+		incrIndexNamesText(c)      // увеличение значения индекса
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		rxData, err := c.conf.ActionsDB.ReadTextByNameContext(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Функция ReadTextByNameContext, вернула ошибку: <%w>", err)
+		}
 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
@@ -2862,31 +2615,37 @@ func doShowNextElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
+		if rxData.Name != "" {
 			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
+			str, err := decrypt(rxData.Name, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента name, вернула ошибку:<%w>", err)
+			}
+			fieldName.Write([]byte(str))
 
 		} else {
 			fieldName.Clear()
 			fieldName.Write([]byte(""))
 		}
 
-		// отображение содержимого поля Login.
+		// отображение содержимого поля Text.
 		fieldText, err := gui.View("fieldShowText")
 		if err != nil || fieldText == nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
 			return nil
 		}
-		if el.text != "" {
+		if rxData.Text != "" {
 			fieldText.Clear()
-			fieldText.Write([]byte(el.text))
+			str, err := decrypt(rxData.Text, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента text, вернула ошибку:<%w>", err)
+			}
+			fieldText.Write([]byte(str))
 
 		} else {
 			fieldText.Clear()
 			fieldText.Write([]byte(""))
 		}
-
-		return nil
 	}
 
 	// Если режим - локальный
@@ -2960,12 +2719,20 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		if len(c.data.bankCard) == 0 {
+		if len(c.data.namesBankCard) == 0 {
 			return nil
 		}
 
-		el := bankCardByIndex(c) // получение записи по индексу
-		incrIndexBankCard(c)     // увеличение значения индекса
+		name := nameBankCardByIndex(c) // получение записи по индексу
+		incrIndexNamesBankCard(c)      // увеличение значения индекса
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		rxData, err := c.conf.ActionsDB.ReadBankCardByNameContext(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Функция ReadTextByNameContext, вернула ошибку: <%w>", err)
+		}
 
 		// отображение содержимого поля Для.
 		fieldName, err := gui.View("fieldShowFor")
@@ -2973,9 +2740,13 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
+		if rxData.Name != "" {
 			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
+			str, err := decrypt(rxData.Name, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента name, вернула ошибку:<%w>", err)
+			}
+			fieldName.Write([]byte(str))
 
 		} else {
 			fieldName.Clear()
@@ -2988,9 +2759,13 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
 			return nil
 		}
-		if el.owner != "" {
+		if rxData.Owner != "" {
 			fieldOwner.Clear()
-			fieldOwner.Write([]byte(el.owner))
+			str, err := decrypt(rxData.Owner, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента owner, вернула ошибку:<%w>", err)
+			}
+			fieldOwner.Write([]byte(str))
 
 		} else {
 			fieldOwner.Clear()
@@ -3003,9 +2778,13 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
 			return nil
 		}
-		if el.numb != "" {
+		if rxData.Numb != "" {
 			fieldNumb.Clear()
-			fieldNumb.Write([]byte(el.numb))
+			str, err := decrypt(rxData.Numb, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента numb, вернула ошибку:<%w>", err)
+			}
+			fieldNumb.Write([]byte(str))
 
 		} else {
 			fieldNumb.Clear()
@@ -3018,9 +2797,13 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
 			return nil
 		}
-		if el.valid != "" {
+		if rxData.Valid != "" {
 			fieldValid.Clear()
-			fieldValid.Write([]byte(el.valid))
+			str, err := decrypt(rxData.Valid, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента valid, вернула ошибку:<%w>", err)
+			}
+			fieldValid.Write([]byte(str))
 
 		} else {
 			fieldValid.Clear()
@@ -3033,10 +2816,13 @@ func doShowNextElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
 			return nil
 		}
-		if el.code != "" {
+		if rxData.Code != "" {
 			fieldCode.Clear()
-			fieldCode.Write([]byte(el.code))
-
+			str, err := decrypt(rxData.Code, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента code, вернула ошибку:<%w>", err)
+			}
+			fieldCode.Write([]byte(str))
 		} else {
 			fieldCode.Clear()
 			fieldCode.Write([]byte(""))
@@ -3384,11 +3170,19 @@ func doShowPrevElementViewLoginPasswordData(c *handlerUI, gui *gocui.Gui) error 
 //	gui - указатель на объект Gui.
 func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 
-	// Если режим - локальный
+	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		decrIndexText(c)     // уменьшение значения индекса
-		el := textByIndex(c) // получение записи по индексу
+		decrIndexNamesText(c)      // уменьшение значения индекса
+		name := nameTextByIndex(c) // получение записи по индексу
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		rxData, err := c.conf.ActionsDB.ReadTextByNameContext(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Функция ReadTextByNameContext, вернула ошибку: <%w>", err)
+		}
 
 		// отображение содержимого поля For.
 		fieldName, err := gui.View("fieldShowFor")
@@ -3396,9 +3190,13 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
+		if rxData.Name != "" {
 			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
+			str, err := decrypt(rxData.Name, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента name, вернула ошибку:<%w>", err)
+			}
+			fieldName.Write([]byte(str))
 
 		} else {
 			fieldName.Clear()
@@ -3406,19 +3204,24 @@ func doShowPrevElementViewTextData(c *handlerUI, gui *gocui.Gui) error {
 		}
 
 		// отображение содержимого поля Login.
-		fieldText, err := gui.View("fieldShowText")
-		if err != nil || fieldText == nil {
+		fieldLogin, err := gui.View("fieldShowText")
+		if err != nil || fieldLogin == nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowText: <%v>", err))
 			return nil
 		}
-		if el.text != "" {
-			fieldText.Clear()
-			fieldText.Write([]byte(el.text))
+		if rxData.Text != "" {
+			fieldLogin.Clear()
+			str, err := decrypt(rxData.Text, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента Text, вернула ошибку:<%w>", err)
+			}
+			fieldLogin.Write([]byte(str))
 
 		} else {
-			fieldText.Clear()
-			fieldText.Write([]byte(""))
+			fieldLogin.Clear()
+			fieldLogin.Write([]byte(""))
 		}
+
 		return nil
 	}
 
@@ -3487,18 +3290,34 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 	// Если режим - локальный.
 	if c.conf.Flag.Mode == flags.ModeLocal {
 
-		decrIndexBankCard(c)     // уменьшение значения индекса
-		el := bankCardByIndex(c) // получение записи по индексу
+		if len(c.data.namesBankCard) == 0 {
+			return nil
+		}
 
-		// отображение содержимого поля For.
+		decrIndexBankCardName(c)       // уменьшение значения индекса
+		name := nameBankCardByIndex(c) // получение записи по индексу
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		rxData, err := c.conf.ActionsDB.ReadBankCardByNameContext(ctx, name)
+		if err != nil {
+			return fmt.Errorf("Функция ReadTextByNameContext, вернула ошибку: <%w>", err)
+		}
+
+		// отображение содержимого поля Для.
 		fieldName, err := gui.View("fieldShowFor")
 		if err != nil || fieldName == nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowFor: <%v>", err))
 			return nil
 		}
-		if el.name != "" {
+		if rxData.Name != "" {
 			fieldName.Clear()
-			fieldName.Write([]byte(el.name))
+			str, err := decrypt(rxData.Name, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента name, вернула ошибку:<%w>", err)
+			}
+			fieldName.Write([]byte(str))
 
 		} else {
 			fieldName.Clear()
@@ -3511,9 +3330,13 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowOwner: <%v>", err))
 			return nil
 		}
-		if el.owner != "" {
+		if rxData.Owner != "" {
 			fieldOwner.Clear()
-			fieldOwner.Write([]byte(el.owner))
+			str, err := decrypt(rxData.Owner, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента owner, вернула ошибку:<%w>", err)
+			}
+			fieldOwner.Write([]byte(str))
 
 		} else {
 			fieldOwner.Clear()
@@ -3526,9 +3349,13 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowNumber: <%v>", err))
 			return nil
 		}
-		if el.numb != "" {
+		if rxData.Numb != "" {
 			fieldNumb.Clear()
-			fieldNumb.Write([]byte(el.numb))
+			str, err := decrypt(rxData.Numb, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента numb, вернула ошибку:<%w>", err)
+			}
+			fieldNumb.Write([]byte(str))
 
 		} else {
 			fieldNumb.Clear()
@@ -3541,9 +3368,13 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowValid: <%v>", err))
 			return nil
 		}
-		if el.valid != "" {
+		if rxData.Valid != "" {
 			fieldValid.Clear()
-			fieldValid.Write([]byte(el.valid))
+			str, err := decrypt(rxData.Valid, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента valid, вернула ошибку:<%w>", err)
+			}
+			fieldValid.Write([]byte(str))
 
 		} else {
 			fieldValid.Clear()
@@ -3556,15 +3387,17 @@ func doShowPrevElementViewBankCardData(c *handlerUI, gui *gocui.Gui) error {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: Ошибка в функции View, при взаимодействии с fieldShowCode: <%v>", err))
 			return nil
 		}
-		if el.code != "" {
+		if rxData.Code != "" {
 			fieldCode.Clear()
-			fieldCode.Write([]byte(el.code))
-
+			str, err := decrypt(rxData.Code, c.secret.secretKey)
+			if err != nil {
+				return fmt.Errorf("функция decrypt, у элемента code, вернула ошибку:<%w>", err)
+			}
+			fieldCode.Write([]byte(str))
 		} else {
 			fieldCode.Clear()
 			fieldCode.Write([]byte(""))
 		}
-
 		return nil
 	}
 
@@ -4332,6 +4165,7 @@ func bufferProcessBackUp(c *handlerUI, rxChProcess <-chan float32, rxChErr <-cha
 				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
 				return
 			}
+			c.setPercentTxRx(100.0) // Если размер маленький.
 			c.updateStatusBackUp(stageOk)
 			c.conf.LgrFile.Write("Info: BackUp выполнен")
 			return
@@ -4379,6 +4213,7 @@ func bufferProcessRestore(c *handlerUI, rxChProcess <-chan float32, rxChErr <-ch
 				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
 				return
 			}
+			c.setPercentTxRx(100.0) // Если размер маленький.
 			c.updateStatusRestore(stageOk)
 			c.conf.LgrFile.Write("Info: Restore выполнен")
 			return

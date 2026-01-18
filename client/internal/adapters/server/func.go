@@ -33,11 +33,8 @@ import (
 func connect(ip, port string) (conn *grpc.ClientConn, client pb.PasswordManagerClient, err error) {
 
 	// Проверка аргументов
-	if ip == "" {
-		return nil, nil, NilPtrArgumentIP
-	}
-	if port == "" {
-		return nil, nil, NilPtrArgumentPort
+	if ip == "" || port == "" {
+		return nil, nil, nil // Возвращается nil по ошибке, т.к. в локальном режиме нет постоянной необходимости в подключении.
 	}
 
 	//

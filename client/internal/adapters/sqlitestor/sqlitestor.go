@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -24,16 +23,17 @@ type dataBaseI interface {
 	AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error)
 	UserExistContext(ctx context.Context) (bool, error)
 	AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error
-	ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error)
 	DelDataLoginPasswordContext(ctx context.Context, field1 string) error
 	AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error
-	ReadTableTextContext(ctx context.Context) (list []TextData, err error)
 	DelTextContext(ctx context.Context, field1 string) error
 	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error
-	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)
 	DelBankCardContext(ctx context.Context, field1 string) error
 	ReadNamesTableLoginPasswordContext(ctx context.Context) (names []string, err error)
 	ReadLoginPassworByNameContext(ctx context.Context, name string) (data LoginPassword, err error)
+	ReadNamesTableTextContext(ctx context.Context) (names []string, err error)
+	ReadTextByNameContext(ctx context.Context, name string) (data TextData, err error)
+	ReadNamesTableBankCardContext(ctx context.Context) (names []string, err error)
+	ReadBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error)
 }
 
 // Интерфейс.
@@ -206,54 +206,6 @@ func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, field1, fiel
 	return nil
 }
 
-// Получение всех записей логин/пароль из БД. Возвращается массив записей и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (d *dataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error) {
-
-	limit := 100
-	offset := 0
-	query := "SELECT field_1, field_2, field_3, created_at FROM data1 LIMIT ? OFFSET ?"
-
-	// Порционные запросы.
-	for {
-		rows, err := d.storage.QueryContext(ctx, query, limit, offset)
-		if err != nil {
-			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
-		}
-		defer rows.Close()
-
-		recordCount := 0 // Счетчик количества прочитанных записей
-
-		for rows.Next() {
-			var el LoginPassword
-
-			err := rows.Scan(&el.Name, &el.Login, &el.Password, &el.CreatedAt)
-			if err != nil {
-				log.Fatalf("Ошибка при считывании строки: %v", err)
-			}
-			list = append(list, el)
-			recordCount++
-		}
-
-		if err := rows.Err(); err != nil {
-			log.Fatalf("Ошибка при обработке строк: %v", err)
-		}
-
-		// Если меньше, значит записей больше нет.
-		if recordCount < limit {
-			break
-		}
-		// Изменение смещения.
-		offset += limit
-	}
-
-	// Результат.
-	return list, nil
-}
-
 // Чтение всех имен записей. Возвращается массив имён и ошибка.
 //
 // Параметры:
@@ -361,52 +313,58 @@ func (d *dataBase) AddDataTextContext(ctx context.Context, field1, field2, creat
 	return nil
 }
 
-// Получение всех записей текста из БД. Возвращается массив записей и ошибка.
+// Чтение всех имен записей текста. Возвращается массив имён и ошибка.
 //
 // Параметры:
 //
 //	ctx - контекст.
-func (d *dataBase) ReadTableTextContext(ctx context.Context) (list []TextData, err error) {
+func (d *dataBase) ReadNamesTableTextContext(ctx context.Context) (names []string, err error) {
 
-	limit := 100
-	offset := 0
-	query := "SELECT field_1, field_2, created_at FROM data2 LIMIT ? OFFSET ?"
+	// Запрос
+	query := "SELECT field_1 FROM data2"
+	rows, err := d.storage.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	// Порционные запросы.
-	for {
-		rows, err := d.storage.QueryContext(ctx, query, limit, offset)
-		if err != nil {
-			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
+	// Обработка ответа.
+	for rows.Next() {
+		var field1 string
+		if err := rows.Scan(&field1); err != nil {
+			return nil, err
 		}
-		defer rows.Close()
-
-		recordCount := 0 // Счетчик количества прочитанных записей
-
-		for rows.Next() {
-			var el TextData
-
-			err := rows.Scan(&el.Name, &el.Text, &el.CreatedAt)
-			if err != nil {
-				log.Fatalf("Ошибка при считывании строки: %v", err)
-			}
-			list = append(list, el)
-			recordCount++
-		}
-
-		if err := rows.Err(); err != nil {
-			log.Fatalf("Ошибка при обработке строк: %v", err)
-		}
-
-		// Если меньше, значит записей больше нет.
-		if recordCount < limit {
-			break
-		}
-		// Изменение смещения.
-		offset += limit
+		names = append(names, field1)
 	}
 
-	// Результат.
-	return list, nil
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// Чтение данных текста по имени записи. Возвращаются данные записи и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	name - имя записи.
+func (d *dataBase) ReadTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
+
+	// Запрос.
+	query := "SELECT field_1, field_2, created_at FROM data2 WHERE field_1 = ?"
+	row := d.storage.QueryRowContext(ctx, query, name)
+
+	// Обработка ответа.
+	err = row.Scan(&data.Name, &data.Text, &data.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return TextData{}, nil
+		}
+		return TextData{}, err
+	}
+
+	return data, nil
 }
 
 // Удаление текста. Возвращается ошибка.
@@ -465,54 +423,6 @@ func (d *dataBase) AddDataBankCardContext(ctx context.Context, field1, field2, f
 	return nil
 }
 
-// Получение всех записей банковских карт из БД. Возвращается массив записей и ошибка.
-//
-// Параметры:
-//
-//	ctx - контекст.
-func (d *dataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error) {
-
-	limit := 100
-	offset := 0
-	query := "SELECT field_1, field_2, field_3, field_4, field_5, created_at FROM data4 LIMIT ? OFFSET ?"
-
-	// Порционные запросы.
-	for {
-		rows, err := d.storage.QueryContext(ctx, query, limit, offset)
-		if err != nil {
-			return nil, fmt.Errorf("функция db.QueryContext, вернула ошибку: <%w>", err)
-		}
-		defer rows.Close()
-
-		recordCount := 0 // Счетчик количества прочитанных записей
-
-		for rows.Next() {
-			var el BankCard
-
-			err := rows.Scan(&el.Name, &el.Owner, &el.Numb, &el.Valid, &el.Code, &el.CreatedAt)
-			if err != nil {
-				log.Fatalf("Ошибка при считывании строки: %v", err)
-			}
-			list = append(list, el)
-			recordCount++
-		}
-
-		if err := rows.Err(); err != nil {
-			log.Fatalf("Ошибка при обработке строк: %v", err)
-		}
-
-		// Если меньше, значит записей больше нет.
-		if recordCount < limit {
-			break
-		}
-		// Изменение смещения.
-		offset += limit
-	}
-
-	// Результат.
-	return list, nil
-}
-
 // Удаление банковской карты. Возвращается ошибка.
 //
 // Параметры:
@@ -538,4 +448,58 @@ func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error 
 	}
 
 	return nil
+}
+
+// Чтение всех имен записей банковских карт. Возвращается массив имён и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+func (d *dataBase) ReadNamesTableBankCardContext(ctx context.Context) (names []string, err error) {
+
+	// Запрос
+	query := "SELECT field_1 FROM data4"
+	rows, err := d.storage.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Обработка ответа.
+	for rows.Next() {
+		var field1 string
+		if err := rows.Scan(&field1); err != nil {
+			return nil, err
+		}
+		names = append(names, field1)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// Чтение данных банковской карты по имени записи. Возвращаются данные записи и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+//	name - имя записи.
+func (d *dataBase) ReadBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error) {
+
+	// Запрос.
+	query := "SELECT field_1, field_2, field_3, field_4, field_5, created_at FROM data4 WHERE field_1 = ?"
+	row := d.storage.QueryRowContext(ctx, query, name)
+
+	// Обработка ответа.
+	err = row.Scan(&data.Name, &data.Owner, &data.Numb, &data.Valid, &data.Code, &data.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return BankCard{}, nil
+		}
+		return BankCard{}, err
+	}
+
+	return data, nil
 }

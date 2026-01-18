@@ -10,8 +10,9 @@ import (
 
 // Флаги сервиса.
 type Config struct {
-	NameSubDirFiles string // Имя поддиректории принятых файлов.
-	DSN             string // dsn БД
+	NameSubDirFiles  string // Имя поддиректории принятых файлов.
+	NameSubDirBackUp string // Имя поддиректории backUp.
+	DSN              string // dsn БД
 }
 
 // Обеспечение однократного выполнения.
@@ -25,7 +26,8 @@ func New() *Config {
 
 	once.Do(func() {
 
-		flag.StringVar(&flags.NameSubDirFiles, "sd", NameSubDirFiles, "дочерняя директория для хранения файлов")
+		flag.StringVar(&flags.NameSubDirFiles, "sdf", NameSubDirFiles, "дочерняя директория для хранения файлов")
+		flag.StringVar(&flags.NameSubDirBackUp, "sdb", NameSubDirBackUp, "дочерняя директория для хранения backUp")
 		flag.StringVar(&flags.DSN, "d", DSN, "dsn БД")
 
 		flag.Parse()
@@ -54,6 +56,9 @@ func setFlagsFromEnv(f *Config) error {
 	// Логика
 	if envValue := os.Getenv("SUBDIR_FILES"); envValue != "" {
 		f.NameSubDirFiles = envValue
+	}
+	if envValue := os.Getenv("SUBDIR_BACKUP"); envValue != "" {
+		f.NameSubDirBackUp = envValue
 	}
 	if envValue := os.Getenv("DB_DSN"); envValue != "" {
 		f.DSN = envValue

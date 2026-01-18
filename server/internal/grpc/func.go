@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -200,4 +201,34 @@ func createToken(subjectName, secretKey string, validTime time.Duration) (string
 
 	// Результат.
 	return tokenString, nil
+}
+
+// Получение название файлов в директории. Возвращается массив имён и ошибка.
+//
+// Параметры:
+//
+//	dirPath - директория с файлами.
+func ReadFilesInDirectory(dirPath string) (files []string, err error) {
+
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("директория не найдена: %s", dirPath)
+	}
+
+	// Чтение файлов в директории
+	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// Проверка, что это - файл.
+		if !info.IsDir() {
+			files = append(files, info.Name())
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
 }

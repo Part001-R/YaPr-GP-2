@@ -66,6 +66,7 @@ type ActionsI interface {
 	DeleteFile(idClient, name string) error
 	GetTokenAuthentication() string
 	UpdateTokenAuthentication(token string)
+	IsConnectSuccess() bool
 }
 
 // Интерфейс.
@@ -1105,4 +1106,11 @@ func (s *server) GetTokenAuthentication() string {
 //	token - новый токен.
 func (s *server) UpdateTokenAuthentication(token string) {
 	s.tokenSrv = token
+}
+
+// Проверка успешности подключения к серверу. Возвращается true - если коннект установлен.
+
+func (s *server) IsConnectSuccess() bool {
+
+	return s.connect != nil
 }
