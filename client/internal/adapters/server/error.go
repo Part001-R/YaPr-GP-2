@@ -34,8 +34,8 @@ var (
 	// Нет указателя connect
 	NilPtrConnect = errors.New("Нет указателя connect")
 
-	// Отсутствуют данные токена.
-	MissingTokenData = errors.New("Отсутствуют данные токена")
+	// Отсутствует токен, отправленный серверу.
+	MissingTokenData = errors.New("Отсутствует токен, отправленный серверу")
 
 	// Отсутствуют данные токена от сервера.
 	MissingTokenSrvData = errors.New("Отсутствуют данные токена от сервера")

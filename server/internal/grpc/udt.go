@@ -2,9 +2,8 @@
 package grpc
 
 const (
-	stageNotActive     = 0
-	stageActive        = 1
-	nameDirBackUpFiles = "backupFiles" // Название директории для хранения BackUp файлов.
+	stageNotActive = 0
+	stageActive    = 1
 )
 
 // Статусы процессов.
