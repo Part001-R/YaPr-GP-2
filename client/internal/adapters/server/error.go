@@ -49,6 +49,12 @@ var (
 	// В аргументе txLogin, нет данных.
 	EmptyDataArgumentTxLogin = errors.New("в аргументе <txLogin>, нет данных")
 
+	// В аргументе txPassword, нет данных.
+	EmptyDataArgumentTxPassword = errors.New("в аргументе <txPassword>, нет данных")
+
+	// В аргументе txCreatedAt, нет данных.
+	EmptyDataArgumentTxCreatedAt = errors.New("в аргументе <txCreatedAt>, нет данных")
+
 	// В аргументе txOwner, нет данных.
 	EmptyDataArgumentTxOwner = errors.New("в аргументе <txOwner>, нет данных")
 
@@ -69,6 +75,9 @@ var (
 
 	// Некорректное заполнение
 	NotCorrectDataFill = errors.New("некорректное заполнение")
+
+	// Некорректное заполнение номера
+	NotCorrectDataNumb = errors.New("некорректное заполнение номера")
 
 	// Ошибка паддинга
 	ErrInvalidPadding = errors.New("Ошибка паддинга")
@@ -114,4 +123,13 @@ var (
 
 	// В аргументе sizeSendFile, нет данных.
 	EmptyDataArgumentSizeSendFile = errors.New("в аргументе <sizeSendFile>, нет данных")
+
+	// Подключение клиента закрыто.
+	ErrConnectIsClosing = errors.New("rpc error: code = Canceled desc = grpc: the client connection is closing")
+
+	// Недопустимое значение размера файла
+	IncorrectSizeFile = errors.New("недопустимое значение размера файла")
+
+	// недопустимое значение процентов процесса
+	IncorrectSizePassed = errors.New("недопустимое значение процентов процесса")
 )

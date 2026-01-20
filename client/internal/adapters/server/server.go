@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -30,7 +31,7 @@ type server struct {
 	connect     *grpc.ClientConn         // коннект.
 	tokenSrv    string                   // токен сервера.
 	mtx         mutexes                  // мьютексы.
-	dataRxFile  dataRequestFile          // данные для приёма файла.
+	dataRxFile  DataRequestFile          // данные для приёма файла.
 	dataTxFile  dataSendFile             // данные для передачи файла.
 	dataBackUp  dataBackUp               // данные для процесса BackUp.
 	dataRestore dataRestore              // данные для процесса BackUp.
@@ -58,7 +59,7 @@ type ActionsI interface {
 	RequestFileNames(ctx context.Context, tokenAuth string, key [32]byte) (rxData []string, isBusy bool, err error)
 	RequestFileInfo(tokenAuth, idClient, nameFile string) (fileName, fileHash string, fileSize int64, err error)
 	RequestFileByName(chProcess chan<- float32, chErr chan<- error, chDone chan<- struct{})
-	InitDataRequestFileByName(fileName, filePath, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error
+	InitDataRequestFileByName(dataInit DataRequestFile) error
 	InitDataSendFile(filePath, tokenAuth, clientID string, sizeSendFile, sizePassed int64, secretKey [32]byte) error
 	DeleteLoginPassword(idClient, name string) error
 	DeleteText(idClient, name string) error
@@ -88,10 +89,11 @@ func New(ip, port string) (act ServerI, err error) {
 	// Закрытие подключения, если было установлено ранее.
 	if inst != nil {
 		if inst.connect != nil {
-			if err := inst.connect.Close(); err != nil {
+			if err := inst.connect.Close(); err != nil && !errors.Is(err, ErrConnectIsClosing) {
 				return nil, fmt.Errorf("Ошибка закрытия подключения к серверу, при обновлении: <%v>", err)
 			}
 		}
+		inst = nil
 	}
 
 	// Подключение.
@@ -111,7 +113,7 @@ func New(ip, port string) (act ServerI, err error) {
 			processRxFile:        sync.Mutex{},
 			processBackUpRestore: sync.Mutex{},
 		},
-		dataRxFile:  dataRequestFile{},
+		dataRxFile:  DataRequestFile{},
 		dataTxFile:  dataSendFile{},
 		dataBackUp:  dataBackUp{},
 		dataRestore: dataRestore{},
@@ -217,7 +219,7 @@ func (s *server) AuthenticationContext(ctx context.Context, userName, userPwd st
 func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, tokenAuth string, key [32]byte) error {
 
 	// Проверка аргументов.
-	if data.For == "" {
+	if data.ID == "" {
 		return EmptyDataArgumentTxID
 	}
 	if data.For == "" {
@@ -225,6 +227,12 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 	}
 	if data.Login == "" {
 		return EmptyDataArgumentTxLogin
+	}
+	if data.Password == "" {
+		return EmptyDataArgumentTxPassword
+	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentTxCreatedAt
 	}
 	if s.client == nil {
 		return NilPtrConnect
@@ -284,7 +292,7 @@ func (s *server) SendLoginPassword(ctx context.Context, data TxLoginPassword, to
 func (s *server) SendText(ctx context.Context, data TxText, tokenAuth string, key [32]byte) error {
 
 	// Проверка аргументов.
-	if data.For == "" {
+	if data.ID == "" {
 		return EmptyDataArgumentTxID
 	}
 	if data.For == "" {
@@ -292,6 +300,9 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenAuth string, ke
 	}
 	if data.Text == "" {
 		return EmptyDataArgumentTxText
+	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentTxCreatedAt
 	}
 	if s.client == nil {
 		return NilPtrConnect
@@ -348,7 +359,7 @@ func (s *server) SendText(ctx context.Context, data TxText, tokenAuth string, ke
 func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenAuth string, key [32]byte) error {
 
 	// Проверка аргументов.
-	if data.For == "" {
+	if data.ID == "" {
 		return EmptyDataArgumentTxID
 	}
 	if data.For == "" {
@@ -366,8 +377,16 @@ func (s *server) SendBankCard(ctx context.Context, data TxBankCard, tokenAuth st
 	if data.Code == "" {
 		return EmptyDataArgumentTxCode
 	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentTxCreatedAt
+	}
 	if s.client == nil {
 		return NilPtrConnect
+	}
+
+	// Проверка номера карты алгоритмом Luhn.
+	if !isCheckByLuhn(data.Numb) {
+		return NotCorrectDataNumb
 	}
 
 	// Шифрование передаваемых данных.
@@ -695,7 +714,7 @@ func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error,
 	}()
 
 	// Создание резервной копии файла. Если он существует.
-	tempFileName, err := layerRequestFileByNameCreateTemp(s.dataRxFile.fileName)
+	tempFileName, err := layerRequestFileByNameCreateTemp(s.dataRxFile.FileName)
 	if err != nil {
 		chErr <- fmt.Errorf("Функция layerRequestFileByNameCreateTemp, вернула ошибку: <%w>", err)
 		return
@@ -715,14 +734,14 @@ func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error,
 	}
 
 	// Расшифровка принятого файла.
-	decFileName, err := layerRequestFileByNameDecrypt(s.dataRxFile.fileName, s.dataRxFile.secretKey)
+	decFileName, err := layerRequestFileByNameDecrypt(s.dataRxFile.FileName, s.dataRxFile.SecretKey)
 	if err != nil {
 		chErr <- fmt.Errorf("Функция layerRequestFileByNameDecrypt, вернула ошибку: <%w>", err)
 		return
 	}
 
 	// Перенос файла в указанную директорию.
-	if err := layerRequestFileByNameMove(decFileName, s.dataRxFile.filePath); err != nil {
+	if err := layerRequestFileByNameMove(decFileName, s.dataRxFile.FilePath); err != nil {
 		chErr <- fmt.Errorf("Функция layerRequestFileByNameMove, вернула ошибку: <%w>", err)
 		return
 	}
@@ -742,32 +761,27 @@ func (s *server) RequestFileByName(chProcess chan<- float32, chErr chan<- error,
 //	sizeReqFile - размер запрашиваемого файла.
 //	sizePassed - обработанный размер.
 //	secretKey - ключ.
-func (s *server) InitDataRequestFileByName(fileName, filePath, tokenAuth, clientID string, sizeReqFile, sizePassed int64, secretKey [32]byte) error {
+func (s *server) InitDataRequestFileByName(dataInit DataRequestFile) error {
 
 	// Проверка аргументов
-	if fileName == "" || fileName == "....." {
+	if dataInit.FileName == "" {
 		return EmptyDataArgumentFileName
 	}
-	if tokenAuth == "" {
+	if dataInit.TokenAuth == "" {
 		return EmptyDataArgumentTokenAuth
 	}
-	if clientID == "" {
+	if dataInit.ClientID == "" {
 		return EmptyDataArgumentClientID
 	}
-	if len(secretKey) != 32 {
-		return NotCorrectLenData
+	if dataInit.SizeReqFile <= 0 {
+		return IncorrectSizeFile
+	}
+	if dataInit.SizePassed < 0 {
+		return IncorrectSizePassed
 	}
 
 	// Данные
-	s.dataRxFile = dataRequestFile{
-		filePath:    filePath,
-		fileName:    fileName,
-		tokenAuth:   tokenAuth,
-		clientID:    clientID,
-		sizeReqFile: sizeReqFile,
-		sizePassed:  sizePassed,
-		secretKey:   secretKey,
-	}
+	s.dataRxFile = dataInit
 
 	return nil
 }
@@ -871,9 +885,6 @@ func (s *server) InitDataBackUp(listFiles []string, sizeSendFile int64, secretKe
 	}
 	if sizeSendFile <= 0 {
 		return EmptyDataArgumentSizeSendFile
-	}
-	if len(secretKey) != 32 {
-		return NotCorrectLenData
 	}
 
 	// Инициализация.
@@ -980,6 +991,16 @@ func (s *server) Restore(chProcess chan<- float32, chErr chan<- error, chDone ch
 //
 //	listFiles - массив информации по файлам.
 func (s *server) InitDataRestore(listFiles []InfoByFiles) error {
+
+	// Проверка аргументов
+	if len(listFiles) != 2 {
+		return NotCorrectLenLestFiles
+	}
+	for _, v := range listFiles {
+		if v.Volume <= 0 {
+			return NotCorrectDataFill
+		}
+	}
 
 	s.dataRestore = dataRestore{}
 

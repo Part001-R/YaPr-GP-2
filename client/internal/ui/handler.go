@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/service/udt"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/jroimartin/gocui"
@@ -23,6 +24,7 @@ var inst *handlerUI // Экземпляр.
 //
 //	conf - указатель конфигурации сервиса.
 func new(conf *udt.Configuration) *handlerUI {
+
 	once.Do(func() {
 		inst = &handlerUI{
 			conf:   conf,
@@ -1072,7 +1074,16 @@ func (c *handlerUI) doExtract(g *gocui.Gui, v *gocui.View) error {
 				rxFileSize = rxFileSize / 1024 // Получение КБайт
 
 				// Подготовка данных для реализации запроса файла.
-				if err := c.conf.Server.InitDataRequestFileByName(fileName, c.typed.dataPathTrg, c.tokenAuth, c.clientName, rxFileSize, 0, c.secret.secretKey); err != nil {
+				var dataInit server.DataRequestFile
+				dataInit.FileName = fileName
+				dataInit.FilePath = c.typed.dataPathTrg
+				dataInit.TokenAuth = c.tokenAuth
+				dataInit.ClientID = c.clientName
+				dataInit.SizeReqFile = rxFileSize
+				dataInit.SizePassed = 0
+				dataInit.SecretKey = c.secret.secretKey
+
+				if err := c.conf.Server.InitDataRequestFileByName(dataInit); err != nil {
 					c.conf.LgrFile.Write(fmt.Sprintf("Error: функция InitDataRequestFileByName, вернула ошибку: <%v>", err))
 					return nil
 				}

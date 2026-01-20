@@ -1086,7 +1086,7 @@ func layerRequestFileInfoCheck(fileName, rxFileName string) error {
 //	s - указатель на сервер.
 //	data - данные процесса.
 //	chProcess - канал передачи процентов выполнения.
-func layerRequestFileByNameRx(s *server, data *dataRequestFile, chProcess chan<- float32) (err error) {
+func layerRequestFileByNameRx(s *server, data *DataRequestFile, chProcess chan<- float32) (err error) {
 
 	needRestoreState := false // Признак необходимости воостановления состояния, при ошибке.
 	var tempFileName string   // Имя временного файла.
@@ -1096,7 +1096,7 @@ func layerRequestFileByNameRx(s *server, data *dataRequestFile, chProcess chan<-
 		if errRestore := deferProcessRestoreByError(needRestoreState, fileName, tempFileName, errProcess); errRestore != nil {
 			err = fmt.Errorf("функция deferProcessRestoreByError, вернула ошибку:<%w>, при ошибку процесса:<%w>", errRestore, errProcess)
 		}
-	}(needRestoreState, data.fileName, tempFileName, err)
+	}(needRestoreState, data.FileName, tempFileName, err)
 
 	// Запрос файла у сервера.
 	srcFileHash, err := requestFile(s, data, chProcess)
@@ -1105,19 +1105,19 @@ func layerRequestFileByNameRx(s *server, data *dataRequestFile, chProcess chan<-
 	}
 
 	// Вычисление хэша принятого файла.
-	rxFileHash, err := hashFile(data.fileName)
+	rxFileHash, err := hashFile(data.FileName)
 	if err != nil {
 		return fmt.Errorf("функция hashFile, вернула ошибку: <%w>", err)
 	}
 
 	// Проверка результата.
-	if err := checkResultRequestFile(data.fileName, rxFileHash, srcFileHash); err != nil {
+	if err := checkResultRequestFile(data.FileName, rxFileHash, srcFileHash); err != nil {
 
 		// Удаление файла, если проверка не пройдена.
-		if errRemove := os.Remove(data.fileName); errRemove != nil {
-			return fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, data.fileName, err)
+		if errRemove := os.Remove(data.FileName); errRemove != nil {
+			return fmt.Errorf("ошибка:<%w> удаления файла:<%s>, после приёма. Базовая ошибка:<%w>", errRemove, data.FileName, err)
 		}
-		return fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, data.fileName)
+		return fmt.Errorf("функция layerRestoreCheckResult, вернула ошибку:<%w>, для файла:<%s>", err, data.FileName)
 	}
 
 	return nil

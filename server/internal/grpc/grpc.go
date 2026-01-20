@@ -482,7 +482,7 @@ func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequ
 func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswordRequest) (*emptypb.Empty, error) {
 
 	if req.IdClient == "" {
-		return nil, status.Error(codes.NotFound, "нет данных ID клиента")
+		return &emptypb.Empty{}, status.Error(codes.NotFound, "нет данных ID клиента")
 	}
 	s.logger.Info("Принят запрос добавления логин/пароль", zap.String("ID клиента", req.IdClient))
 
@@ -490,31 +490,31 @@ func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswo
 	rxData, err := layerSendLoginPasswordRx(req)
 	if err != nil {
 		s.logger.Error("ошибка получения отправленных данных", zap.Error(err))
-		return nil, status.Error(codes.Internal, "ошибка получения отправленных данных")
+		return &emptypb.Empty{}, status.Error(codes.Internal, "ошибка получения отправленных данных")
 	}
 
 	// Получение токена запроса.
 	rxToken, err := layerSendLoginPasswordGetToken(ctx)
 	if err != nil {
 		s.logger.Error("ошибка получения токена запроса", zap.Error(err))
-		return nil, status.Error(codes.Internal, "ошибка получения токена запроса")
+		return &emptypb.Empty{}, status.Error(codes.Internal, "ошибка получения токена запроса")
 	}
 
 	// Проверка токена.
 	if err := checkToken(rxToken.token, s.secretKey); err != nil {
 		s.logger.Error("ошибка проверки токена", zap.Error(err))
-		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+		return &emptypb.Empty{}, status.Error(codes.PermissionDenied, "токен не прошел проверку")
 	}
 
 	// Логика.
 	if err := layerSendLoginPasswordLogicContext(ctx, rxData, s); err != nil {
 		s.logger.Error("ошибка добавления записи в БД", zap.Error(err))
-		return nil, status.Error(codes.Internal, "ошибка добавления записи в БД")
+		return &emptypb.Empty{}, status.Error(codes.Internal, "ошибка добавления записи в БД")
 	}
 
 	s.logger.Info("Данные запроса логин/пароль, успешно добавлены", zap.String("ID клиента", req.IdClient))
 
-	return nil, nil
+	return &emptypb.Empty{}, nil
 }
 
 // Добавление данных - текст. Возвращается пустой указатель и ошибка.

@@ -14,8 +14,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
+	"unicode"
 
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/golang-jwt/jwt/v4"
@@ -241,13 +243,13 @@ func decrypt(data string, key [32]byte) (string, error) {
 	// Декодирование из Base64
 	ciphertextBytes, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Функция DecodeString, вернула ошибку:<%w>", err)
 	}
 
 	// Создание AES-256
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Функция NewCipher, вернула ошибку:<%w>", err)
 	}
 
 	blockSize := block.BlockSize()
@@ -387,19 +389,19 @@ func restoreFileName(fileName string, suffix string) (err error) {
 //	s - указатель на сервер.
 //	data - данные для процесса.
 //	chProcess - канал для передачи процентов процесса.
-func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rxFileHash string, err error) {
+func requestFile(s *server, data *DataRequestFile, chProcess chan<- float32) (rxFileHash string, err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Установка метаданных с токеном
-	md := metadata.Pairs("token", data.tokenAuth)
+	md := metadata.Pairs("token", data.TokenAuth)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	// Запрос
 	req := &pb.RequestFileByNameRequest{
-		IdClient: data.clientID,
-		FileName: data.fileName,
+		IdClient: data.ClientID,
+		FileName: data.FileName,
 	}
 	stream, err := s.client.RequestFileByName(ctx, req)
 	if err != nil {
@@ -407,16 +409,16 @@ func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rx
 	}
 
 	// Предварительное удаление, если такой файл уже существует.
-	if isFileExists(data.fileName) {
-		if err := os.Remove(data.fileName); err != nil {
+	if isFileExists(data.FileName) {
+		if err := os.Remove(data.FileName); err != nil {
 			return "", fmt.Errorf("ошибка удаления файла: <%w>", err)
 		}
 	}
 
 	// Создание файла для записи
-	file, err := os.Create(data.fileName)
+	file, err := os.Create(data.FileName)
 	if err != nil {
-		return "", fmt.Errorf("не удалось создать файл <%s>: <%w>", data.fileName, err)
+		return "", fmt.Errorf("не удалось создать файл <%s>: <%w>", data.FileName, err)
 	}
 	defer file.Close()
 
@@ -429,7 +431,7 @@ func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rx
 			}
 			return "", fmt.Errorf("Функция stream.Recv, вернула ошибку: <%w>", err)
 		}
-		if res.FileName != data.fileName {
+		if res.FileName != data.FileName {
 			return "", fmt.Errorf("Приняты данные для другого файла: <%s>", res.FileName)
 		}
 
@@ -438,7 +440,7 @@ func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rx
 
 		// Запись данных в файл
 		if _, err := file.Write(res.Content); err != nil {
-			return "", fmt.Errorf("ошибка при записи в файл <%s>: <%w>", data.fileName, err)
+			return "", fmt.Errorf("ошибка при записи в файл <%s>: <%w>", data.FileName, err)
 		}
 	}
 
@@ -447,7 +449,7 @@ func requestFile(s *server, data *dataRequestFile, chProcess chan<- float32) (rx
 	if hash, ok := rxTrailer["hash"]; ok {
 		rxFileHash = hash[0]
 	} else {
-		return "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", data.fileName)
+		return "", fmt.Errorf("Сервер не предоставил трейлер с данными хэша, для файла: <%s>", data.FileName)
 	}
 
 	// Результат
@@ -534,7 +536,7 @@ func checkResultRequestFile(fileName, rxFileHash, srcFileHash string) error {
 //	chProcess - канал передачи процентов процесса.
 //	b - количество байт.
 //	data - данные процесса.
-func updateDataRxProcess(s *server, chProcess chan<- float32, b int, data *dataRequestFile) {
+func updateDataRxProcess(s *server, chProcess chan<- float32, b int, data *DataRequestFile) {
 
 	s.mtx.processRxFile.Lock()
 	defer s.mtx.processRxFile.Unlock()
@@ -543,11 +545,11 @@ func updateDataRxProcess(s *server, chProcess chan<- float32, b int, data *dataR
 	volumeKB := b / 1024
 
 	// Обновление данных накопителя.
-	data.sizePassed += int64(volumeKB)
+	data.SizePassed += int64(volumeKB)
 
 	// Вычисление процентов.
-	if data.sizeReqFile > 0 {
-		chProcess <- float32(float64(data.sizePassed) / float64(data.sizeReqFile) * 100.0)
+	if data.SizeReqFile > 0 {
+		chProcess <- float32(float64(data.SizePassed) / float64(data.SizeReqFile) * 100.0)
 	} else {
 		chProcess <- 0
 	}
@@ -604,4 +606,59 @@ func updateDataBackUpRestoreProcess(s *server, chProcess chan<- float32, b int) 
 	} else {
 		chProcess <- 0
 	}
+}
+
+// Проверка номера алгоритмом Luhn. Возвращается true - проверка пройдена.
+//
+// Параметры:
+//
+//	cardNumber - номер.
+func isCheckByLuhn(number string) bool {
+
+	// Удаление лишних символов
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsDigit(r) {
+			return r
+		}
+		return -1
+	}, number)
+
+	if len(cleaned) == 0 {
+		return false
+	}
+
+	var sum int
+	length := len(cleaned)
+
+	// Проход справа налево
+	for i := 0; i < length; i++ {
+		digit := int(cleaned[length-1-i] - '0')
+
+		if i%2 == 1 {
+			digit *= 2
+			if digit > 9 {
+				digit -= 9
+			}
+		}
+		sum += digit
+	}
+
+	return sum%10 == 0
+}
+
+// Сброс экземпляра сервера, для тестов.
+func resetInstServer() {
+
+	// Определяем место вызова
+	_, callerFile, _, ok := runtime.Caller(1)
+	if !ok {
+		panic("не удалось получить информацию о месте вызова")
+	}
+
+	// Является ли вызывающий файл тестовым
+	if !strings.HasSuffix(callerFile, "_test.go") {
+		return
+	}
+
+	inst = nil
 }

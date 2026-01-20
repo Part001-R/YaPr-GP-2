@@ -67,14 +67,14 @@ type TxFileResp struct {
 }
 
 // Представление данных для запроса файла
-type dataRequestFile struct {
-	filePath    string   // Путь к файлу.
-	fileName    string   // имя файла.
-	tokenAuth   string   // Токен аутентификации.
-	clientID    string   // id клиента.
-	sizeReqFile int64    // Размер запрашиваемых данных.
-	sizePassed  int64    // Обработанный размер.
-	secretKey   [32]byte // Ключ.
+type DataRequestFile struct {
+	FilePath    string   // Путь к файлу.
+	FileName    string   // имя файла.
+	TokenAuth   string   // Токен аутентификации.
+	ClientID    string   // id клиента.
+	SizeReqFile int64    // Размер запрашиваемых данных.
+	SizePassed  int64    // Обработанный размер.
+	SecretKey   [32]byte // Ключ.
 }
 
 // Представление данных для передачи файла
