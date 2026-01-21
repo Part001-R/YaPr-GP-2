@@ -507,7 +507,7 @@ func checkResultRequestFile(fileName, rxFileHash, srcFileHash string) error {
 
 	// Проверка аргументов.
 	if fileName == "" {
-		return EmptyDataArgumentFileName
+		return EmptyDataArgumentName
 	}
 	if rxFileHash == "" {
 		return EmptyDataArgumentRxFileHash

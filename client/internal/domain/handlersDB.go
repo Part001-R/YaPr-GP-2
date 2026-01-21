@@ -89,11 +89,16 @@ func (s *storage) UserExistContext(ctx context.Context) (bool, error) {
 //	field2 - поле имени пользователя.
 //	field3 - поле пароля пользователя.
 //	createdAt - поле даты создания записи.
-func (s *storage) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
+func (s *storage) AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AddDataLoginPasswordContext(ctx, field1, field2, field3, createdAt)
+		var txData sqlitestor.DataLoginPassword
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		txData.Field3 = data.Field3
+		txData.CreatedAt = data.CreatedAt
+		return actions.AddDataLoginPasswordContext(ctx, txData)
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
@@ -129,11 +134,15 @@ func (s *storage) DelDataLoginPasswordContext(ctx context.Context, field1 string
 //	field1 - поле имени записи.
 //	field2 - поле текста.
 //	createdAt - поле даты создания записи.
-func (s *storage) AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error {
+func (s *storage) AddDataTextContext(ctx context.Context, data DataText) error {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AddDataTextContext(ctx, field1, field2, createdAt)
+		var txData sqlitestor.DataText
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		txData.CreatedAt = data.CreatedAt
+		return actions.AddDataTextContext(ctx, txData)
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
@@ -166,17 +175,19 @@ func (s *storage) DelTextContext(ctx context.Context, field1 string) error {
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле имени владельца.
-//	field3 - поле номера.
-//	field4 - поле даты вылидности.
-//	field5 - поле кода.
-//	createdAt - поле даты создания записи.
-func (s *storage) AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error {
+//	data - данные.
+func (s *storage) AddDataBankCardContext(ctx context.Context, data DataBankCard) error {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AddDataBankCardContext(ctx, field1, field2, field3, field4, field5, createdAt)
+		var txData sqlitestor.DataBankCard
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		txData.Field3 = data.Field3
+		txData.Field4 = data.Field4
+		txData.Field5 = data.Field5
+		txData.CreatedAt = data.CreatedAt
+		return actions.AddDataBankCardContext(ctx, txData)
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")

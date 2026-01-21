@@ -765,7 +765,7 @@ func (s *server) InitDataRequestFileByName(dataInit DataRequestFile) error {
 
 	// Проверка аргументов
 	if dataInit.FileName == "" {
-		return EmptyDataArgumentFileName
+		return EmptyDataArgumentName
 	}
 	if dataInit.TokenAuth == "" {
 		return EmptyDataArgumentTokenAuth
@@ -1047,6 +1047,14 @@ func (s *server) RestoreRequestFilesInfo() (data []InfoByFiles, err error) {
 //	name - имя записи.
 func (s *server) DeleteLoginPassword(idClient, name string) error {
 
+	// проверка аргументов.
+	if name == "" {
+		return EmptyDataArgumentName
+	}
+	if idClient == "" {
+		return EmptyDataArgumentClientID
+	}
+
 	// Удаление записи.
 	if err := layerDeleteLoginPassword(name, idClient, s); err != nil {
 		return fmt.Errorf("Функция layerDeleteLoginPassword, вернула ошибку:<%w>", err)
@@ -1063,6 +1071,14 @@ func (s *server) DeleteLoginPassword(idClient, name string) error {
 //	name - имя записи.
 func (s *server) DeleteText(idClient, name string) error {
 
+	// проверка аргументов.
+	if name == "" {
+		return EmptyDataArgumentName
+	}
+	if idClient == "" {
+		return EmptyDataArgumentClientID
+	}
+
 	// Удаление записи.
 	if err := layerDeleteText(name, idClient, s); err != nil {
 		return fmt.Errorf("Функция layerDeleteText, вернула ошибку:<%w>", err)
@@ -1078,6 +1094,14 @@ func (s *server) DeleteText(idClient, name string) error {
 //	idClient - id клиента.
 //	name - имя записи.
 func (s *server) DeleteBankCard(idClient, name string) error {
+
+	// проверка аргументов.
+	if name == "" {
+		return EmptyDataArgumentName
+	}
+	if idClient == "" {
+		return EmptyDataArgumentClientID
+	}
 
 	// Удаление записи.
 	if err := layerDeleteBankCard(name, idClient, s); err != nil {
@@ -1096,8 +1120,8 @@ func (s *server) DeleteBankCard(idClient, name string) error {
 func (s *server) DeleteFile(idClient, name string) error {
 
 	// проверка аргументов.
-	if name == "" || name == "....." {
-		return EmptyDataArgumentFileName
+	if name == "" {
+		return EmptyDataArgumentName
 	}
 	if idClient == "" {
 		return EmptyDataArgumentClientID

@@ -82,8 +82,8 @@ var (
 	// Ошибка паддинга
 	ErrInvalidPadding = errors.New("Ошибка паддинга")
 
-	// В аргументе fileName, нет данных.
-	EmptyDataArgumentFileName = errors.New("в аргументе <fileName>, нет данных")
+	// В аргументе Name, нет данных.
+	EmptyDataArgumentName = errors.New("в аргументе <Name>, нет данных")
 
 	// В аргументе filePath, нет данных.
 	EmptyDataArgumentFilePath = errors.New("в аргументе <filePath>, нет данных")

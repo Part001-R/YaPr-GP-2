@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Part001-R/YaPr-GP-2/client/internal/adapters/server"
+	"github.com/Part001-R/YaPr-GP-2/client/internal/domain"
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/flags"
 	"github.com/Part001-R/YaPr-GP-2/proto"
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
@@ -2220,7 +2221,14 @@ func doStoreViewBankCardData(c *handlerUI) error {
 		}
 
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.ActionsDB.AddDataBankCardContext(ctx, encrFor, encrOwner, encrNumb, encrValid, encrCode, encrCreatedAt); err != nil {
+		var data domain.DataBankCard
+		data.Field1 = encrFor
+		data.Field2 = encrOwner
+		data.Field3 = encrNumb
+		data.Field4 = encrValid
+		data.Field5 = encrCode
+		data.CreatedAt = encrCreatedAt
+		if err := c.conf.ActionsDB.AddDataBankCardContext(ctx, data); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления карты в БД: <%v>", err))
 			return nil
 		}
@@ -2300,7 +2308,11 @@ func doStoreViewTextData(c *handlerUI) error {
 			return nil
 		}
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.ActionsDB.AddDataTextContext(ctx, encrFor, encrText, encrCreatedAt); err != nil {
+		var data domain.DataText
+		data.Field1 = encrFor
+		data.Field2 = encrText
+		data.CreatedAt = encrCreatedAt
+		if err := c.conf.ActionsDB.AddDataTextContext(ctx, data); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления текста в БД: <%v>", err))
 			return nil
 		}
@@ -2383,7 +2395,12 @@ func doStoreViewLoginPasswordData(c *handlerUI) error {
 		}
 
 		// Добавление зашифрованных данных в БД.
-		if err := c.conf.ActionsDB.AddDataLoginPasswordContext(ctx, encrFor, encrLogin, encrPassword, encrCreatedAt); err != nil {
+		var data domain.DataLoginPassword
+		data.Field1 = encrFor
+		data.Field2 = encrLogin
+		data.Field3 = encrPassword
+		data.CreatedAt = encrCreatedAt
+		if err := c.conf.ActionsDB.AddDataLoginPasswordContext(ctx, data); err != nil {
 			c.conf.LgrFile.Write(fmt.Sprintf("Error: ошибка добавления пары логин/пароль в БД: <%v>", err))
 			return nil
 		}

@@ -1510,7 +1510,7 @@ func layerRestoreCheckResult(fileName, rxFileHash, srcFileHash, rxToken, secretK
 
 	// Проверка аргументов.
 	if fileName == "" {
-		return EmptyDataArgumentFileName
+		return EmptyDataArgumentName
 	}
 	if rxFileHash == "" {
 		return EmptyDataArgumentRxFileHash

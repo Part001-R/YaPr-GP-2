@@ -1482,7 +1482,7 @@ func TestInitDataRequestFileByName(t *testing.T) {
 				SizePassed:  0,
 				SecretKey:   key,
 			},
-			wantErr: EmptyDataArgumentFileName,
+			wantErr: EmptyDataArgumentName,
 		},
 		{
 			nameTest: "Нет токена",
@@ -1546,6 +1546,304 @@ func TestInitDataRequestFileByName(t *testing.T) {
 			require.Equalf(t, tt.wantErr, err, "нет соответствия ошибки")
 		})
 	}
+}
+
+//
+// --- DeleteLoginPassword ---
+//
+
+func TestDeleteLoginPassword(t *testing.T) {
+
+	tokenAuth := "Foo"
+	name := ""
+	idClient := ""
+
+	// Мок.
+	mockClient := &MockClient{
+		DeleteLoginPasswordFunc: func(ctx context.Context, in *proto.RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+
+			// Приём данных запроса.
+			//
+			rxMD, ok := metadata.FromOutgoingContext(ctx)
+			require.Truef(t, ok, "В запросе нет метаданных")
+
+			nameToken := "token"
+			tokens := rxMD[nameToken]
+			require.Falsef(t, len(tokens) == 0 || tokens[0] == "", "в запросе нет токена <token>")
+
+			// Обработка принятых данных
+			require.Equalf(t, name, in.Name, "нет соответствия name")
+			require.Equalf(t, idClient, in.IdClient, "нет соответствия idClient")
+			require.Equalf(t, tokenAuth, tokens[0], "нет соответствия tokenAuth")
+
+			return &emptypb.Empty{}, nil
+		},
+	}
+
+	s := &server{
+		client:   mockClient,
+		tokenSrv: tokenAuth,
+	}
+
+	// Данные тестов
+	dataTest := []struct {
+		nameTest string
+		idClient string
+		name     string
+		wantErr  error
+	}{
+		{
+			nameTest: "Корректные данные",
+			idClient: "A",
+			name:     "B",
+			wantErr:  nil,
+		},
+		{
+			nameTest: "Нет ID клиента",
+			idClient: "",
+			name:     "B",
+			wantErr:  EmptyDataArgumentClientID,
+		},
+		{
+			nameTest: "Нет имени",
+			idClient: "A",
+			name:     "",
+			wantErr:  EmptyDataArgumentName,
+		},
+	}
+
+	// Тесты.
+	for _, tt := range dataTest {
+		t.Run(tt.name, func(t *testing.T) {
+
+			name = tt.name
+			idClient = tt.idClient
+
+			err := s.DeleteLoginPassword(tt.idClient, tt.name)
+			require.Equalf(t, tt.wantErr, err, "нет соответствия ошибки")
+		})
+	}
+}
+
+//
+// --- DeleteText ---
+//
+
+func TestDeleteText(t *testing.T) {
+
+	tokenAuth := "Foo"
+	name := ""
+	idClient := ""
+
+	// Мок.
+	mockClient := &MockClient{
+		DeleteTextFunc: func(ctx context.Context, in *proto.RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+
+			// Приём данных запроса.
+			//
+			rxMD, ok := metadata.FromOutgoingContext(ctx)
+			require.Truef(t, ok, "В запросе нет метаданных")
+
+			nameToken := "token"
+			tokens := rxMD[nameToken]
+			require.Falsef(t, len(tokens) == 0 || tokens[0] == "", "в запросе нет токена <token>")
+
+			// Обработка принятых данных
+			require.Equalf(t, name, in.Name, "нет соответствия name")
+			require.Equalf(t, idClient, in.IdClient, "нет соответствия idClient")
+			require.Equalf(t, tokenAuth, tokens[0], "нет соответствия tokenAuth")
+
+			return &emptypb.Empty{}, nil
+		},
+	}
+
+	s := &server{
+		client:   mockClient,
+		tokenSrv: tokenAuth,
+	}
+
+	// Данные тестов
+	dataTest := []struct {
+		nameTest string
+		idClient string
+		name     string
+		wantErr  error
+	}{
+		{
+			nameTest: "Корректные данные",
+			idClient: "A",
+			name:     "B",
+			wantErr:  nil,
+		},
+		{
+			nameTest: "Нет ID клиента",
+			idClient: "",
+			name:     "B",
+			wantErr:  EmptyDataArgumentClientID,
+		},
+		{
+			nameTest: "Нет имени",
+			idClient: "A",
+			name:     "",
+			wantErr:  EmptyDataArgumentName,
+		},
+	}
+
+	// Тесты.
+	for _, tt := range dataTest {
+		t.Run(tt.name, func(t *testing.T) {
+
+			name = tt.name
+			idClient = tt.idClient
+
+			err := s.DeleteText(tt.idClient, tt.name)
+			require.Equalf(t, tt.wantErr, err, "нет соответствия ошибки")
+		})
+	}
+}
+
+//
+// --- DeleteBankCard ---
+//
+
+func TestDeleteBankCard(t *testing.T) {
+
+	tokenAuth := "Foo"
+	name := ""
+	idClient := ""
+
+	// Мок.
+	mockClient := &MockClient{
+		DeleteBankCardFunc: func(ctx context.Context, in *proto.RequestDeleteName, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+
+			// Приём данных запроса.
+			//
+			rxMD, ok := metadata.FromOutgoingContext(ctx)
+			require.Truef(t, ok, "В запросе нет метаданных")
+
+			nameToken := "token"
+			tokens := rxMD[nameToken]
+			require.Falsef(t, len(tokens) == 0 || tokens[0] == "", "в запросе нет токена <token>")
+
+			// Обработка принятых данных
+			require.Equalf(t, name, in.Name, "нет соответствия name")
+			require.Equalf(t, idClient, in.IdClient, "нет соответствия idClient")
+			require.Equalf(t, tokenAuth, tokens[0], "нет соответствия tokenAuth")
+
+			return &emptypb.Empty{}, nil
+		},
+	}
+
+	s := &server{
+		client:   mockClient,
+		tokenSrv: tokenAuth,
+	}
+
+	// Данные тестов
+	dataTest := []struct {
+		nameTest string
+		idClient string
+		name     string
+		wantErr  error
+	}{
+		{
+			nameTest: "Корректные данные",
+			idClient: "A",
+			name:     "B",
+			wantErr:  nil,
+		},
+		{
+			nameTest: "Нет ID клиента",
+			idClient: "",
+			name:     "B",
+			wantErr:  EmptyDataArgumentClientID,
+		},
+		{
+			nameTest: "Нет имени",
+			idClient: "A",
+			name:     "",
+			wantErr:  EmptyDataArgumentName,
+		},
+	}
+
+	// Тесты.
+	for _, tt := range dataTest {
+		t.Run(tt.name, func(t *testing.T) {
+
+			name = tt.name
+			idClient = tt.idClient
+
+			err := s.DeleteBankCard(tt.idClient, tt.name)
+			require.Equalf(t, tt.wantErr, err, "нет соответствия ошибки")
+		})
+	}
+}
+
+//
+// --- GetTokenAuthentication ---
+//
+
+func TestGetTokenAuthentication(t *testing.T) {
+
+	tokenAuth := "Foo"
+
+	s := &server{
+		tokenSrv: tokenAuth,
+	}
+
+	rxToken := s.GetTokenAuthentication()
+
+	require.Equalf(t, tokenAuth, rxToken, "Нет соответствия")
+}
+
+//
+// --- UpdateTokenAuthentication ---
+//
+
+func TestUpdateTokenAuthentication(t *testing.T) {
+
+	tokenAuth := "Foo"
+	newTokenAuth := "Bar"
+
+	s := &server{
+		tokenSrv: tokenAuth,
+	}
+
+	rxToken := s.GetTokenAuthentication()
+	require.Equalf(t, tokenAuth, rxToken, "Нет соответствия")
+
+	s.UpdateTokenAuthentication(newTokenAuth)
+
+	rxToken = s.GetTokenAuthentication()
+	require.Equalf(t, newTokenAuth, rxToken, "Нет соответствия, после обновления.")
+
+}
+
+//
+// --- IsConnectSuccess ---
+//
+
+func TestIsConnectSuccess(t *testing.T) {
+
+	t.Run("Нет подключения", func(t *testing.T) {
+		act, err := New("", "")
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		defer resetInstServer()
+
+		connStatus := act.IsConnectSuccess()
+		require.Falsef(t, connStatus, "Ошибка логики")
+	})
+
+	t.Run("Есть подключение", func(t *testing.T) {
+		act, err := New("localhost", "50002")
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		defer resetInstServer()
+
+		connStatus := act.IsConnectSuccess()
+		require.Truef(t, connStatus, "Ошибка логики")
+	})
 }
 
 // -------------------------------------------------------------------

@@ -24,9 +24,13 @@ func prepare() (*udt.Configuration, error) {
 	flg := flags.New()
 
 	// БД.
-	storage, err := domain.NewStorage(flg.DSN)
-	if err != nil {
-		return nil, fmt.Errorf("функция NewStorage, вернула ошибку: <%w>", err)
+	var storage domain.Actions
+
+	if flg.Mode == flags.ModeLocal {
+		storage, err = domain.NewStorage(flg.DSN)
+		if err != nil {
+			return nil, fmt.Errorf("функция NewStorage, вернула ошибку: <%w>", err)
+		}
 	}
 
 	// Создание конфигурации.

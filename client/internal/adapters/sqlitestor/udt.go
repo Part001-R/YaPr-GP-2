@@ -25,3 +25,28 @@ type BankCard struct {
 	Code      string // код.
 	CreatedAt string // время создания/обновления.
 }
+
+// Данные для записи логин/пароль.
+type DataLoginPassword struct {
+	Field1    string // имя записи
+	Field2    string // логин
+	Field3    string // пароль
+	CreatedAt string // дата создания
+}
+
+// Данные для записи текста.
+type DataText struct {
+	Field1    string // имя записи
+	Field2    string // текст
+	CreatedAt string // дата создания
+}
+
+// Данные для записи банковской карты.
+type DataBankCard struct {
+	Field1    string // имя записи
+	Field2    string // владелец
+	Field3    string // номер
+	Field4    string // дата валидности
+	Field5    string // код
+	CreatedAt string // дата создания
+}
