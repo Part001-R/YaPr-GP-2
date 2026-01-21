@@ -208,6 +208,20 @@ func (d *dataBase) UserExistContext(ctx context.Context) (bool, error) {
 //	data - данные.
 func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error {
 
+	// Проверка аргументов.
+	if data.Field1 == "" {
+		return EmptyDataArgumentField1
+	}
+	if data.Field2 == "" {
+		return EmptyDataArgumentField2
+	}
+	if data.Field3 == "" {
+		return EmptyDataArgumentField3
+	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentCreatedAt
+	}
+
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data1 (field_1, field_2, field_3, created_at) VALUES (?, ?, ?, ?)`
 
