@@ -12,9 +12,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Обеспечение разовой инициализации конструктора.
-var once sync.Once
-
 // База данных.
 type dataBase struct {
 	storage *sql.DB     // Указатель на БД.
@@ -24,15 +21,15 @@ type dataBase struct {
 type dataBaseI interface {
 	Close() error
 	AddUserContext(ctx context.Context, userName, userPwd string) error
-	AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error)
+	AuthenticateUserContext(ctx context.Context, data DataUser) (bool, error)
 	UserExistContext(ctx context.Context) (bool, error)
-	AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error
+	AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error
 	ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error)
 	DelDataLoginPasswordContext(ctx context.Context, field1 string) error
-	AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error
+	AddDataTextContext(ctx context.Context, data DataText) error
 	ReadTableTextContext(ctx context.Context) (list []TextData, err error)
 	DelTextContext(ctx context.Context, field1 string) error
-	AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error
+	AddDataBankCardContext(ctx context.Context, data DataBankCard) error
 	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)
 	DelBankCardContext(ctx context.Context, field1 string) error
 	GetNamesLoginPasswordContext(ctx context.Context) ([]string, error)
@@ -58,27 +55,46 @@ var inst *dataBase
 //	dsn - строка подключения к БД.
 func New(dsn string) (Actions, error) {
 
-	var err error
+	/*
+		var err error
 
-	once.Do(func() {
-		db, connErr := connect(dsn)
-		if connErr != nil {
-			err = fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
-			return
-		}
-		if migrationErr := migrationUp(db); migrationErr != nil {
-			err = fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
-			return
+		once.Do(func() {
+			db, connErr := connect(dsn)
+			if connErr != nil {
+				err = fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
+				return
+			}
+			if migrationErr := migrationUp(db); migrationErr != nil {
+				err = fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
+				return
+			}
+
+			inst = &dataBase{
+				storage: db,
+				mu:      &sync.Mutex{},
+			}
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("Error: %v", err)
 		}
 
-		inst = &dataBase{
-			storage: db,
-			mu:      &sync.Mutex{},
-		}
-	})
+		return inst, nil
+	*/
 
-	if err != nil {
-		return nil, fmt.Errorf("Error: %v", err)
+	db, connErr := connect(dsn)
+	if connErr != nil {
+		return nil, fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
+
+	}
+	if migrationErr := migrationUp(db); migrationErr != nil {
+		return nil, fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
+
+	}
+
+	inst = &dataBase{
+		storage: db,
+		mu:      &sync.Mutex{},
 	}
 
 	return inst, nil
@@ -130,12 +146,19 @@ func (d *dataBase) AddUserContext(ctx context.Context, userName, userPwd string)
 // Параметры:
 //
 //	ctx - контекст.
-//	userName - имя пользователя.
-//	userPwd - пароль пользователя.
-func (d *dataBase) AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error) {
+//	data - данные.
+func (d *dataBase) AuthenticateUserContext(ctx context.Context, data DataUser) (bool, error) {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	// Проверка аргументов.
+	if data.Field1 == "" {
+		return false, EmptyDataArgumentField1
+	}
+	if data.Field2 == "" {
+		return false, EmptyDataArgumentField2
+	}
 
 	// Подготовка запроса.
 	query := `
@@ -149,7 +172,7 @@ func (d *dataBase) AuthenticateUserContext(ctx context.Context, userName, userPw
 
 	// Выполнение запроса.
 	var hashPwd string
-	err := d.storage.QueryRowContext(ctx, query, userName).Scan(&hashPwd)
+	err := d.storage.QueryRowContext(ctx, query, data.Field1).Scan(&hashPwd)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil // Пользователь не найден.
@@ -158,7 +181,7 @@ func (d *dataBase) AuthenticateUserContext(ctx context.Context, userName, userPw
 	}
 
 	// Сравнение хешей паролей.
-	if !isEqualHash(userPwd, hashPwd) {
+	if !isEqualHash(data.Field2, hashPwd) {
 		return false, nil // Пароли не совпадают.
 	}
 
@@ -199,17 +222,28 @@ func (d *dataBase) UserExistContext(ctx context.Context) (bool, error) {
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле имени пользователя.
-//	field3 - поле пароля пользователя.
-//	createdAt - поле даты создания записи.
-func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
+//	data - данные.
+func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error {
+
+	// Проверка аргументов
+	if data.Field1 == "" {
+		return EmptyDataArgumentField1
+	}
+	if data.Field2 == "" {
+		return EmptyDataArgumentField2
+	}
+	if data.Field3 == "" {
+		return EmptyDataArgumentField3
+	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentCreatedAt
+	}
 
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data1 (field_1, field_2, field_3, created_at) VALUES (?, ?, ?, ?)`
 
 	// Запрос.
-	_, err := d.storage.ExecContext(ctx, query, field1, field2, field3, createdAt)
+	_, err := d.storage.ExecContext(ctx, query, data.Field1, data.Field2, data.Field3, data.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления данных логин/пароль:<%w>", err)
 	}
@@ -273,6 +307,12 @@ func (d *dataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []Lo
 //	field1 - поле имени записи.
 func (d *dataBase) DelDataLoginPasswordContext(ctx context.Context, field1 string) error {
 
+	// Проверка аргументов.
+	if field1 == "" {
+		return EmptyDataArgumentField1
+	}
+
+	// Логика.
 	query := `DELETE FROM data1 WHERE field_1 = ?`
 
 	res, err := d.storage.ExecContext(ctx, query, field1)
@@ -334,13 +374,18 @@ func (d *dataBase) GetNamesLoginPasswordContext(ctx context.Context) ([]string, 
 //	ctx - контекст.
 func (d *dataBase) GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error) {
 
+	// Провера аргументов.
+	if name == "" {
+		return DataLoginPassword{}, EmptyDataArgumentName
+	}
+
 	query := "SELECT field_1, field_2, field_3, created_at FROM data1 WHERE field_1 = ?"
 	row := d.storage.QueryRowContext(ctx, query, name)
 
-	err = row.Scan(&data.For, &data.Login, &data.Password, &data.CreatedAt)
+	err = row.Scan(&data.Field1, &data.Field2, &data.Field3, &data.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return DataLoginPassword{}, nil // нет записи по указанному имени
+			return DataLoginPassword{}, MissingData // нет записи по указанному имени
 		}
 		return DataLoginPassword{}, err
 	}
@@ -357,16 +402,25 @@ func (d *dataBase) GetLoginPasswordByNameContext(ctx context.Context, name strin
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле текста.
-//	createdAt - поле даты создания записи.
-func (d *dataBase) AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error {
+//	data - данные.
+func (d *dataBase) AddDataTextContext(ctx context.Context, data DataText) error {
+
+	// Проверка аргументов.
+	if data.Field1 == "" {
+		return EmptyDataArgumentField1
+	}
+	if data.Field2 == "" {
+		return EmptyDataArgumentField2
+	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentCreatedAt
+	}
 
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data2 (field_1, field_2, created_at) VALUES (?, ?, ?)`
 
 	// Запрос.
-	_, err := d.storage.ExecContext(ctx, query, field1, field2, createdAt)
+	_, err := d.storage.ExecContext(ctx, query, data.Field1, data.Field2, data.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления данных логин/пароль:<%w>", err)
 	}
@@ -430,6 +484,11 @@ func (d *dataBase) ReadTableTextContext(ctx context.Context) (list []TextData, e
 //	field1 - поле имени записи.
 func (d *dataBase) DelTextContext(ctx context.Context, field1 string) error {
 
+	// Провера аргументов.
+	if field1 == "" {
+		return EmptyDataArgumentField1
+	}
+
 	query := `DELETE FROM data2 WHERE field_1 = ?`
 
 	res, err := d.storage.ExecContext(ctx, query, field1)
@@ -491,6 +550,11 @@ func (d *dataBase) GetNamesTextContext(ctx context.Context) ([]string, error) {
 //	ctx - контекст.
 func (d *dataBase) GetTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
 
+	// Проверка аргументов.
+	if name == "" {
+		return TextData{}, EmptyDataArgumentName
+	}
+
 	query := "SELECT field_1, field_2, created_at FROM data2 WHERE field_1 = ?"
 	row := d.storage.QueryRowContext(ctx, query, name)
 
@@ -514,19 +578,34 @@ func (d *dataBase) GetTextByNameContext(ctx context.Context, name string) (data 
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле имени владельца.
-//	field3 - поле номера.
-//	field4 - поле даты вылидности.
-//	field5 - поле кода.
-//	createdAt - поле даты создания записи.
-func (d *dataBase) AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error {
+//	data - данные.
+func (d *dataBase) AddDataBankCardContext(ctx context.Context, data DataBankCard) error {
+
+	// Проверка аргументов.
+	if data.Field1 == "" {
+		return EmptyDataArgumentField1
+	}
+	if data.Field2 == "" {
+		return EmptyDataArgumentField2
+	}
+	if data.Field3 == "" {
+		return EmptyDataArgumentField3
+	}
+	if data.Field4 == "" {
+		return EmptyDataArgumentField4
+	}
+	if data.Field5 == "" {
+		return EmptyDataArgumentField5
+	}
+	if data.CreatedAt == "" {
+		return EmptyDataArgumentCreatedAt
+	}
 
 	// Подготовка.
 	query := `INSERT INTO data4 (field_1, field_2, field_3, field_4, field_5, created_at) VALUES (?, ?, ?, ?, ?, ?)`
 
 	// Запрос.
-	_, err := d.storage.ExecContext(ctx, query, field1, field2, field3, field4, field5, createdAt)
+	_, err := d.storage.ExecContext(ctx, query, data.Field1, data.Field2, data.Field3, data.Field4, data.Field5, data.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("ошибка добавления данных банковской карты:<%w>", err)
 	}
@@ -558,7 +637,7 @@ func (d *dataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCar
 		for rows.Next() {
 			var el BankCard
 
-			err := rows.Scan(&el.Name, &el.Owner, &el.Numb, &el.Valid, &el.Code, &el.CreatedAt)
+			err := rows.Scan(&el.Field1, &el.Field2, &el.Field3, &el.Field4, &el.Field5, &el.CreatedAt)
 			if err != nil {
 				log.Fatalf("Ошибка при считывании строки: %v", err)
 			}
@@ -590,6 +669,12 @@ func (d *dataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCar
 //	field1 - поле имени записи.
 func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error {
 
+	// Проверка аргументов.
+	if field1 == "" {
+		return EmptyDataArgumentField1
+	}
+
+	// Логика.
 	query := `DELETE FROM data4 WHERE field_1 = ?`
 
 	res, err := d.storage.ExecContext(ctx, query, field1)
@@ -652,13 +737,18 @@ func (d *dataBase) GetNamesBankCardContext(ctx context.Context) ([]string, error
 //	name - имя записи.
 func (d *dataBase) GetBankCardByNameContext(ctx context.Context, name string) (data BankCardData, err error) {
 
+	// Проверка аргументов.
+	if name == "" {
+		return BankCardData{}, EmptyDataArgumentName
+	}
+
 	query := "SELECT field_1, field_2, field_3, field_4, field_5, created_at FROM data4 WHERE field_1 = ?"
 	row := d.storage.QueryRowContext(ctx, query, name)
 
 	err = row.Scan(&data.Name, &data.Owner, &data.Numb, &data.Valid, &data.Code, &data.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return BankCardData{}, nil // нет записи по указанному имени
+			return BankCardData{}, MissingData // нет записи по указанному имени
 		}
 		return BankCardData{}, err
 	}

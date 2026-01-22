@@ -51,6 +51,7 @@ type DataBankCard struct {
 	CreatedAt string // дата создания
 }
 
+// Представление пользователя.
 type User struct {
 	ID        int    // id записи
 	Name      string // имя

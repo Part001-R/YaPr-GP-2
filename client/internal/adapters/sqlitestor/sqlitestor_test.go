@@ -1,4 +1,4 @@
-package domain
+package sqlitestor
 
 import (
 	"context"
@@ -10,22 +10,24 @@ import (
 )
 
 //
-// --- TestNewStorage ---
+// --- NewStorage ---
 //
 
 func TestNewStorage(t *testing.T) {
 
-	dsn := "file:testStorage.db?cache=shared&foreign_keys=on&mode=rwc"
-	actions, err := NewStorage(dsn)
+	// Конструктор.
+	// Конструктор.
+	dbName := "testStorage.db"
+
+	dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
+	actions, err := New(dsn)
 	require.NoErrorf(t, err, "ошибка конструктора")
 
-	defer func() {
-		err := os.Remove("testStorage.db")
-		assert.NoErrorf(t, err, "Ошибка удаления БД")
-	}()
-
 	err = actions.Close()
-	require.NoErrorf(t, err, "ошибка закрытия подключения")
+	require.NoErrorf(t, err, "Ошибка закрытия подключения")
+
+	err = os.Remove(dbName)
+	assert.NoErrorf(t, err, "Ошибка удаления БД")
 
 }
 
@@ -39,7 +41,7 @@ func TestAddUserContext(t *testing.T) {
 	dbName := "testStorage.db"
 
 	dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-	actions, err := NewStorage(dsn)
+	actions, err := New(dsn)
 	require.NoErrorf(t, err, "ошибка конструктора")
 
 	defer func() {
@@ -69,7 +71,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -98,7 +100,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -127,7 +129,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -156,7 +158,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -184,7 +186,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -219,7 +221,7 @@ func TestUserExistContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -242,7 +244,7 @@ func TestUserExistContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -279,7 +281,7 @@ func TestAddDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -361,7 +363,7 @@ func TestAddDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -395,7 +397,7 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -451,7 +453,7 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -485,7 +487,7 @@ func TestAddDataTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -552,7 +554,7 @@ func TestAddDataTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -586,7 +588,7 @@ func TestDelTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -638,7 +640,7 @@ func TestDelTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -672,7 +674,7 @@ func TestAddDataBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -789,7 +791,7 @@ func TestAddDataBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -823,7 +825,7 @@ func TestDelBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -872,7 +874,7 @@ func TestDelBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -906,7 +908,7 @@ func TestReadNamesTableLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -957,7 +959,7 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -994,7 +996,7 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1023,7 +1025,7 @@ func TestReadNamesTableTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1072,7 +1074,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1107,7 +1109,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1136,7 +1138,7 @@ func TestReadNamesTableBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1191,7 +1193,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1230,7 +1232,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 
 		// Конструктор.
 		dsn := "file:testStorage.db?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {

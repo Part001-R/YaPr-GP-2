@@ -285,7 +285,7 @@ func (d *dataBase) ReadLoginPassworByNameContext(ctx context.Context, name strin
 	err = row.Scan(&data.Name, &data.Login, &data.Password, &data.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return LoginPassword{}, nil
+			return LoginPassword{}, MissingData
 		}
 		return LoginPassword{}, err
 	}
@@ -580,7 +580,7 @@ func (d *dataBase) ReadBankCardByNameContext(ctx context.Context, name string) (
 	err = row.Scan(&data.Name, &data.Owner, &data.Numb, &data.Valid, &data.Code, &data.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return BankCard{}, nil
+			return BankCard{}, MissingData
 		}
 		return BankCard{}, err
 	}

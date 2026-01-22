@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Connect
 func TestConnect(t *testing.T) {
 	t.Run("Пустые ip или port", func(t *testing.T) {
 		conn, client, err := connect("", "8080")

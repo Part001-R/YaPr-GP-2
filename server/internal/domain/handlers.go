@@ -49,11 +49,14 @@ func (s *storage) AddUserContext(ctx context.Context, userName, userPwd string) 
 //	ctx - контекст.
 //	userName - имя пользователя.
 //	userPwd - пароль пользователя.
-func (s *storage) AuthenticateUserContext(ctx context.Context, userName, userPwd string) (bool, error) {
+func (s *storage) AuthenticateUserContext(ctx context.Context, data DataUser) (bool, error) {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AuthenticateUserContext(ctx, userName, userPwd)
+		var txData sqlitestor.DataUser
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		return actions.AuthenticateUserContext(ctx, txData)
 	// ...
 	default:
 		return false, fmt.Errorf("Неизвестный тип БД")
@@ -85,15 +88,17 @@ func (s *storage) UserExistContext(ctx context.Context) (bool, error) {
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле имени пользователя.
-//	field3 - поле пароля пользователя.
-//	createdAt - поле даты создания записи.
-func (s *storage) AddDataLoginPasswordContext(ctx context.Context, field1, field2, field3, createdAt string) error {
+//	data - данные.
+func (s *storage) AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AddDataLoginPasswordContext(ctx, field1, field2, field3, createdAt)
+		var txData sqlitestor.DataLoginPassword
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		txData.Field3 = data.Field3
+		txData.CreatedAt = data.CreatedAt
+		return actions.AddDataLoginPasswordContext(ctx, txData)
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
@@ -183,9 +188,9 @@ func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string
 		if err != nil {
 			return LoginPassword{}, fmt.Errorf("SQlite. Функция GetLoginPasswordByNameContext, вернула ошибку: <%w>", err)
 		}
-		data.Name = rxData.For
-		data.Login = rxData.Login
-		data.Password = rxData.Password
+		data.Name = rxData.Field1
+		data.Login = rxData.Field2
+		data.Password = rxData.Field3
 		data.CreatedAt = rxData.CreatedAt
 		return data, nil
 	// ...
@@ -203,14 +208,16 @@ func (s *storage) GetLoginPasswordByNameContext(ctx context.Context, name string
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле текста.
-//	createdAt - поле даты создания записи.
-func (s *storage) AddDataTextContext(ctx context.Context, field1, field2, createdAt string) error {
+//	data - данные.
+func (s *storage) AddDataTextContext(ctx context.Context, data DataText) error {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AddDataTextContext(ctx, field1, field2, createdAt)
+		var txData sqlitestor.DataText
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		txData.CreatedAt = data.CreatedAt
+		return actions.AddDataTextContext(ctx, txData)
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
@@ -317,17 +324,19 @@ func (s *storage) GetTextByNameContext(ctx context.Context, name string) (data T
 // Параметры:
 //
 //	ctx - контекст.
-//	field1 - поле имени записи.
-//	field2 - поле имени владельца.
-//	field3 - поле номера.
-//	field4 - поле даты вылидности.
-//	field5 - поле кода.
-//	createdAt - поле даты создания записи.
-func (s *storage) AddDataBankCardContext(ctx context.Context, field1, field2, field3, field4, field5, createdAt string) error {
+//	data - данные.
+func (s *storage) AddDataBankCardContext(ctx context.Context, data DataBankCard) error {
 
 	switch actions := s.actions.(type) {
 	case sqlitestor.Actions:
-		return actions.AddDataBankCardContext(ctx, field1, field2, field3, field4, field5, createdAt)
+		var txData sqlitestor.DataBankCard
+		txData.Field1 = data.Field1
+		txData.Field2 = data.Field2
+		txData.Field3 = data.Field3
+		txData.Field4 = data.Field4
+		txData.Field5 = data.Field5
+		txData.CreatedAt = data.CreatedAt
+		return actions.AddDataBankCardContext(ctx, txData)
 	// ...
 	default:
 		return fmt.Errorf("Неизвестный тип БД")
@@ -350,11 +359,11 @@ func (s *storage) ReadTableBankCardContext(ctx context.Context) (list []BankCard
 		for _, v := range rxData {
 			var el BankCard
 
-			el.Name = v.Name
-			el.Owner = v.Owner
-			el.Numb = v.Numb
-			el.Valid = v.Valid
-			el.Code = v.Code
+			el.Name = v.Field1
+			el.Owner = v.Field2
+			el.Numb = v.Field3
+			el.Valid = v.Field4
+			el.Code = v.Field5
 			el.CreatedAt = v.CreatedAt
 
 			list = append(list, el)

@@ -1,4 +1,4 @@
-package domain
+package sqlitestor
 
 import (
 	"context"
@@ -10,22 +10,24 @@ import (
 )
 
 //
-// --- TestNewStorage ---
+// --- NewStorage ---
 //
 
 func TestNewStorage(t *testing.T) {
 
-	dsn := "file:testStorage.db?cache=shared&foreign_keys=on&mode=rwc"
-	actions, err := NewStorage(dsn)
+	// Конструктор.
+	// Конструктор.
+	dbName := "testStorage.db"
+
+	dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
+	actions, err := New(dsn)
 	require.NoErrorf(t, err, "ошибка конструктора")
 
-	defer func() {
-		err := os.Remove("testStorage.db")
-		assert.NoErrorf(t, err, "Ошибка удаления БД")
-	}()
-
 	err = actions.Close()
-	require.NoErrorf(t, err, "ошибка закрытия подключения")
+	require.NoErrorf(t, err, "Ошибка закрытия подключения")
+
+	err = os.Remove(dbName)
+	assert.NoErrorf(t, err, "Ошибка удаления БД")
 
 }
 
@@ -39,7 +41,7 @@ func TestAddUserContext(t *testing.T) {
 	dbName := "testStorage.db"
 
 	dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-	actions, err := NewStorage(dsn)
+	actions, err := New(dsn)
 	require.NoErrorf(t, err, "ошибка конструктора")
 
 	defer func() {
@@ -69,7 +71,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -83,11 +85,15 @@ func TestAuthenticateUserContext(t *testing.T) {
 		// Добавление записи.
 		userName := "Foo"
 		userPwd := "Bar"
+
 		err = actions.AddUserContext(context.Background(), userName, userPwd)
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		isAuth, err := actions.AuthenticateUserContext(context.Background(), userName, userPwd)
+		var data DataUser
+		data.Field1 = userName
+		data.Field2 = userPwd
+		isAuth, err := actions.AuthenticateUserContext(context.Background(), data)
 		require.NoErrorf(t, err, "Ошибка аутентификации")
 		assert.True(t, isAuth, "пользователь не уатентифицирован")
 	})
@@ -98,7 +104,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -116,7 +122,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		isAuth, err := actions.AuthenticateUserContext(context.Background(), userName+"A", userPwd)
+		var data DataUser
+		data.Field1 = userName + "1"
+		data.Field2 = userPwd
+		isAuth, err := actions.AuthenticateUserContext(context.Background(), data)
 		require.NoErrorf(t, err, "Ошибка аутентификации")
 		assert.Falsef(t, isAuth, "пользователь аутентифицирован")
 	})
@@ -127,7 +136,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -145,7 +154,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		isAuth, err := actions.AuthenticateUserContext(context.Background(), userName, userPwd+"A")
+		var data DataUser
+		data.Field1 = userName
+		data.Field2 = userPwd + "1"
+		isAuth, err := actions.AuthenticateUserContext(context.Background(), data)
 		require.NoErrorf(t, err, "Ошибка аутентификации")
 		assert.Falsef(t, isAuth, "пользователь аутентифицирован")
 	})
@@ -156,7 +168,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -174,7 +186,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		_, err = actions.AuthenticateUserContext(context.Background(), "", userPwd)
+		var data DataUser
+		data.Field1 = ""
+		data.Field2 = userPwd
+		_, err = actions.AuthenticateUserContext(context.Background(), data)
 		require.Errorf(t, err, "Ошибка аутентификации")
 	})
 
@@ -184,7 +199,7 @@ func TestAuthenticateUserContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -202,7 +217,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		_, err = actions.AuthenticateUserContext(context.Background(), userName, "")
+		var data DataUser
+		data.Field1 = userName
+		data.Field2 = ""
+		_, err = actions.AuthenticateUserContext(context.Background(), data)
 		require.Errorf(t, err, "Ошибка аутентификации")
 	})
 }
@@ -219,7 +237,7 @@ func TestUserExistContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -242,7 +260,7 @@ func TestUserExistContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -279,7 +297,7 @@ func TestAddDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -300,11 +318,11 @@ func TestAddDataLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Проверка добавления.
-		rxData, err := actions.ReadLoginPassworByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetLoginPasswordByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "ошибка чтения записи логин/пароль")
-		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
-		assert.Equalf(t, data.Field2, rxData.Login, "Нет соответствия логина")
-		assert.Equalf(t, data.Field3, rxData.Password, "Нет соответствия пароля")
+		assert.Equalf(t, data.Field1, rxData.Field1, "Нет соответствия имени записи")
+		assert.Equalf(t, data.Field2, rxData.Field2, "Нет соответствия логина")
+		assert.Equalf(t, data.Field3, rxData.Field3, "Нет соответствия пароля")
 		assert.Equalf(t, data.CreatedAt, rxData.CreatedAt, "Нет соответствия даты")
 	})
 
@@ -361,7 +379,7 @@ func TestAddDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -395,7 +413,7 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -417,11 +435,11 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Проверка существования записи.
-		rxData, err := actions.ReadLoginPassworByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetLoginPasswordByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "ошибка удаления записи логин/пароль по имени")
-		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
-		assert.Equalf(t, data.Field2, rxData.Login, "Нет соответствия логина")
-		assert.Equalf(t, data.Field3, rxData.Password, "Нет соответствия пароля")
+		assert.Equalf(t, data.Field1, rxData.Field1, "Нет соответствия имени записи")
+		assert.Equalf(t, data.Field2, rxData.Field2, "Нет соответствия логина")
+		assert.Equalf(t, data.Field3, rxData.Field3, "Нет соответствия пароля")
 		assert.Equalf(t, data.CreatedAt, rxData.CreatedAt, "Нет соответствия даты создания")
 
 		// Удаление данных.
@@ -429,7 +447,7 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка удаления записи логин/пароль")
 
 		// Проверка существования записи.
-		_, err = actions.ReadLoginPassworByNameContext(context.Background(), data.Field1)
+		_, err = actions.GetLoginPasswordByNameContext(context.Background(), data.Field1)
 		require.Equalf(t, MissingData, err, "Нет соответствия ошибки")
 	})
 
@@ -451,7 +469,7 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -485,7 +503,7 @@ func TestAddDataTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -505,7 +523,7 @@ func TestAddDataTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления текста")
 
 		// Проверка добавления.
-		rxData, err := actions.ReadTextByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetTextByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "Ошибка чтения данных")
 		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
 		assert.Equalf(t, data.Field2, rxData.Text, "Нет соответствия текста")
@@ -552,7 +570,7 @@ func TestAddDataTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -586,7 +604,7 @@ func TestDelTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -606,7 +624,7 @@ func TestDelTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Чтение данных.
-		rxData, err := actions.ReadNamesTableTextContext(context.Background())
+		rxData, err := actions.GetNamesTextContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка получения данных по имени")
 		assert.Equalf(t, data.Field1, rxData[0], "Нет соответствия имени записи")
 
@@ -615,7 +633,7 @@ func TestDelTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "Ошибка удаления записи")
 
 		// Чтение данных.
-		rxData, err = actions.ReadNamesTableTextContext(context.Background())
+		rxData, err = actions.GetNamesTextContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка получения данных по имени")
 		assert.Equalf(t, 0, len(rxData), "Нет соответствия размера ответа")
 	})
@@ -638,7 +656,7 @@ func TestDelTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -672,7 +690,7 @@ func TestAddDataBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -695,7 +713,7 @@ func TestAddDataBankCardContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления текста")
 
 		// Проверка добавления.
-		rxData, err := actions.ReadBankCardByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetBankCardByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "ошибка добавления текста")
 		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
 		assert.Equalf(t, data.Field2, rxData.Owner, "Нет соответствия имени владельца")
@@ -789,7 +807,7 @@ func TestAddDataBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -823,7 +841,7 @@ func TestDelBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -850,7 +868,7 @@ func TestDelBankCardContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка удаления записи банковской карты")
 
 		// Проверка отсутствия.
-		_, err = actions.ReadBankCardByNameContext(context.Background(), data.Field1)
+		_, err = actions.GetBankCardByNameContext(context.Background(), data.Field1)
 		assert.Equalf(t, MissingData, err, "Нет соответствия ошибки")
 	})
 
@@ -872,7 +890,7 @@ func TestDelBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -906,7 +924,7 @@ func TestReadNamesTableLoginPasswordContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -935,7 +953,7 @@ func TestReadNamesTableLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Получение имён записей.
-		rxData, err := actions.ReadNamesTableLoginPasswordContext(context.Background())
+		rxData, err := actions.GetNamesLoginPasswordContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -957,7 +975,7 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -978,13 +996,13 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Получение данных по имени записи.
-		rxData, err := actions.ReadLoginPassworByNameContext(context.Background(), data1.Field1)
+		rxData, err := actions.GetLoginPasswordByNameContext(context.Background(), data1.Field1)
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
-		assert.Equalf(t, data1.Field1, rxData.Name, "Нет соответствия имени записи")
-		assert.Equalf(t, data1.Field2, rxData.Login, "Нет соответствия логина записи")
-		assert.Equalf(t, data1.Field3, rxData.Password, "Нет соответствия пароля записи")
+		assert.Equalf(t, data1.Field1, rxData.Field1, "Нет соответствия имени записи")
+		assert.Equalf(t, data1.Field2, rxData.Field2, "Нет соответствия логина записи")
+		assert.Equalf(t, data1.Field3, rxData.Field3, "Нет соответствия пароля записи")
 		assert.Equalf(t, data1.CreatedAt, rxData.CreatedAt, "Нет соответствия даты создания записи")
 	})
 
@@ -994,7 +1012,7 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1006,7 +1024,7 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		}()
 
 		// Получение данных по имени записи.
-		_, err = actions.ReadLoginPassworByNameContext(context.Background(), "")
+		_, err = actions.GetLoginPasswordByNameContext(context.Background(), "")
 		require.Equalf(t, EmptyDataArgumentName, err, "Нет соответствия ошибки")
 	})
 }
@@ -1023,7 +1041,7 @@ func TestReadNamesTableTextContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1050,7 +1068,7 @@ func TestReadNamesTableTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи текста")
 
 		// Получение имён записей.
-		rxData, err := actions.ReadNamesTableTextContext(context.Background())
+		rxData, err := actions.GetNamesTextContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1072,7 +1090,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1092,7 +1110,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Получение данных по имени записи.
-		rxData, err := actions.ReadTextByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetTextByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1107,7 +1125,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1119,7 +1137,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		}()
 
 		// Получение данных по имени записи.
-		_, err = actions.ReadTextByNameContext(context.Background(), "")
+		_, err = actions.GetTextByNameContext(context.Background(), "")
 		require.Equalf(t, EmptyDataArgumentName, err, "Нет соответствия ошибки")
 	})
 }
@@ -1136,7 +1154,7 @@ func TestReadNamesTableBankCardContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1169,7 +1187,7 @@ func TestReadNamesTableBankCardContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи банковской карты")
 
 		// Получение имён записей.
-		rxData, err := actions.ReadNamesTableBankCardContext(context.Background())
+		rxData, err := actions.GetNamesBankCardContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1191,7 +1209,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 		dbName := "testStorage.db"
 
 		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1214,7 +1232,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи банковской карты")
 
 		// Получение данных по имени записи.
-		rxData, err := actions.ReadBankCardByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetBankCardByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1230,7 +1248,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 
 		// Конструктор.
 		dsn := "file:testStorage.db?cache=shared&foreign_keys=on&mode=rwc"
-		actions, err := NewStorage(dsn)
+		actions, err := New(dsn)
 		require.NoErrorf(t, err, "ошибка конструктора")
 
 		defer func() {
@@ -1242,7 +1260,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 		}()
 
 		// Получение данных по имени записи.
-		_, err = actions.ReadBankCardByNameContext(context.Background(), "")
+		_, err = actions.GetBankCardByNameContext(context.Background(), "")
 		require.Equalf(t, EmptyDataArgumentName, err, "Нет соответствия ошибки")
 	})
 }

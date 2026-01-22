@@ -50,3 +50,11 @@ type DataBankCard struct {
 	Field5    string // код
 	CreatedAt string // дата создания
 }
+
+// Представление пользователя.
+type User struct {
+	ID        int    // id записи
+	Name      string // имя
+	Pwd       string // пароль
+	CreatedAt string // дата создания
+}

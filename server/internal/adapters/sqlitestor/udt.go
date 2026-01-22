@@ -27,18 +27,42 @@ type BankCardData struct {
 
 // Представление данных текста.
 type DataLoginPassword struct {
-	For       string // принадлежность
-	Login     string // логин
-	Password  string // пароль
+	Field1    string // принадлежность
+	Field2    string // логин
+	Field3    string // пароль
 	CreatedAt string // дата создания
 }
 
 // Формат записи банковской карты.
 type BankCard struct {
-	Name      string // наименование записи.
-	Owner     string // вдажелец.
-	Numb      string // номер карты.
-	Valid     string // дата валидности.
-	Code      string // код.
+	Field1    string // наименование записи.
+	Field2    string // вдажелец.
+	Field3    string // номер карты.
+	Field4    string // дата валидности.
+	Field5    string // код.
 	CreatedAt string // время создания/обновления.
+}
+
+// Представление данных текста.
+type DataUser struct {
+	Field1    string // имя пользователь
+	Field2    string // хэш пароля
+	CreatedAt string // дата создания
+}
+
+// Представление данных текста.
+type DataText struct {
+	Field1    string // принадлежность
+	Field2    string // текст
+	CreatedAt string // дата создания
+}
+
+// Данные для записи банковской карты.
+type DataBankCard struct {
+	Field1    string // имя записи
+	Field2    string // владелец
+	Field3    string // номер
+	Field4    string // дата валидности
+	Field5    string // код
+	CreatedAt string // дата создания
 }

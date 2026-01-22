@@ -166,7 +166,10 @@ func layerAuthenticationLogic(s *Manager, userName, userPwd string) error {
 	defer cancel()
 
 	// Выполнение запроса.
-	ok, err := s.storage.AuthenticateUserContext(ctx, userName, userPwd)
+	var data domain.DataUser
+	data.Field1 = userName
+	data.Field2 = userPwd
+	ok, err := s.storage.AuthenticateUserContext(ctx, data)
 	if err != nil {
 		return fmt.Errorf("Функция AuthenticateUserContext, вернуля ошибку:<%w>", err)
 	}
@@ -261,7 +264,13 @@ func layerSendLoginPasswordGetToken(ctx context.Context) (token tokenData, err e
 //	m - указатель на экземпляр сервиса.
 func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassword, m *Manager) error {
 
-	if err := m.storage.AddDataLoginPasswordContext(ctx, rxData.For, rxData.Login, rxData.Password, rxData.CreatedAt); err != nil {
+	var data domain.DataLoginPassword
+	data.Field1 = rxData.For
+	data.Field2 = rxData.Login
+	data.Field3 = rxData.Password
+	data.CreatedAt = rxData.CreatedAt
+
+	if err := m.storage.AddDataLoginPasswordContext(ctx, data); err != nil {
 		return fmt.Errorf("Функция AddDataLoginPasswordContext, вернула ошибку: <%w>", err)
 	}
 
@@ -277,11 +286,11 @@ func layerSendLoginPasswordLogicContext(ctx context.Context, rxData RxLoginPassw
 // Параметры:
 //
 //	req - запрос.
-func layerSendTextRx(req *pb.SendTextRequest) (rxData RxText, err error) {
+func layerSendTextRx(req *pb.SendTextRequest) (rxData domain.DataText, err error) {
 
-	rxData.ID = req.IdClient
-	rxData.For = req.For
-	rxData.Text = req.Text
+	rxData.IDClient = req.IdClient
+	rxData.Field1 = req.For
+	rxData.Field2 = req.Text
 	rxData.CreatedAt = req.CreatedAt
 
 	return rxData, nil
@@ -324,9 +333,9 @@ func layerSendTextGetToken(ctx context.Context) (token tokenData, err error) {
 //	ctx - контекст.
 //	rxData - принятые данные.
 //	m - указатель на экземпляр сервиса.
-func layerSendTextContext(ctx context.Context, rxData RxText, m *Manager) error {
+func layerSendTextContext(ctx context.Context, data domain.DataText, m *Manager) error {
 
-	if err := m.storage.AddDataTextContext(ctx, rxData.For, rxData.Text, rxData.CreatedAt); err != nil {
+	if err := m.storage.AddDataTextContext(ctx, data); err != nil {
 		return fmt.Errorf("Функция AddDataTextContext, вернула ошибку: <%w>", err)
 	}
 
@@ -394,7 +403,15 @@ func layerSendBankCardGetToken(ctx context.Context) (token tokenData, err error)
 //	m - указатель на экземпляр сервиса.
 func layerSendBankCardContext(ctx context.Context, rxData RxBankCard, m *Manager) error {
 
-	if err := m.storage.AddDataBankCardContext(ctx, rxData.For, rxData.Owner, rxData.Numb, rxData.ValidData, rxData.Code, rxData.CreatedAt); err != nil {
+	var data domain.DataBankCard
+	data.Field1 = rxData.For
+	data.Field2 = rxData.Owner
+	data.Field3 = rxData.Numb
+	data.Field4 = rxData.ValidData
+	data.Field5 = rxData.Code
+	data.CreatedAt = rxData.CreatedAt
+
+	if err := m.storage.AddDataBankCardContext(ctx, data); err != nil {
 		return fmt.Errorf("Функция AddDataBankCardContext, вернула ошибку: <%w>", err)
 	}
 

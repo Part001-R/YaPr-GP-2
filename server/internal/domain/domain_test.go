@@ -87,7 +87,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		isAuth, err := actions.AuthenticateUserContext(context.Background(), userName, userPwd)
+		var txData DataUser
+		txData.Field1 = userName
+		txData.Field2 = userPwd
+		isAuth, err := actions.AuthenticateUserContext(context.Background(), txData)
 		require.NoErrorf(t, err, "Ошибка аутентификации")
 		assert.True(t, isAuth, "пользователь не уатентифицирован")
 	})
@@ -116,7 +119,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		isAuth, err := actions.AuthenticateUserContext(context.Background(), userName+"A", userPwd)
+		var data DataUser
+		data.Field1 = userName + "A"
+		data.Field2 = userPwd
+		isAuth, err := actions.AuthenticateUserContext(context.Background(), data)
 		require.NoErrorf(t, err, "Ошибка аутентификации")
 		assert.Falsef(t, isAuth, "пользователь аутентифицирован")
 	})
@@ -145,7 +151,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		isAuth, err := actions.AuthenticateUserContext(context.Background(), userName, userPwd+"A")
+		var data DataUser
+		data.Field1 = userName
+		data.Field2 = userPwd + "A"
+		isAuth, err := actions.AuthenticateUserContext(context.Background(), data)
 		require.NoErrorf(t, err, "Ошибка аутентификации")
 		assert.Falsef(t, isAuth, "пользователь аутентифицирован")
 	})
@@ -174,7 +183,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		_, err = actions.AuthenticateUserContext(context.Background(), "", userPwd)
+		var data DataUser
+		data.Field1 = ""
+		data.Field2 = userPwd
+		_, err = actions.AuthenticateUserContext(context.Background(), data)
 		require.Errorf(t, err, "Ошибка аутентификации")
 	})
 
@@ -202,7 +214,10 @@ func TestAuthenticateUserContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления пользователя")
 
 		// Аутентификация.
-		_, err = actions.AuthenticateUserContext(context.Background(), userName, "")
+		var data DataUser
+		data.Field1 = userName
+		data.Field2 = ""
+		_, err = actions.AuthenticateUserContext(context.Background(), data)
 		require.Errorf(t, err, "Ошибка аутентификации")
 	})
 }
@@ -300,7 +315,7 @@ func TestAddDataLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Проверка добавления.
-		rxData, err := actions.ReadLoginPassworByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetLoginPasswordByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "ошибка чтения записи логин/пароль")
 		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
 		assert.Equalf(t, data.Field2, rxData.Login, "Нет соответствия логина")
@@ -417,7 +432,7 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Проверка существования записи.
-		rxData, err := actions.ReadLoginPassworByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetLoginPasswordByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "ошибка удаления записи логин/пароль по имени")
 		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
 		assert.Equalf(t, data.Field2, rxData.Login, "Нет соответствия логина")
@@ -429,8 +444,8 @@ func TestDelDataLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка удаления записи логин/пароль")
 
 		// Проверка существования записи.
-		_, err = actions.ReadLoginPassworByNameContext(context.Background(), data.Field1)
-		require.Equalf(t, MissingData, err, "Нет соответствия ошибки")
+		_, err = actions.GetLoginPasswordByNameContext(context.Background(), data.Field1)
+		require.Equalf(t, "SQlite. Функция GetLoginPasswordByNameContext, вернула ошибку: <отсутствуют данные>", err.Error(), "Нет соответствия ошибки")
 	})
 
 	t.Run("Ошибки", func(t *testing.T) {
@@ -505,7 +520,7 @@ func TestAddDataTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления текста")
 
 		// Проверка добавления.
-		rxData, err := actions.ReadTextByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetTextByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "Ошибка чтения данных")
 		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
 		assert.Equalf(t, data.Field2, rxData.Text, "Нет соответствия текста")
@@ -606,7 +621,7 @@ func TestDelTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Чтение данных.
-		rxData, err := actions.ReadNamesTableTextContext(context.Background())
+		rxData, err := actions.GetNamesTextContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка получения данных по имени")
 		assert.Equalf(t, data.Field1, rxData[0], "Нет соответствия имени записи")
 
@@ -615,7 +630,7 @@ func TestDelTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "Ошибка удаления записи")
 
 		// Чтение данных.
-		rxData, err = actions.ReadNamesTableTextContext(context.Background())
+		rxData, err = actions.GetNamesTextContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка получения данных по имени")
 		assert.Equalf(t, 0, len(rxData), "Нет соответствия размера ответа")
 	})
@@ -695,7 +710,7 @@ func TestAddDataBankCardContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления текста")
 
 		// Проверка добавления.
-		rxData, err := actions.ReadBankCardByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetBankCardByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "ошибка добавления текста")
 		assert.Equalf(t, data.Field1, rxData.Name, "Нет соответствия имени записи")
 		assert.Equalf(t, data.Field2, rxData.Owner, "Нет соответствия имени владельца")
@@ -850,8 +865,8 @@ func TestDelBankCardContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка удаления записи банковской карты")
 
 		// Проверка отсутствия.
-		_, err = actions.ReadBankCardByNameContext(context.Background(), data.Field1)
-		assert.Equalf(t, MissingData, err, "Нет соответствия ошибки")
+		_, err = actions.GetBankCardByNameContext(context.Background(), data.Field1)
+		assert.Equalf(t, "SQlite. Функция GetBankCardByNameContext, вернула ошибку: <отсутствуют данные>", err.Error(), "Нет соответствия ошибки")
 	})
 
 	t.Run("Ошибки", func(t *testing.T) {
@@ -935,7 +950,7 @@ func TestReadNamesTableLoginPasswordContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Получение имён записей.
-		rxData, err := actions.ReadNamesTableLoginPasswordContext(context.Background())
+		rxData, err := actions.GetNamesLoginPasswordContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -978,7 +993,7 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Получение данных по имени записи.
-		rxData, err := actions.ReadLoginPassworByNameContext(context.Background(), data1.Field1)
+		rxData, err := actions.GetLoginPasswordByNameContext(context.Background(), data1.Field1)
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1006,8 +1021,8 @@ func TestReadLoginPassworByNameContext(t *testing.T) {
 		}()
 
 		// Получение данных по имени записи.
-		_, err = actions.ReadLoginPassworByNameContext(context.Background(), "")
-		require.Equalf(t, EmptyDataArgumentName, err, "Нет соответствия ошибки")
+		_, err = actions.GetLoginPasswordByNameContext(context.Background(), "")
+		require.Equalf(t, "SQlite. Функция GetLoginPasswordByNameContext, вернула ошибку: <нет содержимого в аргументе name>", err.Error(), "Нет соответствия ошибки")
 	})
 }
 
@@ -1050,7 +1065,7 @@ func TestReadNamesTableTextContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи текста")
 
 		// Получение имён записей.
-		rxData, err := actions.ReadNamesTableTextContext(context.Background())
+		rxData, err := actions.GetNamesTextContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1092,7 +1107,7 @@ func TestReadTextByNameContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи логин/пароль")
 
 		// Получение данных по имени записи.
-		rxData, err := actions.ReadTextByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetTextByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1119,8 +1134,8 @@ func TestReadTextByNameContext(t *testing.T) {
 		}()
 
 		// Получение данных по имени записи.
-		_, err = actions.ReadTextByNameContext(context.Background(), "")
-		require.Equalf(t, EmptyDataArgumentName, err, "Нет соответствия ошибки")
+		_, err = actions.GetTextByNameContext(context.Background(), "")
+		require.Equalf(t, "SQlite. Функция GetTextByNameContext, вернула ошибку: <нет содержимого в аргументе name>", err.Error(), "Нет соответствия ошибки")
 	})
 }
 
@@ -1169,7 +1184,7 @@ func TestReadNamesTableBankCardContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи банковской карты")
 
 		// Получение имён записей.
-		rxData, err := actions.ReadNamesTableBankCardContext(context.Background())
+		rxData, err := actions.GetNamesBankCardContext(context.Background())
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1214,7 +1229,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 		require.NoErrorf(t, err, "ошибка добавления записи банковской карты")
 
 		// Получение данных по имени записи.
-		rxData, err := actions.ReadBankCardByNameContext(context.Background(), data.Field1)
+		rxData, err := actions.GetBankCardByNameContext(context.Background(), data.Field1)
 		require.NoErrorf(t, err, "Ошибка запроса:<%v>", err)
 
 		// Проверка результата.
@@ -1242,7 +1257,7 @@ func TestReadBankCardByNameContext(t *testing.T) {
 		}()
 
 		// Получение данных по имени записи.
-		_, err = actions.ReadBankCardByNameContext(context.Background(), "")
-		require.Equalf(t, EmptyDataArgumentName, err, "Нет соответствия ошибки")
+		_, err = actions.GetBankCardByNameContext(context.Background(), "")
+		require.Equalf(t, "SQlite. Функция GetBankCardByNameContext, вернула ошибку: <нет содержимого в аргументе name>", err.Error(), "Нет соответствия ошибки")
 	})
 }

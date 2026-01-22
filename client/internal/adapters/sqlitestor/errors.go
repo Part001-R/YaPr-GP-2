@@ -5,6 +5,9 @@ import "errors"
 
 var (
 
+	// Отсутствуют данные.
+	MissingData = errors.New("отсутствуют данные")
+
 	// Нет содержимого в аргументе dsn
 	EmptyDataArgumentDSN = errors.New("нет содержимого в аргументе dsn")
 
