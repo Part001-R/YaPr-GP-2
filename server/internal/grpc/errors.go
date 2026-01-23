@@ -42,4 +42,10 @@ var (
 
 	// нет данных fileName.
 	EmptyDataFileNAme = errors.New("нет данных <fileName>")
+
+	// В аргументе Conf нет указателя.
+	NilPtrArgumentConf = errors.New("в аргументе conf нет указателя")
+
+	// Отсутствуют данные.
+	MissingData = errors.New("отсутствуют данные")
 )

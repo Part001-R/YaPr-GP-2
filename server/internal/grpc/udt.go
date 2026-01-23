@@ -1,6 +1,13 @@
 // Типы данных пакета.
 package grpc
 
+import (
+	pb "github.com/Part001-R/YaPr-GP-2/proto"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/domain"
+	"github.com/Part001-R/YaPr-GP-2/server/internal/utils/flags"
+	"go.uber.org/zap"
+)
+
 const (
 	stageNotActive = 0
 	stageActive    = 1
@@ -109,4 +116,32 @@ type fileInfo struct {
 	name string // имя
 	hash string // хэш
 	size int64  // размер
+}
+
+// ==============================
+
+// Представленние сервиса.
+type TestManager struct {
+	pb.UnimplementedPasswordManagerServer
+	logger    *zap.Logger    // Логгер.
+	status    statusSrv      // Статусы.
+	storage   domain.DomainI // База данных.
+	token     string         // Выданный токен
+	secretKey string         // Секретный ключ
+	flag      *flags.Config  // Флаги
+}
+
+// Ключи шифрования
+type TLSdata struct {
+	Public string // Публичный ключ
+	Privae string // Приватный ключ
+}
+
+// Конфигурация сервиса.
+type Configuration struct {
+	Lgr     *zap.Logger    // Указатель на логгер.
+	Srv     *Manager       // Указатель на экземпляр grpc.
+	TLS     TLSdata        // Ключи реалзизации GRPCS.
+	Storage domain.DomainI // БД
+	Flag    *flags.Config  // Флаги.
 }

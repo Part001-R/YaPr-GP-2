@@ -222,6 +222,23 @@ func layerSendLoginPasswordRx(req *pb.SendLoginPasswordRequest) (rxData RxLoginP
 	rxData.Password = req.Password
 	rxData.CreatedAt = req.CreatedAt
 
+	// Проверка данных.
+	if rxData.ID == "" {
+		return RxLoginPassword{}, MissingData
+	}
+	if rxData.For == "" {
+		return RxLoginPassword{}, MissingData
+	}
+	if rxData.Login == "" {
+		return RxLoginPassword{}, MissingData
+	}
+	if rxData.Password == "" {
+		return RxLoginPassword{}, MissingData
+	}
+	if rxData.CreatedAt == "" {
+		return RxLoginPassword{}, MissingData
+	}
+
 	return rxData, nil
 }
 

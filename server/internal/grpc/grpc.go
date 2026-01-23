@@ -440,7 +440,7 @@ func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequ
 	rxData, err := layerAuthenticationRx(req)
 	if err != nil {
 		s.logger.Error("Функция layerAuthenticationRx, вернуля ошибку", zap.Error(err))
-		return nil, status.Error(codes.InvalidArgument, "ошибка обработки принятых данных")
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// Получение токена, переданного клиентом.
@@ -490,7 +490,7 @@ func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswo
 	rxData, err := layerSendLoginPasswordRx(req)
 	if err != nil {
 		s.logger.Error("ошибка получения отправленных данных", zap.Error(err))
-		return &emptypb.Empty{}, status.Error(codes.Internal, "ошибка получения отправленных данных")
+		return &emptypb.Empty{}, status.Error(codes.Internal, err.Error())
 	}
 
 	// Получение токена запроса.
