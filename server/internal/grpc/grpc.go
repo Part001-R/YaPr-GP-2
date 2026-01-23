@@ -534,7 +534,7 @@ func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*empty
 	rxData, err := layerSendTextRx(req)
 	if err != nil {
 		s.logger.Error("ошибка получения отправленных данных", zap.Error(err))
-		return nil, status.Error(codes.Internal, "ошибка получения отправленных данных")
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Получение токена запроса.
@@ -808,7 +808,7 @@ func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.Reques
 	}
 
 	// Получение данных запроса.
-	rxData, err := layerRequestLoginPasswordByName(req)
+	rxData, err := layerRequestLoginPasswordRx(req)
 	if err != nil {
 		s.logger.Error("Функция layerRequestLoginPasswordByName, вернула ошибку", zap.Error(err))
 		return nil, status.Error(codes.Internal, "ошибка обработки данных запроса")

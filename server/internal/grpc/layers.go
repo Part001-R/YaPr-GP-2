@@ -310,6 +310,14 @@ func layerSendTextRx(req *pb.SendTextRequest) (rxData domain.DataText, err error
 	rxData.Field2 = req.Text
 	rxData.CreatedAt = req.CreatedAt
 
+	// Проверка.
+	if rxData.IDClient == "" ||
+		rxData.Field1 == "" ||
+		rxData.Field2 == "" ||
+		rxData.CreatedAt == "" {
+		return domain.DataText{}, MissingData
+	}
+
 	return rxData, nil
 }
 
@@ -377,6 +385,22 @@ func layerSendBankCardRx(req *pb.SendBankCardRequest) (rxData RxBankCard, err er
 	rxData.ValidData = req.ValidData
 	rxData.Code = req.Code
 	rxData.CreatedAt = req.CreatedAt
+
+	// Проверка данных.
+	if rxData.ID == "" ||
+		rxData.For == "" ||
+		rxData.Owner == "" ||
+		rxData.Numb == "" ||
+		rxData.ValidData == "" ||
+		rxData.Code == "" ||
+		rxData.CreatedAt == "" {
+		return RxBankCard{}, MissingData
+	}
+
+	// Проверка номера карты.
+	if !checkNumbByLuhn(rxData.Numb) {
+		return RxBankCard{}, IncorrecrNumb
+	}
 
 	return rxData, nil
 }
@@ -540,10 +564,16 @@ func layerRequestLoginPasswordByNameToken(ctx context.Context) (token tokenData,
 // Параметры:
 //
 //	ctx - контекст.
-func layerRequestLoginPasswordByName(req *pb.RequestLoginPasswordByNameRequest) (name RxReqLoginPasswordByName, err error) {
+func layerRequestLoginPasswordRx(req *pb.RequestLoginPasswordByNameRequest) (name RxReqLoginPasswordByName, err error) {
 
 	name.ClientID = req.IdClient
 	name.Name = req.Name
+
+	// Проверка значений.
+	if name.ClientID == "" ||
+		name.Name == "" {
+		return RxReqLoginPasswordByName{}, MissingData
+	}
 
 	return name, nil
 }

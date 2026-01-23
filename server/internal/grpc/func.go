@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -231,4 +233,38 @@ func ReadFilesInDirectory(dirPath string) (files []string, err error) {
 	}
 
 	return files, nil
+}
+
+// Проверка номера алгоритмом Луна. Возвращается true - проверка успешна.
+//
+// Параметры:
+//
+//	number - номер для проверки.
+func checkNumbByLuhn(number string) bool {
+
+	number = strings.ReplaceAll(number, " ", "")
+	if len(number) == 0 {
+		return false
+	}
+
+	sum := 0
+	alternate := false
+
+	for i := len(number) - 1; i >= 0; i-- {
+		digit, err := strconv.Atoi(string(number[i]))
+		if err != nil {
+			return false
+		}
+
+		if alternate {
+			digit *= 2
+			if digit > 9 {
+				digit -= 9
+			}
+		}
+		sum += digit
+		alternate = !alternate
+	}
+
+	return sum%10 == 0
 }

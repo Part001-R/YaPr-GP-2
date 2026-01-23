@@ -48,4 +48,7 @@ var (
 
 	// Отсутствуют данные.
 	MissingData = errors.New("отсутствуют данные")
+
+	// Некоректный номер.
+	IncorrecrNumb = errors.New("Некоректный номер")
 )
