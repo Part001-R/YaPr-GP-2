@@ -19,9 +19,11 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// ----------------------------
 //
-// --- pingContext ---
+//        pingContext
 //
+// ----------------------------
 
 // Додготовка данных для запроса. Возвращаются метаданные, имя токена, ключ и ошибка.
 //
@@ -71,7 +73,7 @@ func layerPingContextRequest(ctx context.Context, txMD metadata.MD, client proto
 	var header metadata.MD
 
 	// Запрос.
-	ctx = metadata.NewOutgoingContext(ctx, txMD) // добавление метаданных к контексту.
+	ctx = metadata.NewOutgoingContext(ctx, txMD)
 	_, err := client.Ping(ctx, emptyRequest, grpc.Header(&header))
 	if err != nil {
 		return fmt.Errorf("функция client.Ping, вернула ошибку: <%w>", err)
@@ -92,9 +94,11 @@ func layerPingContextRequest(ctx context.Context, txMD metadata.MD, client proto
 	return nil
 }
 
+// ----------------------------
 //
-// --- showRegistration ---
+//      showRegistration
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -360,9 +364,11 @@ func layerShowRegistrationSetFocus(c *handlerUI, g *gocui.Gui, name string) erro
 	return nil
 }
 
+// ----------------------------
 //
-// --- showAuthentication ---
+//     showAuthentication
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -648,9 +654,11 @@ func layerShowAuthenticationNewInst(c *handlerUI) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showSettings ---
+//         showSettings
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -891,9 +899,11 @@ func layerShowSettingsSetFocus(c *handlerUI, g *gocui.Gui, name string) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showMain ---
+//          showMain
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -948,9 +958,11 @@ func layerShowMainSetFocus(c *handlerUI) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showSelectType ---
+//        showSelectType
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
