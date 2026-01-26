@@ -19,20 +19,14 @@ type StorageI interface {
 	UserExistContext(ctx context.Context) (bool, error)
 	// Добавление данных - логин/пароль.
 	AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error
-	// Чтение данных - логин/пароль.
-	ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error)
 	// Удаление данных - логин/пароль.
 	DelDataLoginPasswordContext(ctx context.Context, field1 string) error
 	// Добавлеение данных - текст.
 	AddDataTextContext(ctx context.Context, data DataText) error
-	// Чтение данных - текст.
-	ReadTableTextContext(ctx context.Context) (list []TextData, err error)
 	// Удаление данных - текст.
 	DelTextContext(ctx context.Context, field1 string) error
 	// Добавление данных - банковские карты.
 	AddDataBankCardContext(ctx context.Context, data DataBankCard) error
-	// Чтение данных - банковские карты.
-	ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error)
 	// Удаление данных - банковские карты.
 	DelBankCardContext(ctx context.Context, field1 string) error
 	// Полчение имён записей логин/пароль.
@@ -47,6 +41,8 @@ type StorageI interface {
 	GetNamesBankCardContext(ctx context.Context) ([]string, error)
 	// Получение банковской карты по имени
 	GetBankCardByNameContext(ctx context.Context, name string) (data BankCard, err error)
+	// Сброс конфигурации. Для тестов.
+	ResetForTest() error
 }
 
 // Интерфейс домена.
@@ -65,6 +61,10 @@ type storage struct {
 //
 //	dsn - строка подключения.
 func NewStorage(dsn string) (DomainI, error) {
+
+	if dsn == "" {
+		return nil, EmptyDataArgumentDSN
+	}
 
 	// Выделение префикса из dsn.
 	prefix := extractPrefixDSN(dsn)

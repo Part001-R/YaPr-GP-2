@@ -37,4 +37,16 @@ var (
 
 	// Нет содержимого в аргументе name
 	EmptyDataArgumentName = errors.New("нет содержимого в аргументе name")
+
+	// Нет содержимого в аргументе pwd
+	EmptyDataArgumentPwd = errors.New("нет содержимого в аргументе pwd")
+
+	// Нет содержимого в аргументе ctx
+	EmptyDataArgumentCtx = errors.New("нет содержимого в аргументе ctx")
+
+	// Нет указателя на БД.
+	NilPtrDB = errors.New("нет указателя на БД")
+
+	// Нет указателя на мьютексы.
+	NilPtrMutex = errors.New("нет указателя на мьютексы")
 )

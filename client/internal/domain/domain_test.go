@@ -35,26 +35,29 @@ func TestNewStorage(t *testing.T) {
 
 func TestAddUserContext(t *testing.T) {
 
-	// Конструктор.
-	dbName := "testStorage.db"
+	t.Run("Успешное чтение", func(t *testing.T) {
 
-	dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-	actions, err := NewStorage(dsn)
-	require.NoErrorf(t, err, "ошибка конструктора")
+		dbName := "testStorage.db"
 
-	defer func() {
-		err = actions.Close()
-		assert.NoErrorf(t, err, "Ошибка закрытия подключения")
+		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
+		actions, err := NewStorage(dsn)
+		require.NoErrorf(t, err, "ошибка конструктора")
 
-		err := os.Remove(dbName)
-		assert.NoErrorf(t, err, "Ошибка удаления БД")
-	}()
+		defer func() {
+			err = actions.Close()
+			assert.NoErrorf(t, err, "Ошибка закрытия подключения")
 
-	// Добавление записи.
-	userName := "Foo"
-	userPwd := "Bar"
-	err = actions.AddUserContext(context.Background(), userName, userPwd)
-	require.NoErrorf(t, err, "ошибка добавления пользователя")
+			err := os.Remove(dbName)
+			assert.NoErrorf(t, err, "Ошибка удаления БД")
+		}()
+
+		// Добавление записи.
+		userName := "Foo"
+		userPwd := "Bar"
+		err = actions.AddUserContext(context.Background(), userName, userPwd)
+		require.NoErrorf(t, err, "ошибка добавления пользователя")
+	})
+
 }
 
 //

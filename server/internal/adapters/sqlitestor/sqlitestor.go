@@ -6,8 +6,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -38,6 +40,7 @@ type dataBaseI interface {
 	GetTextByNameContext(ctx context.Context, name string) (data TextData, err error)
 	GetNamesBankCardContext(ctx context.Context) ([]string, error)
 	GetBankCardByNameContext(ctx context.Context, name string) (data BankCardData, err error)
+	ResetForTest() error
 }
 
 // Интерфейс.
@@ -55,33 +58,12 @@ var inst *dataBase
 //	dsn - строка подключения к БД.
 func New(dsn string) (Actions, error) {
 
-	/*
-		var err error
+	// Проверка аргументов.
+	if dsn == "" {
+		return nil, EmptyDataArgumentDSN
+	}
 
-		once.Do(func() {
-			db, connErr := connect(dsn)
-			if connErr != nil {
-				err = fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
-				return
-			}
-			if migrationErr := migrationUp(db); migrationErr != nil {
-				err = fmt.Errorf("функция migrationUp, вернула ошибку: <%v>", migrationErr)
-				return
-			}
-
-			inst = &dataBase{
-				storage: db,
-				mu:      &sync.Mutex{},
-			}
-		})
-
-		if err != nil {
-			return nil, fmt.Errorf("Error: %v", err)
-		}
-
-		return inst, nil
-	*/
-
+	// Логика.
 	db, connErr := connect(dsn)
 	if connErr != nil {
 		return nil, fmt.Errorf("функция connect, вернула ошибку: <%v>", connErr)
@@ -106,6 +88,11 @@ func (d *dataBase) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	// Проверка.
+	if d.storage == nil {
+		return NilPtrDB
+	}
+
 	return d.storage.Close()
 }
 
@@ -117,6 +104,24 @@ func (d *dataBase) Close() error {
 //	userName - имя пользователя.
 //	userPwd - пароль пользователя.
 func (d *dataBase) AddUserContext(ctx context.Context, userName, userPwd string) error {
+
+	// Проверка.
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
+	if userName == "" {
+		return EmptyDataArgumentName
+	}
+	if userPwd == "" {
+		return EmptyDataArgumentPwd
+	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -127,10 +132,6 @@ func (d *dataBase) AddUserContext(ctx context.Context, userName, userPwd string)
 	query := `
 		INSERT INTO users (user_name, user_password) 
 		VALUES (?, ?);`
-
-	// Проверка таймаута контекста
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
 
 	// Выполнение запроса.
 	_, err := d.storage.ExecContext(ctx, query, userName, hashPwd)
@@ -149,26 +150,31 @@ func (d *dataBase) AddUserContext(ctx context.Context, userName, userPwd string)
 //	data - данные.
 func (d *dataBase) AuthenticateUserContext(ctx context.Context, data DataUser) (bool, error) {
 
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	// Проверка аргументов.
+	if ctx == nil {
+		return false, EmptyDataArgumentCtx
+	}
 	if data.Field1 == "" {
 		return false, EmptyDataArgumentField1
 	}
 	if data.Field2 == "" {
 		return false, EmptyDataArgumentField2
 	}
+	if d.storage == nil {
+		return false, NilPtrDB
+	}
+	if d.mu == nil {
+		return false, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Подготовка запроса.
 	query := `
 		SELECT user_password 
 		FROM users 
 		WHERE user_name = ?;`
-
-	// Проверка таймаута контекста.
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
 
 	// Выполнение запроса.
 	var hashPwd string
@@ -194,6 +200,17 @@ func (d *dataBase) AuthenticateUserContext(ctx context.Context, data DataUser) (
 //
 //	ctx - контекст.
 func (d *dataBase) UserExistContext(ctx context.Context) (bool, error) {
+
+	// Проверка.
+	if ctx == nil {
+		return false, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return false, NilPtrDB
+	}
+	if d.mu == nil {
+		return false, NilPtrMutex
+	}
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -226,6 +243,9 @@ func (d *dataBase) UserExistContext(ctx context.Context) (bool, error) {
 func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, data DataLoginPassword) error {
 
 	// Проверка аргументов
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
 	if data.Field1 == "" {
 		return EmptyDataArgumentField1
 	}
@@ -238,6 +258,15 @@ func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, data DataLog
 	if data.CreatedAt == "" {
 		return EmptyDataArgumentCreatedAt
 	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data1 (field_1, field_2, field_3, created_at) VALUES (?, ?, ?, ?)`
@@ -258,6 +287,21 @@ func (d *dataBase) AddDataLoginPasswordContext(ctx context.Context, data DataLog
 //	ctx - контекст.
 func (d *dataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []LoginPassword, err error) {
 
+	// Проверка аргументов.
+	if ctx == nil {
+		return nil, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return nil, NilPtrDB
+	}
+	if d.mu == nil {
+		return nil, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Логика.
 	limit := 100
 	offset := 0
 	query := "SELECT field_1, field_2, field_3, created_at FROM data1 LIMIT ? OFFSET ?"
@@ -308,9 +352,21 @@ func (d *dataBase) ReadTableLoginPasswordContext(ctx context.Context) (list []Lo
 func (d *dataBase) DelDataLoginPasswordContext(ctx context.Context, field1 string) error {
 
 	// Проверка аргументов.
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
 	if field1 == "" {
 		return EmptyDataArgumentField1
 	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Логика.
 	query := `DELETE FROM data1 WHERE field_1 = ?`
@@ -339,9 +395,23 @@ func (d *dataBase) DelDataLoginPasswordContext(ctx context.Context, field1 strin
 //	ctx - контекст.
 func (d *dataBase) GetNamesLoginPasswordContext(ctx context.Context) ([]string, error) {
 
+	// Проверка аргументов.
+	if ctx == nil {
+		return nil, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return nil, NilPtrDB
+	}
+	if d.mu == nil {
+		return nil, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	// Запрос к базе данных
 	query := "SELECT field_1 FROM data1"
-	rows, err := d.storage.Query(query)
+	rows, err := d.storage.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка выполнения запроса: <%w>", err)
 	}
@@ -375,9 +445,21 @@ func (d *dataBase) GetNamesLoginPasswordContext(ctx context.Context) ([]string, 
 func (d *dataBase) GetLoginPasswordByNameContext(ctx context.Context, name string) (data DataLoginPassword, err error) {
 
 	// Провера аргументов.
+	if ctx == nil {
+		return DataLoginPassword{}, EmptyDataArgumentCtx
+	}
 	if name == "" {
 		return DataLoginPassword{}, EmptyDataArgumentName
 	}
+	if d.storage == nil {
+		return DataLoginPassword{}, NilPtrDB
+	}
+	if d.mu == nil {
+		return DataLoginPassword{}, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	query := "SELECT field_1, field_2, field_3, created_at FROM data1 WHERE field_1 = ?"
 	row := d.storage.QueryRowContext(ctx, query, name)
@@ -406,6 +488,9 @@ func (d *dataBase) GetLoginPasswordByNameContext(ctx context.Context, name strin
 func (d *dataBase) AddDataTextContext(ctx context.Context, data DataText) error {
 
 	// Проверка аргументов.
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
 	if data.Field1 == "" {
 		return EmptyDataArgumentField1
 	}
@@ -415,6 +500,15 @@ func (d *dataBase) AddDataTextContext(ctx context.Context, data DataText) error 
 	if data.CreatedAt == "" {
 		return EmptyDataArgumentCreatedAt
 	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Подготовка SQL-запроса
 	query := `INSERT INTO data2 (field_1, field_2, created_at) VALUES (?, ?, ?)`
@@ -435,6 +529,21 @@ func (d *dataBase) AddDataTextContext(ctx context.Context, data DataText) error 
 //	ctx - контекст.
 func (d *dataBase) ReadTableTextContext(ctx context.Context) (list []TextData, err error) {
 
+	// Проверка аргументов.
+	if ctx == nil {
+		return nil, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return nil, NilPtrDB
+	}
+	if d.mu == nil {
+		return nil, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Логика.
 	limit := 100
 	offset := 0
 	query := "SELECT field_1, field_2, created_at FROM data2 LIMIT ? OFFSET ?"
@@ -485,9 +594,21 @@ func (d *dataBase) ReadTableTextContext(ctx context.Context) (list []TextData, e
 func (d *dataBase) DelTextContext(ctx context.Context, field1 string) error {
 
 	// Провера аргументов.
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
 	if field1 == "" {
 		return EmptyDataArgumentField1
 	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	query := `DELETE FROM data2 WHERE field_1 = ?`
 
@@ -514,6 +635,20 @@ func (d *dataBase) DelTextContext(ctx context.Context, field1 string) error {
 //
 //	ctx - контекст.
 func (d *dataBase) GetNamesTextContext(ctx context.Context) ([]string, error) {
+
+	// Проверка аргументов.
+	if ctx == nil {
+		return nil, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return nil, NilPtrDB
+	}
+	if d.mu == nil {
+		return nil, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Запрос к базе данных
 	query := "SELECT field_1 FROM data2"
@@ -551,9 +686,21 @@ func (d *dataBase) GetNamesTextContext(ctx context.Context) ([]string, error) {
 func (d *dataBase) GetTextByNameContext(ctx context.Context, name string) (data TextData, err error) {
 
 	// Проверка аргументов.
+	if ctx == nil {
+		return TextData{}, EmptyDataArgumentCtx
+	}
 	if name == "" {
 		return TextData{}, EmptyDataArgumentName
 	}
+	if d.storage == nil {
+		return TextData{}, NilPtrDB
+	}
+	if d.mu == nil {
+		return TextData{}, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	query := "SELECT field_1, field_2, created_at FROM data2 WHERE field_1 = ?"
 	row := d.storage.QueryRowContext(ctx, query, name)
@@ -582,6 +729,9 @@ func (d *dataBase) GetTextByNameContext(ctx context.Context, name string) (data 
 func (d *dataBase) AddDataBankCardContext(ctx context.Context, data DataBankCard) error {
 
 	// Проверка аргументов.
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
 	if data.Field1 == "" {
 		return EmptyDataArgumentField1
 	}
@@ -600,6 +750,15 @@ func (d *dataBase) AddDataBankCardContext(ctx context.Context, data DataBankCard
 	if data.CreatedAt == "" {
 		return EmptyDataArgumentCreatedAt
 	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Подготовка.
 	query := `INSERT INTO data4 (field_1, field_2, field_3, field_4, field_5, created_at) VALUES (?, ?, ?, ?, ?, ?)`
@@ -619,6 +778,20 @@ func (d *dataBase) AddDataBankCardContext(ctx context.Context, data DataBankCard
 //
 //	ctx - контекст.
 func (d *dataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCard, err error) {
+
+	// Проверка аргументов.
+	if ctx == nil {
+		return nil, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return nil, NilPtrDB
+	}
+	if d.mu == nil {
+		return nil, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	limit := 100
 	offset := 0
@@ -670,9 +843,21 @@ func (d *dataBase) ReadTableBankCardContext(ctx context.Context) (list []BankCar
 func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error {
 
 	// Проверка аргументов.
+	if ctx == nil {
+		return EmptyDataArgumentCtx
+	}
 	if field1 == "" {
 		return EmptyDataArgumentField1
 	}
+	if d.storage == nil {
+		return NilPtrDB
+	}
+	if d.mu == nil {
+		return NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Логика.
 	query := `DELETE FROM data4 WHERE field_1 = ?`
@@ -701,9 +886,23 @@ func (d *dataBase) DelBankCardContext(ctx context.Context, field1 string) error 
 //	ctx - контекст.
 func (d *dataBase) GetNamesBankCardContext(ctx context.Context) ([]string, error) {
 
+	// Проверка аргументов.
+	if ctx == nil {
+		return nil, EmptyDataArgumentCtx
+	}
+	if d.storage == nil {
+		return nil, NilPtrDB
+	}
+	if d.mu == nil {
+		return nil, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	// Запрос к базе данных
 	query := "SELECT field_1 FROM data4"
-	rows, err := d.storage.Query(query)
+	rows, err := d.storage.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка выполнения запроса: <%w>", err)
 	}
@@ -738,9 +937,21 @@ func (d *dataBase) GetNamesBankCardContext(ctx context.Context) ([]string, error
 func (d *dataBase) GetBankCardByNameContext(ctx context.Context, name string) (data BankCardData, err error) {
 
 	// Проверка аргументов.
+	if ctx == nil {
+		return BankCardData{}, EmptyDataArgumentCtx
+	}
 	if name == "" {
 		return BankCardData{}, EmptyDataArgumentName
 	}
+	if d.storage == nil {
+		return BankCardData{}, NilPtrDB
+	}
+	if d.mu == nil {
+		return BankCardData{}, NilPtrMutex
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	query := "SELECT field_1, field_2, field_3, field_4, field_5, created_at FROM data4 WHERE field_1 = ?"
 	row := d.storage.QueryRowContext(ctx, query, name)
@@ -754,4 +965,25 @@ func (d *dataBase) GetBankCardByNameContext(ctx context.Context, name string) (d
 	}
 
 	return data, nil
+}
+
+// ========================================================================================
+
+// Сброс экземпляра, для тестов.
+func (d *dataBase) ResetForTest() error {
+
+	_, filePath, _, ok := runtime.Caller(1)
+	if !ok {
+		return fmt.Errorf("Не удалось получить информацию о вызове")
+	}
+
+	if !strings.HasSuffix(filepath.Base(filePath), "_test.go") {
+		return fmt.Errorf("Эта функция может быть вызвана только из тестов")
+	}
+
+	// Сброс
+	d.storage = nil
+	d.mu = nil
+
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,26 +38,59 @@ func TestNewStorage(t *testing.T) {
 
 func TestAddUserContext(t *testing.T) {
 
-	// Конструктор.
-	dbName := "testStorage.db"
+	t.Run("Успешное добавление", func(t *testing.T) {
 
-	dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
-	actions, err := New(dsn)
-	require.NoErrorf(t, err, "ошибка конструктора")
+		// Конструктор.
+		dbName := "testStorage.db"
 
-	defer func() {
-		err = actions.Close()
-		assert.NoErrorf(t, err, "Ошибка закрытия подключения")
+		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
+		actions, err := New(dsn)
+		require.NoErrorf(t, err, "ошибка конструктора")
 
-		err := os.Remove(dbName)
-		assert.NoErrorf(t, err, "Ошибка удаления БД")
-	}()
+		defer func() {
+			err = actions.Close()
+			assert.NoErrorf(t, err, "Ошибка закрытия подключения")
 
-	// Добавление записи.
-	userName := "Foo"
-	userPwd := "Bar"
-	err = actions.AddUserContext(context.Background(), userName, userPwd)
-	require.NoErrorf(t, err, "ошибка добавления пользователя")
+			err := os.Remove(dbName)
+			assert.NoErrorf(t, err, "Ошибка удаления БД")
+		}()
+
+		// Добавление записи.
+		userName := "Foo"
+		userPwd := "Bar"
+		err = actions.AddUserContext(context.Background(), userName, userPwd)
+		require.NoErrorf(t, err, "ошибка добавления пользователя")
+	})
+
+	t.Run("Длительная отработка", func(t *testing.T) {
+
+		// Конструктор.
+		dbName := "testStorage.db"
+
+		dsn := "file:" + dbName + "?cache=shared&foreign_keys=on&mode=rwc"
+		actions, err := New(dsn)
+		require.NoErrorf(t, err, "ошибка конструктора")
+
+		defer func() {
+			err = actions.Close()
+			assert.NoErrorf(t, err, "Ошибка закрытия подключения")
+
+			err := os.Remove(dbName)
+			assert.NoErrorf(t, err, "Ошибка удаления БД")
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(6 * time.Millisecond)
+
+		// Добавление записи.
+		userName := "Foo"
+		userPwd := "Bar"
+		err = actions.AddUserContext(ctx, userName, userPwd)
+		require.Errorf(t, err, "ожидается ошибка")
+	})
+
 }
 
 //
