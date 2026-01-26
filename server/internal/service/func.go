@@ -16,7 +16,7 @@ import (
 // c - указатель на конфигурацию сервиса.
 func createTLSConfig(c *udt.Configuration) (*tls.Config, error) {
 
-	cert, err := tls.LoadX509KeyPair(c.TLS.Public, c.TLS.Privae)
+	cert, err := tls.LoadX509KeyPair(c.TLS.Public, c.TLS.Private)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка загрузки сертификатов: %w", err)
 	}

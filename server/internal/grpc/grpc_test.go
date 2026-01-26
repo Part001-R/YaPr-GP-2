@@ -2,11 +2,13 @@
 package grpc
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -26,14 +28,14 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// Все тесты сервера.
-func TestAll(t *testing.T) {
+// Тест всех обработчиков gRPC.
+func TestAllHandlersGRPC(t *testing.T) {
 
 	//
 	// Подготовка сервера для тестов.
 	//
 
-	// подготовка конфигурации сервиса.
+	// Подготовка конфигурации сервиса.
 	serv, err := prepare()
 	require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
 
@@ -71,6 +73,11 @@ func TestAll(t *testing.T) {
 		assert.NoErrorf(t, err, "ошибка закрытия подключения к серверу")
 	}()
 
+	// -------------------------------------------------------------------------------------------------
+	//
+	//                                               БД
+	//
+	// -------------------------------------------------------------------------------------------------
 	// Данные для тестов.
 	userName := "Foo"
 	userPwd := "Bar"
@@ -1353,6 +1360,257 @@ func TestAll(t *testing.T) {
 		_ = namesText
 	})
 
+	//
+	// Тест получения записи текста, по имени (корректные данные, первой записи).
+	//
+
+	// Первая запись.
+	rxText1 := RxText{}
+
+	t.Run("Получение первой записи текста по имени", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestTextByNameRequest{
+			IdClient: "AAA",
+			Name:     txText1.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		resp, err := client.RequestTextByName(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка запроса данных текста, по имени записи")
+
+		rxText1.For = resp.Name
+		rxText1.Text = resp.Text
+		rxText1.CreatedAt = resp.CreatedAt
+	})
+
+	//
+	// Тест получения записи текста, по имени (корректные данные, второй записи).
+	//
+
+	// Первая запись.
+	rxText2 := RxText{}
+
+	t.Run("Получение первой записи текста по имени", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestTextByNameRequest{
+			IdClient: "AAA",
+			Name:     txText2.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		resp, err := client.RequestTextByName(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка запроса данных текста, по имени записи")
+
+		rxText2.For = resp.Name
+		rxText2.Text = resp.Text
+		rxText2.CreatedAt = resp.CreatedAt
+	})
+
+	//
+	// Проверка соответствия данных Tx и Rx.
+	//
+
+	t.Run("Проверка соответствия данных Tx и Rx у данных текста", func(t *testing.T) {
+
+		assert.Equalf(t, txText1.For, rxText1.For, "Нет соответствия For, у первой записи текста")
+		assert.Equalf(t, txText1.Text, rxText1.Text, "Нет соответствия Text, у первой записи текста")
+
+		assert.Equalf(t, txText2.For, rxText2.For, "Нет соответствия For, у второй записи текста")
+		assert.Equalf(t, txText2.Text, rxText2.Text, "Нет соответствия Text, у второй записи текста")
+	})
+
+	//
+	// Удаление данных текста. (подставной токен)
+	//
+
+	t.Run("Удаление данных текста. (подставной токен)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth+"1")
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     txText1.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteText(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = PermissionDenied desc = токен не прошел проверку", err.Error(), "нет соответствия токена")
+	})
+
+	//
+	// Удаление данных текста. (нет id клиента)
+	//
+
+	t.Run("Удаление данных текста. (нет id клиента)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "",
+			Name:     txText1.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteText(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Unavailable desc = ошибка в данных запроса", err.Error(), "нет соответствия токена")
+	})
+
+	//
+	// Удаление данных текста. (нет имени записи)
+	//
+
+	t.Run("Удаление данных текста. (нет имени записи)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     "",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteText(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Unavailable desc = ошибка в данных запроса", err.Error(), "нет соответствия токена")
+	})
+
+	//
+	// Удаление данных текста. (удаление первой записи)
+	//
+
+	t.Run("Удаление данных текста. (удаление первой записи)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     txText1.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteText(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка удаления записи")
+	})
+
+	//
+	// Удаление данных текста. (удаление второй записи)
+	//
+
+	t.Run("Удаление данных текста. (удаление второй записи)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     txText2.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteText(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка удаления записи")
+	})
+
+	//
+	// Удаление данных текста. (удаление отсутствующей записи)
+	//
+
+	t.Run("Удаление данных текста. (удаление отсутствующей записи)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     "UnavailableName",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteText(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Internal desc = ошибка удаления записи текста", err.Error(), "Нет соответствия ошибки")
+	})
+
 	// -------------------------------------------------------------------------------------------------
 	//
 	//                                        Банковская карта
@@ -1798,18 +2056,636 @@ func TestAll(t *testing.T) {
 		_ = namesBankCard
 	})
 
+	//
+	// Тест получения записи банковской карты, по имени (корректные данные, первой записи).
+	//
+
+	// Первая запись.
+	rxBankCard1 := RxBankCard{}
+
+	t.Run("Получение первой записи банковской карты по имени", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestBankCardByNameRequest{
+			IdClient: "AAA",
+			Name:     txBankCard1.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		resp, err := client.RequestBankCardByName(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка запроса данных текста, по имени записи")
+
+		rxBankCard1.For = resp.Name
+		rxBankCard1.Owner = resp.Owner
+		rxBankCard1.Numb = resp.Numb
+		rxBankCard1.ValidData = resp.Valid
+		rxBankCard1.Code = resp.Code
+		rxBankCard1.CreatedAt = resp.CreatedAt
+	})
+
+	//
+	// Тест получения записи банковской карты, по имени (корректные данные, второй записи).
+	//
+
+	// Первая запись.
+	rxBankCard2 := RxBankCard{}
+
+	t.Run("Получение второй записи банковской карты по имени", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestBankCardByNameRequest{
+			IdClient: "AAA",
+			Name:     txBankCard2.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		resp, err := client.RequestBankCardByName(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка запроса данных текста, по имени записи")
+
+		rxBankCard2.For = resp.Name
+		rxBankCard2.Owner = resp.Owner
+		rxBankCard2.Numb = resp.Numb
+		rxBankCard2.ValidData = resp.Valid
+		rxBankCard2.Code = resp.Code
+		rxBankCard2.CreatedAt = resp.CreatedAt
+	})
+
+	//
+	// Тест получения записи банковской карты, по имени (отсутствующая запись).
+	//
+
+	t.Run("Получение записи банковской карты по отсутствующему имени", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestBankCardByNameRequest{
+			IdClient: "AAA",
+			Name:     "UnavailableName",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err := client.RequestBankCardByName(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Internal desc = ошибка запроса к БД", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест получения записи банковской карты, по имени (нет имени).
+	//
+
+	t.Run("Получение записи банковской карты без имени", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestBankCardByNameRequest{
+			IdClient: "AAA",
+			Name:     "",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err := client.RequestBankCardByName(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Internal desc = ошибка обработки данных запроса", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест получения записи банковской карты, по имени (без id клиента).
+	//
+
+	t.Run("Получение записи банковской карты без id клиента", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestBankCardByNameRequest{
+			IdClient: "",
+			Name:     "Foo",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err := client.RequestBankCardByName(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Internal desc = ошибка обработки данных запроса", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Проверка соответствия данных карт.
+	//
+
+	t.Run("Проверка соответствия данных банковских карт", func(t *testing.T) {
+
+		assert.Equalf(t, txBankCard1.For, rxBankCard1.For, "Нет соответствия For, у первой записи")
+		assert.Equalf(t, txBankCard1.Owner, rxBankCard1.Owner, "Нет соответствия Owner, у первой записи")
+		assert.Equalf(t, txBankCard1.Numb, rxBankCard1.Numb, "Нет соответствия Numb, у первой записи")
+		assert.Equalf(t, txBankCard1.ValidData, rxBankCard1.ValidData, "Нет соответствия ValidData, у первой записи")
+		assert.Equalf(t, txBankCard1.Code, rxBankCard1.Code, "Нет соответствия Code, у первой записи")
+
+		assert.Equalf(t, txBankCard2.For, rxBankCard2.For, "Нет соответствия For, у второй записи")
+		assert.Equalf(t, txBankCard2.Owner, rxBankCard2.Owner, "Нет соответствия Owner, у второй записи")
+		assert.Equalf(t, txBankCard2.Numb, rxBankCard2.Numb, "Нет соответствия Numb, у второй записи")
+		assert.Equalf(t, txBankCard2.ValidData, rxBankCard2.ValidData, "Нет соответствия ValidData, у второй записи")
+		assert.Equalf(t, txBankCard2.Code, rxBankCard2.Code, "Нет соответствия Code, у второй записи")
+	})
+
+	//
+	// Тест удаления данных банковской карты. (первой записи)
+	//
+
+	t.Run("Удаление данных банковской карты. (первой записи)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     txBankCard1.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteBankCard(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка удаления записи")
+	})
+
+	//
+	// Тест удаления данных банковской карты. (второй записи)
+	//
+
+	t.Run("Удаление данных банковской карты. (второй записи)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     txBankCard2.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteBankCard(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка удаления записи")
+	})
+
+	//
+	// Тест удаления данных банковской карты. (подставной токен)
+	//
+
+	t.Run("Удаление данных банковской карты. (подставной токен)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth+"1")
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     txBankCard2.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteBankCard(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = PermissionDenied desc = токен не прошел проверку", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест удаления данных банковской карты. (нет id клиента)
+	//
+
+	t.Run("Удаление данных банковской карты. (нет id клиента)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "",
+			Name:     txBankCard2.For,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteBankCard(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Unavailable desc = ошибка в данных запроса", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест удаления данных банковской карты. (нет имени)
+	//
+
+	t.Run("Удаление данных банковской карты. (нет имени)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &proto.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     "",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteBankCard(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Unavailable desc = ошибка в данных запроса", err.Error(), "Нет соответствия ошибки")
+	})
+
 	// -------------------------------------------------------------------------------------------------
 	//
-	//                                              Файл
+	//                                             Файлы
 	//
 	// -------------------------------------------------------------------------------------------------
+
+	//
+	// --- Подготовка ---
+	//
+
+	// Создание директории для файлов.
+	dirFiles := flags.NameSubDirFiles
+	err = createSubdirectory(dirFiles)
+	require.NoErrorf(t, err, "Ошибка создания директории для файлов")
+	defer func() {
+		err := removeDirIfExists(dirFiles)
+		assert.NoErrorf(t, err, "Ошибка удаления директории для файлов")
+	}()
+
+	// Создание файлов для передачи.
+	nameFileA := "fileA.txt"
+	nameFileB := "fileB.txt"
+	dataText := "Foo"
+
+	err = fileCreateAndWrite(dirFiles, nameFileA, dataText)
+	require.NoErrorf(t, err, "Ошибка в файле <%s>", nameFileA)
+	err = fileCreateAndWrite(dirFiles, nameFileB, dataText)
+	require.NoErrorf(t, err, "Ошибка в файле <%s>", nameFileB)
+
+	//
+	// Получение имён файлов (подставной токен).
+	//
+
+	t.Run("Получение имён файлов (подставной токен)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth+"1")
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &emptypb.Empty{}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err := client.RequestFileName(ctx, req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = PermissionDenied desc = токен не прошел проверку", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Получение имён файлов.
+	//
+
+	rxNameFiles := []string{}
+
+	t.Run("Получение имён файлов", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &emptypb.Empty{}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		resp, err := client.RequestFileName(ctx, req, grpc.Header(&header))
+		require.NoErrorf(t, err, "Ошибка получения имён файлов")
+
+		rxNameFiles = resp.EntriesName
+		isBusy := resp.IsBusy
+		assert.Falsef(t, isBusy, "Сервер не должен быть занятым")
+	})
+
+	//
+	// Проверка соответствия имён файлов.
+	//
+
+	t.Run("Проверка соответствия имён файлов", func(t *testing.T) {
+
+		require.Equalf(t, 2, len(rxNameFiles), "Нет соответствия длинны масива с названиеями файлов")
+
+		isOk := false
+
+		if rxNameFiles[0] == nameFileA && rxNameFiles[1] == nameFileB {
+			isOk = true
+		}
+		if rxNameFiles[0] == nameFileB && rxNameFiles[1] == nameFileA {
+			isOk = true
+		}
+		assert.Truef(t, isOk, "Нет соответствия имён файлов")
+	})
+
+	//
+	// Тест удаления файла (А).
+	//
+
+	t.Run("Удаление файла (А)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     nameFileA,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteFile(ctx, req, grpc.Header(&header))
+		assert.NoErrorf(t, err, "Ошибка удаления файла <%s>", nameFileA)
+	})
+
+	//
+	// Тест удаления файла (B).
+	//
+
+	t.Run("Удаление файла (B)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     nameFileB,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteFile(ctx, req, grpc.Header(&header))
+		assert.NoErrorf(t, err, "Ошибка удаления файла <%s>", nameFileB)
+	})
+
+	//
+	// Тест удаления файла (подставной токен).
+	//
+
+	t.Run("Удаление файла (подставной токен)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth+"1")
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.RequestDeleteName{
+			IdClient: "AAA",
+			Name:     nameFileB,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteFile(ctx, req, grpc.Header(&header))
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = токен не прошел проверку", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест удаления файла (нет id клиента).
+	//
+
+	t.Run("Удаление файла (нет id клиента)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.RequestDeleteName{
+			IdClient: "",
+			Name:     nameFileB,
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteFile(ctx, req, grpc.Header(&header))
+		assert.Equalf(t, "rpc error: code = Unavailable desc = ошибка в данных запроса", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест удаления файла (нет имени файла).
+	//
+
+	t.Run("Удаление файла (нет имени файла)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.RequestDeleteName{
+			IdClient: "ААА",
+			Name:     "",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteFile(ctx, req, grpc.Header(&header))
+		assert.Equalf(t, "rpc error: code = Unavailable desc = ошибка в данных запроса", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Тест удаления файла (отсутствующий файл).
+	//
+
+	t.Run("Удаление файла (отсутствующий файл)", func(t *testing.T) {
+
+		// Создание метаданных с токеном аутентификации.
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, tokenAuth)
+
+		// Контекст для запроса.
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.RequestDeleteName{
+			IdClient: "ААА",
+			Name:     "MissingFile",
+		}
+
+		var header metadata.MD
+
+		// Выполнение запроса.
+		_, err = client.DeleteFile(ctx, req, grpc.Header(&header))
+		assert.Equalf(t, "rpc error: code = Internal desc = ошибка удаления файла", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
+	// Передача файла (подставной токен).
+	//
+
+	t.Run("Передача файла (подставной токен)", func(t *testing.T) {
+
+		invalidToken := tokenAuth + "1"
+		txMD := metadata.Pairs("token", invalidToken)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		var header metadata.MD
+
+		// Тест
+		stream, err := client.SendFile(ctx, grpc.Header(&header))
+		if err != nil {
+			t.Fatalf("Ошибка при создании потока: %v", err)
+		}
+
+		req := &pb.SendFileRequest{
+			IdClient: "ААА",
+			FileName: "Foo.txt",
+			Content:  []byte("content"),
+		}
+		err = stream.Send(req)
+		require.NoErrorf(t, err, "Ошибка при отправке чанка")
+
+		_, err = stream.CloseAndRecv()
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = токен не прошел проверку", err.Error(), "Нет соответствия ошибки")
+	})
 }
 
-// =======================================================================================================
+// =================================================================================================
 //
 //                               Вспомогательные функции для тестов
 //
-// =======================================================================================================
+// =================================================================================================
 
 // инициализация сервиса для теста. Возвращается указатель и ошибка.
 func prepare() (*Configuration, error) {
@@ -2077,4 +2953,39 @@ func (s *TestManager) AuthInterceptorStream(srv interface{}, ss grpc.ServerStrea
 
 	// Токен есть, передача управления.
 	return handler(srv, ss)
+}
+
+// Создание файла и запись в него данных. Возвращается ошибка.
+//
+// Параметры:
+//
+//	filePath - путь к файлу.
+//	fileName - имя файла.
+//	dataText - данные для записи в файл.
+func fileCreateAndWrite(filePath, fileName, dataText string) (err error) {
+
+	fullFileName := path.Join(filePath, fileName)
+
+	file, err := os.Create(fullFileName)
+	if err != nil {
+		return fmt.Errorf("Ошибка создания файла <%w>", err)
+	}
+	defer file.Close()
+
+	// Буфер.
+	writer := bufio.NewWriter(file)
+
+	// Запись в файл.
+	_, err = writer.WriteString(dataText)
+	if err != nil {
+		return fmt.Errorf("Ошибка записи в файл <%w>", err)
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		return fmt.Errorf("Ошибка сброса буфера <%w>", err)
+
+	}
+
+	return nil
 }

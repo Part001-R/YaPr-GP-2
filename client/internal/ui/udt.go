@@ -186,3 +186,11 @@ type handlerUI struct {
 	tokenAuth  string             // токен аутентификации.
 	ch         ch                 // каналы.
 }
+
+// Данные размера экрана.
+type DataWindow struct {
+	Width  int    // ширина.
+	Height int    // высота.
+	Name   string // имя.
+
+}

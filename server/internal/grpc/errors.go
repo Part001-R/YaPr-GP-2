@@ -41,7 +41,10 @@ var (
 	EmptyDataIDClient = errors.New("нет данных <idClient>")
 
 	// нет данных fileName.
-	EmptyDataFileNAme = errors.New("нет данных <fileName>")
+	EmptyDataFileName = errors.New("нет данных <fileName>")
+
+	// нет данных name.
+	EmptyDataName = errors.New("нет данных <name>")
 
 	// В аргументе Conf нет указателя.
 	NilPtrArgumentConf = errors.New("в аргументе conf нет указателя")

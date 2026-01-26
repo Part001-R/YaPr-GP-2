@@ -2030,6 +2030,7 @@ func bufferProcessRxFileByName(c *handlerUI, rxChProcess <-chan float32, rxChErr
 				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала rxChDone")
 				return
 			}
+			c.setPercentTxRx(100.0)
 			c.updateStatusFileRx(stageOk)
 			c.conf.LgrFile.Write("Info: файл успешно принят")
 			return
@@ -2077,6 +2078,7 @@ func bufferProcessTxFileByName(c *handlerUI, txChProcess <-chan float32, txChErr
 				c.conf.LgrFile.Write("Error: Неожиданное закрытие канала txChDone")
 				return
 			}
+			c.setPercentTxRx(100.0)
 			c.updateStatusFileTx(stageOk)
 			c.conf.LgrFile.Write("Info: файл успешно отправлен")
 			return

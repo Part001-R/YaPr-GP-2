@@ -773,7 +773,7 @@ func (s *server) InitDataRequestFileByName(dataInit DataRequestFile) error {
 	if dataInit.ClientID == "" {
 		return EmptyDataArgumentClientID
 	}
-	if dataInit.SizeReqFile <= 0 {
+	if dataInit.SizeReqFile < 0 {
 		return IncorrectSizeFile
 	}
 	if dataInit.SizePassed < 0 {

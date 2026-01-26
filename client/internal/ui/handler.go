@@ -190,8 +190,13 @@ func (c *handlerUI) showRegistration(g *gocui.Gui, _ *gocui.View) error {
 		return fmt.Errorf("функция deleteViews, вернула ошибку: <%w>", err)
 	}
 
-	// Создание контейнера регистрации.
-	window, err := layerShowRegistrationDrawWindow(c, g)
+	// Создание окна.
+	sizeScreen := DataWindow{
+		Width:  screenWidth,
+		Height: screenHeight,
+		Name:   viewRegistration,
+	}
+	window, err := layerShowRegistrationDrawWindow(c, g, sizeScreen)
 	if err != nil {
 		return fmt.Errorf("функция layerShowRegistrationDrowWindow, вернула ошибку: <%w>", err)
 	}
@@ -255,7 +260,12 @@ func (c *handlerUI) showAuthentication(g *gocui.Gui, _ *gocui.View) error {
 	}
 
 	// Создание окна.
-	window, err := layerShowAuthenticationDrawWindow(c, g)
+	data := DataWindow{
+		Width:  screenWidth,
+		Height: screenHeight,
+		Name:   viewAutentification,
+	}
+	window, err := layerShowAuthenticationDrawWindow(c, g, data)
 	if err != nil {
 		return fmt.Errorf("функция layerShowAuthenticationDrawWindow, вернула ошибку: <%w>", err)
 	}
@@ -313,8 +323,13 @@ func (c *handlerUI) showSettings(g *gocui.Gui, _ *gocui.View) error {
 		return fmt.Errorf("функция layerShowSettingsReset, вернула ошибку: <%w>", err)
 	}
 
-	// Создание окна
-	window, err := layerShowSettingsDrawWindow(c, g)
+	// Создание окна.
+	data := DataWindow{
+		Width:  screenWidth,
+		Height: screenHeight,
+		Name:   viewSettings,
+	}
+	window, err := layerShowSettingsDrawWindow(c, g, data)
 	if err != nil {
 		return fmt.Errorf("функция layerShowSettingsDrawWindow, вернула ошибку: <%w>", err)
 	}
@@ -1187,8 +1202,13 @@ func (c *handlerUI) showSelectType(g *gocui.Gui, _ *gocui.View) error {
 		return fmt.Errorf("Функция layerShowSelectTypeClear, вернула ошибку:<%w>", err)
 	}
 
-	// Для дополнительного секретного ключа.
-	window, err := layerShowSelectDrawWindow(c, g)
+	// Создание окна.
+	data := DataWindow{
+		Width:  screenWidth,
+		Height: screenHeight,
+		Name:   viewSelectType,
+	}
+	window, err := layerShowSelectDrawWindow(c, g, data)
 	if err != nil {
 		return fmt.Errorf("Функция layerShowSelectDrawWindow, вернула ошибку:<%w>", err)
 	}

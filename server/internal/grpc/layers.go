@@ -832,6 +832,14 @@ func layerRequestBankCardByName(req *pb.RequestBankCardByNameRequest) (name RxRe
 	name.ClientID = req.IdClient
 	name.Name = req.Name
 
+	// Проверка значений.
+	if name.ClientID == "" {
+		return RxReqBankCardByName{}, EmptyDataIDClient
+	}
+	if name.Name == "" {
+		return RxReqBankCardByName{}, EmptyDataName
+	}
+
 	return name, nil
 }
 
@@ -857,6 +865,36 @@ func layerRequestBankCardByNameTx(txData TxBankCard) (*pb.RequestBankCardByNameR
 //
 // --- RequestFileName ---
 //
+
+// Получение токена из запроса. Возвращается токен и ошибка.
+//
+// Параметры:
+//
+//	ctx - контекст.
+func layerRequestFileNameToken(ctx context.Context) (token tokenData, err error) {
+
+	// Считывание заголовков
+	rxMD, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return tokenData{}, ErrMissingMetadata
+	}
+
+	nameToken := "token"
+
+	// Извлечение метаданных.
+	tokens := rxMD[nameToken]
+	if len(tokens) == 0 {
+		return tokenData{}, ErrMissingToken
+	}
+	if tokens[0] == "" {
+		return tokenData{}, ErrIsEmptyToken
+	}
+
+	token.name = nameToken
+	token.token = tokens[0]
+
+	return token, nil
+}
 
 // Получение имён файлов. Возвращаются имена файловб признак занятости сервера и ошибка.
 //
@@ -959,7 +997,7 @@ func layerRequestFileInfoRx(req *pb.RequestFileInfoRequest) (idClient, fileName 
 	}
 
 	if fileName == "" {
-		return "", "", EmptyDataFileNAme
+		return "", "", EmptyDataFileName
 	}
 
 	return idClient, fileName, nil
@@ -1055,7 +1093,7 @@ func layerDeleteLoginPasswordRx(req *pb.RequestDeleteName) (idClient, name strin
 	}
 
 	if name == "" {
-		return "", "", EmptyDataFileNAme
+		return "", "", EmptyDataFileName
 	}
 
 	return idClient, name, nil
@@ -1127,7 +1165,7 @@ func layerDeleteTextRx(req *pb.RequestDeleteName) (idClient, name string, err er
 	}
 
 	if name == "" {
-		return "", "", EmptyDataFileNAme
+		return "", "", EmptyDataFileName
 	}
 
 	return idClient, name, nil
@@ -1194,12 +1232,12 @@ func layerDeleteBankCardRx(req *pb.RequestDeleteName) (idClient, name string, er
 	idClient = req.IdClient
 	name = req.Name
 
+	// Проверка значений.
 	if idClient == "" {
 		return "", "", EmptyDataIDClient
 	}
-
 	if name == "" {
-		return "", "", EmptyDataFileNAme
+		return "", "", EmptyDataName
 	}
 
 	return idClient, name, nil
@@ -1271,7 +1309,7 @@ func layerDeleteFileRx(req *pb.RequestDeleteName) (idClient, name string, err er
 	}
 
 	if name == "" {
-		return "", "", EmptyDataFileNAme
+		return "", "", EmptyDataFileName
 	}
 
 	return idClient, name, nil

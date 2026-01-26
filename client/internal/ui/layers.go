@@ -145,10 +145,11 @@ func layerShowRegistrationReset(c *handlerUI) error {
 // Параметры:
 //
 //	c - указатель на экземпляр сервиса.
-//	g - указатель на Gui
-func layerShowRegistrationDrawWindow(c *handlerUI, g *gocui.Gui) (*gocui.View, error) {
+//	g - указатель на Gui.
+//	data - данные окна.
+func layerShowRegistrationDrawWindow(c *handlerUI, g *gocui.Gui, data DataWindow) (*gocui.View, error) {
 
-	view, err := g.SetView(viewRegistration, 0, 0, screenWidth-1, screenHeight-1)
+	view, err := g.SetView(data.Name, 0, 0, data.Width-1, data.Height-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return nil, fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
@@ -446,9 +447,9 @@ func layerShowAuthenticationClear(c *handlerUI, g *gocui.Gui) error {
 //
 //	c - указатель на экземпляр сервиса.
 //	g - указатель на Gui
-func layerShowAuthenticationDrawWindow(c *handlerUI, g *gocui.Gui) (*gocui.View, error) {
+func layerShowAuthenticationDrawWindow(c *handlerUI, g *gocui.Gui, data DataWindow) (*gocui.View, error) {
 
-	view, err := g.SetView(viewAutentification, 0, 0, screenWidth-1, screenHeight-1)
+	view, err := g.SetView(data.Name, 0, 0, data.Width-1, data.Height-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.LgrFile.Write(fmt.Sprintf("функция SetView, вернула ошибку: <%v>", err))
 		return nil, fmt.Errorf("функция SetView, вернула ошибку: <%w>", err)
@@ -716,10 +717,11 @@ func layerShowSettingsClear(c *handlerUI, g *gocui.Gui) error {
 // Параметры:
 //
 //	c - указатель на экземпляр сервиса.
-//	g - указатель на Gui
-func layerShowSettingsDrawWindow(c *handlerUI, g *gocui.Gui) (*gocui.View, error) {
+//	g - указатель на Gui.
+//	data - данные окна.
+func layerShowSettingsDrawWindow(c *handlerUI, g *gocui.Gui, data DataWindow) (*gocui.View, error) {
 
-	view, err := g.SetView(viewSettings, 0, 0, screenWidth-1, screenHeight-1)
+	view, err := g.SetView(data.Name, 0, 0, data.Width-1, data.Height-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return nil, fmt.Errorf("Не удалось установить фокус: <%w>", err)
@@ -1054,10 +1056,11 @@ func layerShowSelectTypeClear(c *handlerUI, g *gocui.Gui) error {
 // Параметры:
 //
 //	c - указатель на экземпляр сервиса.
-//	g - указатель на Gui
-func layerShowSelectDrawWindow(c *handlerUI, g *gocui.Gui) (*gocui.View, error) {
+//	g - указатель на Gui.
+//	data - данные.
+func layerShowSelectDrawWindow(c *handlerUI, g *gocui.Gui, data DataWindow) (*gocui.View, error) {
 
-	view, err := g.SetView(viewSelectType, 0, 0, screenWidth-1, screenHeight-1)
+	view, err := g.SetView(data.Name, 0, 0, data.Width-1, data.Height-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		c.conf.LgrFile.Write(fmt.Sprintf("Не удалось установить фокус: <%v>", err))
 		return nil, fmt.Errorf("Не удалось установить фокус: <%w>", err)
@@ -1339,9 +1342,11 @@ func layerShowSelectSetFocus(c *handlerUI, g *gocui.Gui, name string) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showLoginPassword ---
+//      showLoginPassword
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -1787,9 +1792,11 @@ func layerShowLoginPasswordSetFocus(c *handlerUI, g *gocui.Gui, name string) err
 	return nil
 }
 
+// ----------------------------
 //
-// --- showText ---
+//          showText
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -2199,9 +2206,11 @@ func layerShowTextSetFocus(c *handlerUI, g *gocui.Gui, name string) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showBankCard ---
+//         showBankCard
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -2246,11 +2255,11 @@ func layerShowBankCardReset(c *handlerUI) error {
 	c.status.readNameBankCardPassed = false
 	c.status.addBankCardPassed = false
 	c.status.delBankCardPassed = false
-	c.index.bankCard = 0
 	c.status.readBankCardSUCCESS = false
+	c.status.readNameBankCardSUCCESS = false
+	c.index.bankCard = 0
 	c.view.activeView = ""
 	layoutInitialized = false
-	c.status.readNameBankCardSUCCESS = false
 
 	return nil
 }
@@ -2702,9 +2711,11 @@ func layerShowBankCardSetFocus(c *handlerUI, g *gocui.Gui, name string) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showBinary ---
+//          showBinary
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -3152,9 +3163,11 @@ func layerShowBinarySetFocus(c *handlerUI, g *gocui.Gui, name string) error {
 	return nil
 }
 
+// ----------------------------
 //
-// --- showRequestEncryptKey ---
+//     showRequestEncryptKey
 //
+// ----------------------------
 
 // Сброс переменных. Возвращается ошибка.
 //
@@ -3318,9 +3331,11 @@ func layerShowRequestEncryptKeySetFocus(c *handlerUI, g *gocui.Gui, name string)
 	return nil
 }
 
+// ----------------------------
 //
-// --- doRestore ---
+//          doRestore
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //
@@ -3410,9 +3425,11 @@ func layerDoRestoreActions(c *handlerUI) (err error) {
 	return nil
 }
 
+// ----------------------------
 //
-// --- doBackUp ---
+//          doBackUp
 //
+// ----------------------------
 
 // Ограничение на запуск функционала. Возвращается true - есть ограничение.
 //

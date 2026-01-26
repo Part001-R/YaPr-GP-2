@@ -1511,19 +1511,6 @@ func TestInitDataRequestFileByName(t *testing.T) {
 			wantErr: EmptyDataArgumentClientID,
 		},
 		{
-			nameTest: "Нет размера файла",
-			data: DataRequestFile{
-				FilePath:    "./A",
-				FileName:    "A",
-				TokenAuth:   "B",
-				ClientID:    "C",
-				SizeReqFile: 0,
-				SizePassed:  0,
-				SecretKey:   key,
-			},
-			wantErr: IncorrectSizeFile,
-		},
-		{
 			nameTest: "Отрицательный размера файла",
 			data: DataRequestFile{
 				FilePath:    "./A",

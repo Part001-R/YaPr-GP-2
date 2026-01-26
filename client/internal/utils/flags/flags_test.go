@@ -43,3 +43,15 @@ func TestNew(t *testing.T) {
 	err = checkFlags(*config)
 	require.NoErrorf(t, err, "Ошибка проверки флагов")
 }
+
+// Тест выделения имени БД из dsn.
+func TestGetNameDBFromDSN(t *testing.T) {
+
+	dsn := "file:foo.db?cache=shared&foreign_keys=on&mode=rwc"
+	wantName := "foo.db"
+
+	name, err := GetNameDBFromDSN(dsn)
+	require.NoErrorf(t, err, "ошибка выделения имени БД")
+	assert.Equalf(t, wantName, name, "нет соответствия имени")
+
+}

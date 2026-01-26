@@ -19,7 +19,7 @@ import (
 // с - конфигурация сервиса.
 func actions(c *udt.Configuration) error {
 
-	port := c.Flag.Port
+	port := ":" + c.Flag.Port
 
 	// Проверка аргументов
 	if c == nil {

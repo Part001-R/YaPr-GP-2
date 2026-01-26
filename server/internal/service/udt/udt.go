@@ -16,8 +16,8 @@ var onceConf sync.Once
 
 // Ключи шифрования
 type TLSdata struct {
-	Public string // Публичный ключ
-	Privae string // Приватный ключ
+	Public  string // Публичный ключ
+	Private string // Приватный ключ
 }
 
 // Конфигурация сервиса.
@@ -43,18 +43,20 @@ var confInst *Configuration
 //	storage - указатель на домен.
 //	flag - указатель на флаги.
 func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage domain.DomainI, flag *flags.Config) *Configuration {
+
 	onceConf.Do(func() {
 		confInst = &Configuration{
 			Lgr: l,
 			Srv: g,
 			TLS: TLSdata{
-				Public: keyPublic,
-				Privae: keyPrivate,
+				Public:  keyPublic,
+				Private: keyPrivate,
 			},
 			Storage: storage,
 			Flag:    flag,
 		}
 	})
+
 	return confInst
 }
 
@@ -62,10 +64,22 @@ func New(l *zap.Logger, g *grpc.Manager, keyPublic, keyPrivate string, storage d
 func (c Configuration) CheckConf() error {
 
 	if c.Lgr == nil {
-		return NilPtrArgumentConf
+		return NilPtrLogger
 	}
 	if c.Srv == nil {
-
+		return NilPtrServer
+	}
+	if c.TLS.Private == "" {
+		return MissingPathPrivate
+	}
+	if c.TLS.Public == "" {
+		return MissingPathSert
+	}
+	if c.Storage == nil {
+		return NilPtrStorage
+	}
+	if c.Flag == nil {
+		return NilPtrFlag
 	}
 	return nil
 }

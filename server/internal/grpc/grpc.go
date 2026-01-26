@@ -623,6 +623,12 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 	if err := s.UpdateStatusRx(stageActive); err != nil {
 		return status.Error(codes.Internal, "ошибка установки признака активности")
 	}
+	defer func() {
+		if err := s.UpdateStatusRx(stageNotActive); err != nil {
+			s.logger.Error("ошибка сброса признака активности", zap.String("ошибка", err.Error()))
+			errReturn = fmt.Errorf("ошибка:<%w>, сброса признака активности. Базовая ошибка:<%w>", err, errReturn)
+		}
+	}()
 
 	// Извлечение метаданных из контекста.
 	md, ok := metadata.FromIncomingContext(stream.Context())
@@ -631,9 +637,15 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 	}
 
 	// Получение значения токена.
-	token := md.Get("token")
-	if len(token) == 0 {
+	rxToken := md.Get("token")
+	if len(rxToken) == 0 {
 		return status.Error(codes.Unauthenticated, "токен не передан")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken[0], s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return status.Error(codes.PermissionDenied, "токен не прошел проверку")
 	}
 
 	//
@@ -658,14 +670,12 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 				errReturn = fmt.Errorf("ошибка при удалении файла:<%v>, файл:<%s>, ошибка:<%v>, причина удаления:<%v>", errRemove, fileName, errRemove, errReturn)
 			}
 		}
-		// Сброс статуса активности.
-		if err := s.UpdateStatusRx(stageNotActive); err != nil {
-			s.logger.Error("ошибка сброса признака активности", zap.String("ошибка", err.Error()))
-			errReturn = fmt.Errorf("ошибка:<%w>, сброса признака активности. Базовая ошибка:<%w>", err, errReturn)
-		}
 	}(doDeferRemoveFile, rxFileName)
 
+	//
 	// Приём данных файла.
+	//
+
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF { // конец потока
@@ -728,8 +738,8 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 
 	s.logger.Info("От клиента принят файл", zap.String("имя", rxFileName), zap.String("хэш", fileHash))
 
-	// Установка трейлера с хэшем файла
-	mdTrailer := metadata.Pairs("hash", fileHash, "token", token[0])
+	// Установка трейлера с хэшем файла.
+	mdTrailer := metadata.Pairs("hash", fileHash, "token", rxToken[0])
 	if err := grpc.SetTrailer(stream.Context(), mdTrailer); err != nil {
 		s.logger.Error("ошибка установки трейлера", zap.String("файл", rxFileName), zap.String("ошибка", err.Error()))
 		return status.Error(codes.Internal, "ошибка установки трейлера")
@@ -1039,6 +1049,19 @@ func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBank
 func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestFileNameResponse, err error) {
 
 	s.logger.Info("Принят запрос имён файлов")
+
+	// Полуение токена аутентификации
+	rxToken, err := layerRequestFileNameToken(ctx)
+	if err != nil {
+		s.logger.Error("Функция layerRequestFileNameToken, вернула ошибку", zap.Error(err))
+		return &pb.RequestFileNameResponse{}, status.Error(codes.Internal, "Ошибка получения токена аутентификации")
+	}
+
+	// Проверка токена.
+	if err := checkToken(rxToken.token, s.secretKey); err != nil {
+		s.logger.Error("ошибка проверки токена", zap.Error(err))
+		return nil, status.Error(codes.PermissionDenied, "токен не прошел проверку")
+	}
 
 	//Получение имён файлов.
 	rxData, isBusyServer, err := layerRequestFileNameScanDir(flags.NameSubDirFiles, s)

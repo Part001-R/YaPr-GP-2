@@ -378,7 +378,7 @@ func layerSendFileEncrypt(filePath string, key [32]byte) (encFilePath string, er
 		ciphertext := make([]byte, n)
 		stream.CryptBlocks(ciphertext, buffer[:n])
 
-		// Пишем в файл
+		// Запись в файл
 		if _, err := outputFile.Write(ciphertext); err != nil {
 			return "", err
 		}
@@ -1160,6 +1160,7 @@ func layerRequestFileByNameRemoveTemp(tempFileName string) error {
 //
 //	encFilePath - имя зашифрованного файла.
 //	key - ключ шифрования.
+
 func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (decFileName string, err error) {
 
 	defer func(encFilePath string) {
@@ -1200,7 +1201,7 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (decFileNam
 		return "", err
 	}
 
-	// Читаем IV (первые 16 байт)
+	// Чтение IV (первые 16 байт)
 	iv := make([]byte, aes.BlockSize)
 	n, err := encFile.Read(iv)
 	if err != nil || n != aes.BlockSize {
@@ -1223,7 +1224,7 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (decFileNam
 
 		chunk := append(leftover, buffer[:n]...)
 
-		// Если данные не кратны 16 Б, оставляем остаток
+		// Если данные не кратны 16 Б, оставить остаток
 		remainder := len(chunk) % aes.BlockSize
 		if remainder != 0 {
 			leftover = chunk[len(chunk)-remainder:]
@@ -1236,22 +1237,22 @@ func layerRequestFileByNameDecrypt(encFilePath string, key [32]byte) (decFileNam
 			continue
 		}
 
-		// Расшифровываем
+		// Расшифровка.
 		plaintext := make([]byte, len(chunk))
 		stream.CryptBlocks(plaintext, chunk)
 
-		// Пишем расшифрованные данные
+		// Запись расшифрованных данных.
 		if _, err := outputFile.Write(plaintext); err != nil {
 			return "", err
 		}
 	}
 
-	// Обрабатываем остаток (последний блок с паддингом)
+	// Обработка остатка (последний блок с паддингом)
 	if len(leftover) > 0 {
 		plaintext := make([]byte, len(leftover))
 		stream.CryptBlocks(plaintext, leftover)
 
-		// Удаляем PKCS#7 паддинг
+		// Удаление PKCS#7 паддинг
 		padding := plaintext[len(plaintext)-1]
 		if padding == 0 || int(padding) > aes.BlockSize || len(plaintext) < int(padding) {
 			return "", ErrInvalidPadding
