@@ -40,7 +40,10 @@ func prepare() (*udt.Configuration, error) {
 	}
 
 	// Создание grpc.
-	srvGRPC := grpc.New(lgr, storage, flag)
+	srvGRPC, err := grpc.New(lgr, storage, flag)
+	if err != nil {
+		return nil, fmt.Errorf("Конструктор сервиса вернул ошибку:<%w>", err)
+	}
 
 	// Пути к TLS файлам.
 	pathTLSsert := "tls/server.crt"

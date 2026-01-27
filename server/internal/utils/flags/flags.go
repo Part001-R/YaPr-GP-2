@@ -3,8 +3,12 @@ package flags
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 )
 
@@ -68,6 +72,26 @@ func setFlagsFromEnv(f *Config) error {
 	if envValue := os.Getenv("SERVER_PORT"); envValue != "" {
 		f.Port = envValue
 	}
+
+	return nil
+}
+
+// ========================================================================================
+
+// Сброс экземпляра, для тестов.
+func ChangePortForTest(port string) error {
+
+	_, filePath, _, ok := runtime.Caller(1)
+	if !ok {
+		return fmt.Errorf("Не удалось получить информацию о вызове")
+	}
+
+	if !strings.HasSuffix(filepath.Base(filePath), "_test.go") {
+		return fmt.Errorf("Эта функция может быть вызвана только из тестов")
+	}
+
+	// Обновление
+	flags.Port = port
 
 	return nil
 }

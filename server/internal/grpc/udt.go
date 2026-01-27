@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	stageNotActive = 0
-	stageActive    = 1
+	StageNotActive = 0
+	StageActive    = 1
 )
 
 // Статусы процессов.

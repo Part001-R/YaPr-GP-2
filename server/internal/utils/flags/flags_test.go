@@ -44,12 +44,15 @@ func TestNew(t *testing.T) {
 // Тест выделения имени БД из dsn.
 func TestGetNameDBFromDSN(t *testing.T) {
 
-	dsn := "file:foo.db?cache=shared&foreign_keys=on&mode=rwc"
-	wantName := "foo.db"
+	t.Run("dsn для SQlite", func(t *testing.T) {
+		dsn := "file:foo.db?cache=shared&foreign_keys=on&mode=rwc"
+		wantName := "foo.db"
 
-	name, err := GetNameDBFromDSN(dsn)
-	require.NoErrorf(t, err, "ошибка выделения имени БД")
-	assert.Equalf(t, wantName, name, "нет соответствия имени")
+		name, err := GetNameDBFromDSN(dsn)
+		require.NoErrorf(t, err, "ошибка выделения имени БД")
+		assert.Equalf(t, wantName, name, "нет соответствия имени")
+	})
+
 }
 
 // Тест установки флагов из переменных окружения.
@@ -118,4 +121,32 @@ func TestSetFlagsFromEnv(t *testing.T) {
 		assert.Equal(t, "prev_dsn", cfg.DSN)
 		assert.Equal(t, "prev_port", cfg.Port)
 	})
+}
+
+// Тест изменения порта.
+func TestChangePortForTest(t *testing.T) {
+
+	// переменные окружения.
+	os.Setenv("SERVER_SUBDIR_FILES", "files")
+	os.Setenv("SERVER_SUBDIR_BACKUP", "dirBackUp")
+	os.Setenv("SERVER_DB_DSN", "file:test.db?cache=shared&foreign_keys=on&mode=rwc")
+	os.Setenv("SERVER_PORT", "50101")
+
+	defer func() {
+		os.Unsetenv("SERVER_SUBDIR_FILES")
+		os.Unsetenv("SERVER_SUBDIR_BACKUP")
+		os.Unsetenv("SERVER_DB_DSN")
+		os.Unsetenv("SERVER_PORT")
+	}()
+
+	wantPort := "50102"
+
+	// Вызов конструктора.
+	config := New()
+
+	ChangePortForTest(wantPort)
+
+	//Проверки.
+	assert.Equalf(t, wantPort, config.Port, "Нет соответствия порта")
+
 }

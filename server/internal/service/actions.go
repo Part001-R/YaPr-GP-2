@@ -4,6 +4,9 @@ package service
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 
 	pb "github.com/Part001-R/YaPr-GP-2/proto"
 	"github.com/Part001-R/YaPr-GP-2/server/internal/service/udt"
@@ -17,9 +20,7 @@ import (
 // Параметры:
 //
 // с - конфигурация сервиса.
-func actions(c *udt.Configuration) error {
-
-	port := ":" + c.Flag.Port
+func actions(c *udt.Configuration) (err error) {
 
 	// Проверка аргументов
 	if c == nil {
@@ -28,6 +29,9 @@ func actions(c *udt.Configuration) error {
 	if err := c.CheckConf(); err != nil {
 		return fmt.Errorf("функция CheckConf, вернула ошибку: <%w>", err)
 	}
+
+	// Логика.
+	port := ":" + c.Flag.Port
 
 	// Подключение к порту.
 	lis, err := net.Listen("tcp", port)
@@ -52,17 +56,35 @@ func actions(c *udt.Configuration) error {
 		grpc.UnaryInterceptor(c.Srv.AuthInterceptorUnar),
 		grpc.StreamInterceptor(c.Srv.AuthInterceptorStream),
 	)
-
 	pb.RegisterPasswordManagerServer(s, c.Srv)
 
 	// Запуск gRPCS сервера.
-	c.Lgr.Info("Запуск gRPCS сервера",
-		zap.String("порт", port))
+	chErrServ := make(chan error)
 
-	if err := s.Serve(lis); err != nil {
-		c.Lgr.Error("Ошибка в работе gRPC сервера",
-			zap.String("ошибка", err.Error()))
-		return fmt.Errorf("ошибка в работе gRPC сервера: <%w>", err)
+	go func(s *grpc.Server, chErr chan<- error) {
+		c.Lgr.Info("Запуск gRPCS сервера",
+			zap.String("порт", port))
+
+		if errSrv := s.Serve(lis); errSrv != nil {
+			c.Lgr.Error("Ошибка в работе gRPC сервера",
+				zap.String("ошибка", errSrv.Error()))
+			chErr <- fmt.Errorf("ошибка в работе gRPC сервера: <%w>", errSrv)
+		}
+	}(s, chErrServ)
+
+	// Сигналы остановки
+	sigSys := make(chan os.Signal, 1)
+	signal.Notify(sigSys, syscall.SIGINT, syscall.SIGTERM)
+
+	dataCh := checkReasonStop{
+		chErrServ: chErrServ,
+		sigSys:    sigSys,
+	}
+
+	// Отслеживание причины остановки
+	if err := signalsStopRun(dataCh, c); err != nil {
+		c.Lgr.Error("функция signalsStopRun вернула ошибку", zap.String("ошибка", err.Error()))
+		return fmt.Errorf("функция signalsStopRun вернула ошибку: <%w>", err)
 	}
 
 	return nil

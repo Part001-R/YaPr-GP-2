@@ -54,4 +54,31 @@ var (
 
 	// Некоректный номер.
 	IncorrecrNumb = errors.New("Некоректный номер")
+
+	// Нет указателя в аргументе l.
+	NilPtrArgumentL = errors.New("Нет указателя в аргументе l")
+
+	// Нет указателя в аргументе s.
+	NilPtrArgumentS = errors.New("Нет указателя в аргументе s")
+
+	// Нет указателя в аргументе f.
+	NilPtrArgumentF = errors.New("Нет указателя в аргументе f")
+
+	// Нет указателя в аргументе ctx.
+	NilPtrArgumentCtx = errors.New("Нет указателя в аргументе ctx")
+
+	// Нет указателя в аргументе Empty.
+	NilPtrArgumentEmpty = errors.New("Нет указателя в аргументе empty")
+
+	// Нет указателя в аргументе stream.
+	NilPtrArgumentStream = errors.New("Нет указателя в аргументе stream")
+
+	// Нет указателя в аргументе req.
+	NilPtrArgumentReq = errors.New("Нет указателя в аргументе req")
+
+	// Некорректный код статуса.
+	IncorrectStage = errors.New("Не корректный код статуса")
+
+	// Нет указателя на логгер.
+	NilPtrLogger = errors.New("Нет указателя на логгер")
 )

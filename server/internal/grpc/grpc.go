@@ -44,7 +44,20 @@ var inst *Manager  // экземпляр
 // l - логгер.
 // s - интерфейс домена.
 // f - флаги.
-func New(l *zap.Logger, s domain.DomainI, f *flags.Config) *Manager {
+func New(l *zap.Logger, s domain.DomainI, f *flags.Config) (*Manager, error) {
+
+	// Проверка.
+	if l == nil {
+		return nil, NilPtrArgumentL
+	}
+	if s == nil {
+		return nil, NilPtrArgumentS
+	}
+	if f == nil {
+		return nil, NilPtrArgumentF
+	}
+
+	// Логика.
 	once.Do(func() {
 		inst = &Manager{
 			UnimplementedPasswordManagerServer: pb.UnimplementedPasswordManagerServer{},
@@ -59,7 +72,7 @@ func New(l *zap.Logger, s domain.DomainI, f *flags.Config) *Manager {
 			flag:      f,
 		}
 	})
-	return inst
+	return inst, nil
 }
 
 //
@@ -74,6 +87,19 @@ func New(l *zap.Logger, s domain.DomainI, f *flags.Config) *Manager {
 //	empty - указатель на пустые данные.
 func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if empty == nil {
+		return nil, NilPtrArgumentEmpty
+	}
+	if s.logger == nil {
+		return nil, NilPtrLogger
+	}
+
+	// Логика.
+	//
 	s.logger.Debug("Принят Ping запрос")
 
 	// Считывание заголовков
@@ -110,15 +136,22 @@ func (s *Manager) Ping(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empt
 //	stream - поток.
 func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServer) (errReturn error) {
 
+	// Проверка.
+	if stream == nil {
+		return NilPtrArgumentStream
+	}
+
+	// Логика.
+	//
 	s.logger.Info("Принят запрос BackUp")
 
 	// Проверка, что процесс уже активный.
-	if s.GetStatusBackUp() == stageActive || s.GetStatusRestore() == stageActive {
+	if s.GetStatusBackUp() == StageActive || s.GetStatusRestore() == StageActive {
 		return status.Error(codes.PermissionDenied, "Есть активный процесс")
 	}
 
 	// Установка статуса.
-	if err := s.UpdateStatusBackUp(stageActive); err != nil {
+	if err := s.UpdateStatusBackUp(StageActive); err != nil {
 		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
@@ -229,7 +262,7 @@ func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServe
 	}
 
 	// Сброс статуса.
-	if err := s.UpdateStatusBackUp(stageNotActive); err != nil {
+	if err := s.UpdateStatusBackUp(StageNotActive); err != nil {
 		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
@@ -251,12 +284,20 @@ func (s *Manager) LocalBackupFile(stream pb.PasswordManager_LocalBackupFileServe
 //	stream - поток.
 func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.PasswordManager_LocalRestoreFileServer) error {
 
+	// Проверка.
+	if req == nil {
+		return NilPtrArgumentReq
+	}
+	if stream == nil {
+		return NilPtrArgumentEmpty
+	}
+
 	// Получение статуса isBackUp
-	if s.GetStatusBackUp() == stageActive {
+	if s.GetStatusBackUp() == StageActive {
 		return status.Error(codes.PermissionDenied, "Идёт процесс BackUp")
 	}
 
-	if err := s.UpdateStatusRestore(stageActive); err != nil {
+	if err := s.UpdateStatusRestore(StageActive); err != nil {
 		return status.Error(codes.PermissionDenied, "ошибка обновления статуса")
 	}
 
@@ -317,7 +358,7 @@ func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Pa
 	s.logger.Info("Клиенту отправлен файл", zap.String("имя", reqFileName), zap.String("хэш", fileHash))
 
 	// Сброс статуса.
-	if err := s.UpdateStatusRestore(stageNotActive); err != nil {
+	if err := s.UpdateStatusRestore(StageNotActive); err != nil {
 		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
@@ -331,6 +372,14 @@ func (s *Manager) LocalRestoreFile(req *pb.LocalRestoreFileRequest, stream pb.Pa
 //	ctx - контекст.
 //	req - данные запроса.
 func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*proto.LocalFilesInfoResponse, error) {
+
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
 
 	// Извлечение метаданных из контекста
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -395,6 +444,14 @@ func (s *Manager) LocalFilesInfo(ctx context.Context, req *emptypb.Empty) (*prot
 //	req - данные запроса.
 func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
 	s.logger.Info("Принят запрос регистрации пользователя")
 
 	// Получение токена клиента.
@@ -435,6 +492,14 @@ func (s *Manager) Registration(ctx context.Context, req *pb.RegistrationRequest)
 //	ctx - контекст.
 //	req - данные запроса.
 func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequest) (*pb.AuthenticationResponse, error) {
+
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
 
 	// Данные запроса.
 	rxData, err := layerAuthenticationRx(req)
@@ -481,6 +546,15 @@ func (s *Manager) Authentication(ctx context.Context, req *pb.AuthenticationRequ
 //	req - данные запроса.
 func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswordRequest) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	if req.IdClient == "" {
 		return &emptypb.Empty{}, status.Error(codes.NotFound, "нет данных ID клиента")
 	}
@@ -525,6 +599,15 @@ func (s *Manager) SendLoginPassword(ctx context.Context, req *pb.SendLoginPasswo
 //	req - данные запроса.
 func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	if req.IdClient == "" {
 		return nil, status.Error(codes.NotFound, "нет данных ID клиента")
 	}
@@ -569,6 +652,15 @@ func (s *Manager) SendText(ctx context.Context, req *pb.SendTextRequest) (*empty
 //	req - данные запроса.
 func (s *Manager) SendBankCard(ctx context.Context, req *pb.SendBankCardRequest) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	if req.IdClient == "" {
 		return nil, status.Error(codes.NotFound, "нет данных ID клиента")
 	}
@@ -612,19 +704,25 @@ func (s *Manager) SendBankCard(ctx context.Context, req *pb.SendBankCardRequest)
 //	stream - поток.
 func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn error) {
 
+	// Проверка.
+	if stream == nil {
+		return NilPtrArgumentStream
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос добавления файла")
 
 	// Проверка уже запущенного процесса приёма файла.
-	if s.GetStatusRx() != stageNotActive {
+	if s.GetStatusRx() != StageNotActive {
 		return status.Error(codes.Unavailable, "Приём отклонён. Уже идёт передача файла.")
 	}
 
 	// Установка признака, что начат процесс приёма файла.
-	if err := s.UpdateStatusRx(stageActive); err != nil {
+	if err := s.UpdateStatusRx(StageActive); err != nil {
 		return status.Error(codes.Internal, "ошибка установки признака активности")
 	}
 	defer func() {
-		if err := s.UpdateStatusRx(stageNotActive); err != nil {
+		if err := s.UpdateStatusRx(StageNotActive); err != nil {
 			s.logger.Error("ошибка сброса признака активности", zap.String("ошибка", err.Error()))
 			errReturn = fmt.Errorf("ошибка:<%w>, сброса признака активности. Базовая ошибка:<%w>", err, errReturn)
 		}
@@ -761,6 +859,15 @@ func (s *Manager) SendFile(stream pb.PasswordManager_SendFileServer) (errReturn 
 //	empty - пустой указатель.
 func (s *Manager) RequestLoginPasswordName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestLoginPasswordNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if empty == nil {
+		return nil, NilPtrArgumentEmpty
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на получение имён записей логин/пароль")
 
 	// Получение токена.
@@ -802,6 +909,15 @@ func (s *Manager) RequestLoginPasswordName(ctx context.Context, empty *emptypb.E
 //	req - данные запроса.
 func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.RequestLoginPasswordByNameRequest) (resp *pb.RequestLoginPasswordByNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на получение данных записи логин/пароль, по имени записи")
 
 	// Полуение токена аутентификации
@@ -856,6 +972,15 @@ func (s *Manager) RequestLoginPasswordByName(ctx context.Context, req *pb.Reques
 //	empty - пустой указатель.
 func (s *Manager) RequestTextName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestTextNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if empty == nil {
+		return nil, NilPtrArgumentEmpty
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на получение имён записей текста")
 
 	// Получение токена.
@@ -897,6 +1022,15 @@ func (s *Manager) RequestTextName(ctx context.Context, empty *emptypb.Empty) (re
 //	req - данные запроса.
 func (s *Manager) RequestTextByName(ctx context.Context, req *pb.RequestTextByNameRequest) (resp *pb.RequestTextByNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на получение данных записи текста, по имени записи")
 
 	// Полуение токена аутентификации
@@ -950,6 +1084,15 @@ func (s *Manager) RequestTextByName(ctx context.Context, req *pb.RequestTextByNa
 //	empty - пустой указатель.
 func (s *Manager) RequestBankCardName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestBankCardNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if empty == nil {
+		return nil, NilPtrArgumentEmpty
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на получение имён записей банковских карт")
 
 	// Получение токена.
@@ -991,6 +1134,15 @@ func (s *Manager) RequestBankCardName(ctx context.Context, empty *emptypb.Empty)
 //	req - данные запроса.
 func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBankCardByNameRequest) (resp *pb.RequestBankCardByNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на получение данных записи банковской карты, по имени записи")
 
 	// Полуение токена аутентификации
@@ -1048,6 +1200,15 @@ func (s *Manager) RequestBankCardByName(ctx context.Context, req *pb.RequestBank
 //	empty - пустой указатель.
 func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (resp *pb.RequestFileNameResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if empty == nil {
+		return nil, NilPtrArgumentEmpty
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос имён файлов")
 
 	// Полуение токена аутентификации
@@ -1090,15 +1251,24 @@ func (s *Manager) RequestFileName(ctx context.Context, empty *emptypb.Empty) (re
 //	stream - поток.
 func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.PasswordManager_RequestFileByNameServer) error {
 
+	// Проверка.
+	if req == nil {
+		return NilPtrArgumentReq
+	}
+	if stream == nil {
+		return NilPtrArgumentStream
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на передачу файла.")
 
 	// Проверка активности процесса приёма файла
-	if s.GetStatusRx() == stageActive {
+	if s.GetStatusRx() == StageActive {
 		return status.Error(codes.PermissionDenied, "Идёт процесс приёма файла")
 	}
 
 	// Установка признака активности процесса передачи файла.
-	if err := s.UpdateStatusTx(stageActive); err != nil {
+	if err := s.UpdateStatusTx(StageActive); err != nil {
 		return status.Error(codes.PermissionDenied, "ошибка обновления статуса")
 	}
 
@@ -1158,7 +1328,7 @@ func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.
 	s.logger.Info("Клиенту отправлен файл", zap.String("имя", reqFileName), zap.String("хэш", fileHash))
 
 	// Сброс статуса.
-	if err := s.UpdateStatusTx(stageNotActive); err != nil {
+	if err := s.UpdateStatusTx(StageNotActive); err != nil {
 		return status.Error(codes.Internal, "Ошибка обновления статуса")
 	}
 
@@ -1175,6 +1345,15 @@ func (s *Manager) RequestFileByName(req *pb.RequestFileByNameRequest, stream pb.
 //	req - данные запроса.
 func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRequest) (resp *pb.RequestFileInfoResponse, err error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на информацию по файлу.")
 
 	// Получение токена аутентификации.
@@ -1225,6 +1404,15 @@ func (s *Manager) RequestFileInfo(ctx context.Context, req *pb.RequestFileInfoRe
 //	req - запрос.
 func (s *Manager) DeleteLoginPassword(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на удаление записи логин/пароль.")
 
 	// Получение токена аутентификации.
@@ -1265,6 +1453,15 @@ func (s *Manager) DeleteLoginPassword(ctx context.Context, req *pb.RequestDelete
 //	req - запрос.
 func (s *Manager) DeleteText(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на удаление записи текста.")
 
 	// Получение токена аутентификации.
@@ -1305,6 +1502,15 @@ func (s *Manager) DeleteText(ctx context.Context, req *pb.RequestDeleteName) (*e
 //	req - запрос.
 func (s *Manager) DeleteBankCard(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на удаление записи банковской карты.")
 
 	// Получение токена аутентификации.
@@ -1345,6 +1551,15 @@ func (s *Manager) DeleteBankCard(ctx context.Context, req *pb.RequestDeleteName)
 //	req - запрос.
 func (s *Manager) DeleteFile(ctx context.Context, req *pb.RequestDeleteName) (*emptypb.Empty, error) {
 
+	// Проверка.
+	if ctx == nil {
+		return nil, NilPtrArgumentCtx
+	}
+	if req == nil {
+		return nil, NilPtrArgumentReq
+	}
+
+	// Логика.
 	s.logger.Info("Принят запрос на удаление файла.")
 
 	// Получение токена аутентификации.
@@ -1449,8 +1664,8 @@ func (s *Manager) GetStatusBackUp() int32 {
 //	stage - новое значение.
 func (s *Manager) UpdateStatusBackUp(stage int32) error {
 
-	if stage != stageActive && stage != stageNotActive {
-		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	if stage != StageActive && stage != StageNotActive {
+		return IncorrectStage
 	}
 
 	atomic.StoreInt32(&s.status.backUp, stage)
@@ -1470,8 +1685,8 @@ func (s *Manager) GetStatusRestore() int32 {
 //	stage - новое значение.
 func (s *Manager) UpdateStatusRestore(stage int32) error {
 
-	if stage != stageActive && stage != stageNotActive {
-		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	if stage != StageActive && stage != StageNotActive {
+		return IncorrectStage
 	}
 
 	atomic.StoreInt32(&s.status.restore, stage)
@@ -1491,8 +1706,8 @@ func (s *Manager) GetStatusRx() int32 {
 //	stage - новое значение.
 func (s *Manager) UpdateStatusRx(stage int32) error {
 
-	if stage != stageActive && stage != stageNotActive {
-		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	if stage != StageActive && stage != StageNotActive {
+		return IncorrectStage
 	}
 
 	atomic.StoreInt32(&s.status.rxFile, stage)
@@ -1512,8 +1727,8 @@ func (s *Manager) GetStatusTx() int32 {
 //	stage - новое значение.
 func (s *Manager) UpdateStatusTx(stage int32) error {
 
-	if stage != stageActive && stage != stageNotActive {
-		return fmt.Errorf("Принятое значение статуса: <%d>, не поддерживается", stage)
+	if stage != StageActive && stage != StageNotActive {
+		return IncorrectStage
 	}
 
 	atomic.StoreInt32(&s.status.txFile, stage)

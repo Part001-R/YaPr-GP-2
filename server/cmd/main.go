@@ -24,5 +24,4 @@ func main() {
 	if err := service.Run(); err != nil {
 		log.Fatal("сервис завершил работу, по причине: <%w>", err)
 	}
-	log.Println("сервис остановлен штатно")
 }

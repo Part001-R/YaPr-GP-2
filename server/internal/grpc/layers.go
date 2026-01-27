@@ -905,7 +905,7 @@ func layerRequestFileNameToken(ctx context.Context) (token tokenData, err error)
 func layerRequestFileNameScanDir(dir string, s *Manager) (fileNames []string, isBusyServer bool, err error) {
 
 	// Проверка активности по работе с файлами
-	if s.GetStatusRx() == stageActive {
+	if s.GetStatusRx() == StageActive {
 		return nil, true, nil
 	}
 

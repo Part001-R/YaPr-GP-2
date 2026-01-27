@@ -119,4 +119,5 @@ func TestPrepare(t *testing.T) {
 
 		conf.TLS.Public = data
 	})
+
 }

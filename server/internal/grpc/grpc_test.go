@@ -94,6 +94,24 @@ func TestAllHandlersGRPC(t *testing.T) {
 	// -------------------------------------------------------------------------------------------------
 
 	//
+	// Тест регистрации пользователя (нет метаданных).
+	//
+
+	t.Run("Регистрация пользователя, без метаданных", func(t *testing.T) {
+
+		req := &proto.RegistrationRequest{
+			UserName:      "",
+			UserPwd:       userPwd,
+			UserPwdRepeat: userPwdRepeat,
+		}
+
+		var header metadata.MD
+
+		_, err = client.Registration(context.Background(), req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Unauthenticated desc = нет данных токена", err.Error(), "Нет соответствия ошибки")
+	})
+
+	//
 	// Тест регистрации пользователя (нет userName).
 	//
 
@@ -253,6 +271,23 @@ func TestAllHandlersGRPC(t *testing.T) {
 	//                                        Аутентификация
 	//
 	// -------------------------------------------------------------------------------------------------
+
+	//
+	// Тест аутентификации пользователя (нет метаданных).
+	//
+
+	t.Run("Регистрация пользователя, без метаданных", func(t *testing.T) {
+
+		req := &proto.AuthenticationRequest{
+			UserName: "Foo",
+			UserPwd:  "Bar",
+		}
+
+		var header metadata.MD
+
+		_, err = client.Authentication(context.Background(), req, grpc.Header(&header))
+		require.Equalf(t, "rpc error: code = Unauthenticated desc = нет данных токена", err.Error(), "Нет соответствия ошибки")
+	})
 
 	//
 	// Тест аутентификации пользователя (без userName).
@@ -2681,6 +2716,2256 @@ func TestAllHandlersGRPC(t *testing.T) {
 	})
 }
 
+//
+// Тесты ошибок
+//
+
+// Конструктор.
+func TestNew(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			l        *zap.Logger
+			s        domain.DomainI
+			f        *flags.Config
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет указателя на логгер",
+				l:        nil,
+				s:        serv.Storage,
+				f:        serv.Flag,
+				wantErr:  NilPtrArgumentL,
+			},
+			{
+				nameTest: "Нет указателя на хранилище",
+				l:        serv.Lgr,
+				s:        nil,
+				f:        serv.Flag,
+				wantErr:  NilPtrArgumentS,
+			},
+			{
+				nameTest: "Нет указателя на флаги",
+				l:        serv.Lgr,
+				s:        serv.Storage,
+				f:        nil,
+				wantErr:  NilPtrArgumentF,
+			},
+		}
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err := New(tt.l, tt.s, tt.f)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+}
+
+// Ping.
+func TestPing(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			empty    *emptypb.Empty
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				empty:    &emptypb.Empty{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет пустого указателя",
+				ctx:      context.Background(),
+				empty:    nil,
+				wantErr:  NilPtrArgumentEmpty,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.Ping(tt.ctx, tt.empty)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Нет указателя на логгер", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		inst.logger = nil
+
+		_, err = inst.Ping(context.Background(), &emptypb.Empty{})
+		assert.Equalf(t, NilPtrLogger, err, "Нет соответствия ошибки")
+
+	})
+
+	t.Run("Метаданные отсутствуют", func(t *testing.T) {
+		err := resetForTest()
+		require.NoError(t, err, "Ошибка сброса конструктора")
+
+		serv, err := prepare()
+		require.NoError(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoError(t, err, "Ошибка конструктора")
+
+		_, err = inst.Ping(context.Background(), &emptypb.Empty{})
+		assert.Equal(t, "rpc error: code = NotFound desc = отсутствуют метаданные", err.Error(), "Нет соответствия ошибки")
+	})
+
+	t.Run("Отсутствует токен в метаданных", func(t *testing.T) {
+		err := resetForTest()
+		require.NoError(t, err, "Ошибка сброса конструктора")
+
+		serv, err := prepare()
+		require.NoError(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoError(t, err, "Ошибка конструктора")
+
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, "")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		_, err = inst.Ping(ctx, &emptypb.Empty{})
+		assert.Equal(t, "rpc error: code = NotFound desc = отсутствуют метаданные", err.Error(), "Нет соответствия ошибки")
+	})
+
+}
+
+// LocalBackupFile.
+func TestLocalBackupFile(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			stream   pb.PasswordManager_LocalBackupFileServer
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет потока",
+				stream:   nil,
+				wantErr:  NilPtrArgumentStream,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				err = inst.LocalBackupFile(tt.stream)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+}
+
+// LocalRestoreFile.
+func TestLocalRestoreFile(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			req      *pb.LocalRestoreFileRequest
+			stream   pb.PasswordManager_LocalRestoreFileServer
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет потока",
+				req:      &pb.LocalRestoreFileRequest{},
+				stream:   nil,
+				wantErr:  NilPtrArgumentEmpty,
+			},
+			{
+				nameTest: "Нет запроса",
+				req:      nil,
+				stream:   nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				err = inst.LocalRestoreFile(tt.req, tt.stream)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+}
+
+// LocalFilesInfo.
+func TestLocalFilesInfo(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *emptypb.Empty
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &emptypb.Empty{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.LocalFilesInfo(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.LocalFilesInfo(ctx, &emptypb.Empty{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.LocalFilesInfo(context.Background(), &emptypb.Empty{})
+		assert.Equalf(t, "rpc error: code = InvalidArgument desc = ошибка извлечения заголовков", err.Error(), "Нет соответствия ошибки")
+
+	})
+
+	t.Run("Отсутствует токен в метаданных", func(t *testing.T) {
+		err := resetForTest()
+		require.NoError(t, err, "Ошибка сброса конструктора")
+
+		serv, err := prepare()
+		require.NoError(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoError(t, err, "Ошибка конструктора")
+
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, "")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		_, err = inst.LocalFilesInfo(context.Background(), &emptypb.Empty{})
+		assert.Equalf(t, "rpc error: code = InvalidArgument desc = ошибка извлечения заголовков", err.Error(), "Нет соответствия ошибки")
+	})
+}
+
+// Registration.
+func TestRegistration(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RegistrationRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RegistrationRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.Registration(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.Registration(ctx, &pb.RegistrationRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RegistrationRequest{
+			UserName:      "Foo",
+			UserPwd:       "Bar",
+			UserPwdRepeat: "Bar",
+		}
+		_, err = inst.Registration(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Unauthenticated desc = Отсутствуют метаданные", err.Error(), "Нет соответствия ошибки")
+
+	})
+
+	t.Run("Отсутствует токен в метаданных", func(t *testing.T) {
+		err := resetForTest()
+		require.NoError(t, err, "Ошибка сброса конструктора")
+
+		serv, err := prepare()
+		require.NoError(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoError(t, err, "Ошибка конструктора")
+
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, "")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		_, err = inst.Registration(context.Background(), &pb.RegistrationRequest{})
+		assert.Equalf(t, "rpc error: code = Unauthenticated desc = Отсутствуют метаданные", err.Error(), "Нет соответствия ошибки")
+	})
+}
+
+// Authentication.
+func TestAuthentication(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.AuthenticationRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.AuthenticationRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.Authentication(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.Authentication(ctx, &pb.AuthenticationRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.AuthenticationRequest{
+			UserName: "Foo",
+			UserPwd:  "Bar",
+		}
+		_, err = inst.Authentication(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Unavailable desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+
+	})
+
+	t.Run("Отсутствует токен в метаданных", func(t *testing.T) {
+		err := resetForTest()
+		require.NoError(t, err, "Ошибка сброса конструктора")
+
+		serv, err := prepare()
+		require.NoError(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoError(t, err, "Ошибка конструктора")
+
+		nameToken := "token"
+		txMD := metadata.Pairs(nameToken, "")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		ctx = metadata.NewOutgoingContext(ctx, txMD)
+
+		req := &pb.AuthenticationRequest{
+			UserName: "Foo",
+			UserPwd:  "Bar",
+		}
+		_, err = inst.Authentication(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Unavailable desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+	})
+}
+
+// SendLoginPassword.
+func TestSendLoginPassword(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.SendLoginPasswordRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.SendLoginPasswordRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.SendLoginPassword(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.SendLoginPassword(ctx, &pb.SendLoginPasswordRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.SendLoginPasswordRequest{
+			IdClient:  "A",
+			For:       "B",
+			Login:     "C",
+			Password:  "D",
+			CreatedAt: "E",
+		}
+		_, err = inst.SendLoginPassword(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = ошибка получения токена запроса", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// SendText.
+func TestSendText(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.SendTextRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.SendTextRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.SendText(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.SendText(ctx, &pb.SendTextRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+}
+
+// SendBankCard.
+func TestSendBankCard(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.SendBankCardRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.SendBankCardRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.SendBankCard(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.SendBankCard(ctx, &pb.SendBankCardRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.SendBankCardRequest{
+			IdClient:  "A",
+			For:       "B",
+			Owner:     "C",
+			Numb:      "49927398716",
+			ValidData: "E",
+			Code:      "F",
+			CreatedAt: "G",
+		}
+		_, err = inst.SendBankCard(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = ошибка получения токена запроса", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// SendFile.
+func TestSendFile_FAULT(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			stream   pb.PasswordManager_SendFileServer
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет потока",
+				stream:   nil,
+				wantErr:  NilPtrArgumentStream,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				err = inst.SendFile(tt.stream)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Передача файла", func(t *testing.T) {
+
+	})
+
+}
+
+// RequestLoginPasswordName.
+func TestRequestLoginPasswordName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			empty    *emptypb.Empty
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				empty:    &emptypb.Empty{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				empty:    nil,
+				wantErr:  NilPtrArgumentEmpty,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestLoginPasswordName(tt.ctx, tt.empty)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestLoginPasswordName(ctx, &emptypb.Empty{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &emptypb.Empty{}
+		_, err = inst.RequestLoginPasswordName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestLoginPasswordByName.
+func TestRequestLoginPasswordByName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestLoginPasswordByNameRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestLoginPasswordByNameRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestLoginPasswordByName(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestLoginPasswordByName(ctx, &pb.RequestLoginPasswordByNameRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestLoginPasswordByNameRequest{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.RequestLoginPasswordByName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestTextName.
+func TestRequestTextName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			empty    *emptypb.Empty
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				empty:    &emptypb.Empty{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				empty:    nil,
+				wantErr:  NilPtrArgumentEmpty,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestTextName(tt.ctx, tt.empty)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestTextName(ctx, &emptypb.Empty{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &emptypb.Empty{}
+
+		_, err = inst.RequestTextName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestTextByName.
+func TestRequestTextByName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestTextByNameRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestTextByNameRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestTextByName(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestTextByName(ctx, &pb.RequestTextByNameRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestTextByNameRequest{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.RequestTextByName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestBankCardName.
+func TestRequestBankCardName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *emptypb.Empty
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &emptypb.Empty{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentEmpty,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestBankCardName(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestBankCardName(ctx, &emptypb.Empty{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &emptypb.Empty{}
+
+		_, err = inst.RequestBankCardName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestBankCardByName.
+func TestRequestBankCardByName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestBankCardByNameRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestBankCardByNameRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestBankCardByName(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestBankCardByName(ctx, &pb.RequestBankCardByNameRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestBankCardByNameRequest{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.RequestBankCardByName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestFileName.
+func TestRequestFileName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *emptypb.Empty
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &emptypb.Empty{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentEmpty,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestFileName(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestFileName(ctx, &emptypb.Empty{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &emptypb.Empty{}
+
+		_, err = inst.RequestFileName(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = Internal desc = Ошибка получения токена аутентификации", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// RequestFileByName.
+func TestRequestFileByName(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			req      *pb.RequestFileByNameRequest
+			stream   pb.PasswordManager_RequestFileByNameServer
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет запроса",
+				req:      nil,
+				stream:   nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+			{
+				nameTest: "Нет потока",
+				req:      &pb.RequestFileByNameRequest{},
+				stream:   nil,
+				wantErr:  NilPtrArgumentStream,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				err = inst.RequestFileByName(tt.req, tt.stream)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+	})
+}
+
+// RequestFileInfo.
+func TestRequestFileInfo(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestFileInfoRequest
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestFileInfoRequest{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.RequestFileInfo(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.RequestFileInfo(ctx, &pb.RequestFileInfoRequest{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestFileInfoRequest{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.RequestFileInfo(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// DeleteLoginPassword.
+func TestDeleteLoginPassword(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestDeleteName
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestDeleteName{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.DeleteLoginPassword(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.DeleteLoginPassword(ctx, &pb.RequestDeleteName{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestDeleteName{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.DeleteLoginPassword(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// DeleteText.
+func TestDeleteText(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestDeleteName
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestDeleteName{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.DeleteText(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.DeleteText(ctx, &pb.RequestDeleteName{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestDeleteName{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.DeleteText(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// DeleteBankCard.
+func TestDeleteBankCard(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestDeleteName
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestDeleteName{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.DeleteBankCard(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.DeleteBankCard(ctx, &pb.RequestDeleteName{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestDeleteName{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.DeleteBankCard(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+// DeleteFile.
+func TestDeleteFile(t *testing.T) {
+
+	t.Run("Ошибки аргументов", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		// Данные тестов.
+		dataTest := []struct {
+			nameTest string
+			ctx      context.Context
+			req      *pb.RequestDeleteName
+			wantErr  error
+		}{
+			{
+				nameTest: "Нет контекста",
+				ctx:      nil,
+				req:      &pb.RequestDeleteName{},
+				wantErr:  NilPtrArgumentCtx,
+			},
+			{
+				nameTest: "Нет запроса",
+				ctx:      context.Background(),
+				req:      nil,
+				wantErr:  NilPtrArgumentReq,
+			},
+		}
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		// Тесты.
+		for _, tt := range dataTest {
+			t.Run(tt.nameTest, func(t *testing.T) {
+
+				_, err = inst.DeleteFile(tt.ctx, tt.req)
+				assert.Equalf(t, tt.wantErr, err, "Нет соответствия ошибки")
+			})
+		}
+
+	})
+
+	t.Run("Долгая обработка", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
+		defer cancel()
+
+		time.Sleep(4 * time.Millisecond)
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		_, err = inst.DeleteFile(ctx, &pb.RequestDeleteName{})
+		assert.Errorf(t, err, "Ожидается ошибка")
+
+	})
+
+	t.Run("Нет метаданных", func(t *testing.T) {
+
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		req := &pb.RequestDeleteName{
+			IdClient: "A",
+			Name:     "B",
+		}
+
+		_, err = inst.DeleteFile(context.Background(), req)
+		assert.Equalf(t, "rpc error: code = PermissionDenied desc = ошибка получения токена", err.Error(), "Нет соответствия ошибки")
+
+	})
+}
+
+//
+// Тесты статусов.
+//
+
+// UpdateStatusBackUp и GetStatusBackUp
+func TestStatusBackUp(t *testing.T) {
+
+	t.Run("Корректный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusBackUp(StageActive)
+		assert.NoErrorf(t, err, "Неожиданная ошибка")
+	})
+
+	t.Run("Ошибочный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusBackUp(StageActive + 100)
+		assert.Equalf(t, IncorrectStage, err, "Нет соответствия ошибки")
+	})
+
+	t.Run("Проверка обновления", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusBackUp(StageActive)
+		require.NoErrorf(t, err, "Неожиданная ошибка")
+
+		data := inst.GetStatusBackUp()
+		assert.Equalf(t, StageActive, int(data), "Нет соответствия кодов")
+	})
+
+}
+
+// UpdateStatusRestore и GetStatusRestore
+func TestStatusRestore(t *testing.T) {
+
+	t.Run("Корректный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusRestore(StageActive)
+		assert.NoErrorf(t, err, "Неожиданная ошибка")
+	})
+
+	t.Run("Ошибочный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusRestore(StageActive + 100)
+		assert.Equalf(t, IncorrectStage, err, "Нет соответствия ошибки")
+	})
+
+	t.Run("Проверка обновления", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusRestore(StageActive)
+		require.NoErrorf(t, err, "Неожиданная ошибка")
+
+		data := inst.GetStatusRestore()
+		assert.Equalf(t, StageActive, int(data), "Нет соответствия кодов")
+	})
+
+}
+
+// UpdateStatusRx и GetStatusRx
+func TestStatusRx(t *testing.T) {
+
+	t.Run("Корректный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusRx(StageActive)
+		assert.NoErrorf(t, err, "Неожиданная ошибка")
+	})
+
+	t.Run("Ошибочный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusRx(StageActive + 100)
+		assert.Equalf(t, IncorrectStage, err, "Нет соответствия ошибки")
+	})
+
+	t.Run("Проверка обновления", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusRx(StageActive)
+		require.NoErrorf(t, err, "Неожиданная ошибка")
+
+		data := inst.GetStatusRx()
+		assert.Equalf(t, StageActive, int(data), "Нет соответствия кодов")
+	})
+
+}
+
+// UpdateStatusTx и GetStatusTx
+func TestStatusTx(t *testing.T) {
+
+	t.Run("Корректный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusTx(StageActive)
+		assert.NoErrorf(t, err, "Неожиданная ошибка")
+	})
+
+	t.Run("Ошибочный код статуса", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusTx(StageActive + 100)
+		assert.Equalf(t, IncorrectStage, err, "Нет соответствия ошибки")
+	})
+
+	t.Run("Проверка обновления", func(t *testing.T) {
+		err := resetForTest()
+		require.NoErrorf(t, err, "Ошибка сброса конструктора")
+
+		// Подготовка конфигурации сервиса.
+		serv, err := prepare()
+		require.NoErrorf(t, err, "Ошибка создания экземпляра сервиса")
+
+		inst, err := New(serv.Lgr, serv.Storage, serv.Flag)
+		require.NoErrorf(t, err, "Ошибка конструктора")
+
+		err = inst.UpdateStatusTx(StageActive)
+		require.NoErrorf(t, err, "Неожиданная ошибка")
+
+		data := inst.GetStatusTx()
+		assert.Equalf(t, StageActive, int(data), "Нет соответствия кодов")
+	})
+
+}
+
 // =================================================================================================
 //
 //                               Вспомогательные функции для тестов
@@ -2715,7 +5000,10 @@ func prepare() (*Configuration, error) {
 	}
 
 	// Экземляр сервиса.
-	srvGRPC := New(lgr, storage, flag)
+	srvGRPC, err := New(lgr, storage, flag)
+	if err != nil {
+		return nil, fmt.Errorf("Конструктор сервиса вернул ошибку: <%w>", err)
+	}
 
 	// Пути к TLS файлам.
 	pathTLSsert := "tls/server.crt"

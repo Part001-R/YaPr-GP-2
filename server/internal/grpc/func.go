@@ -9,8 +9,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -267,4 +269,25 @@ func checkNumbByLuhn(number string) bool {
 	}
 
 	return sum%10 == 0
+}
+
+// ========================================================================================
+
+// Сброс экземпляра, для тестов.
+func resetForTest() error {
+
+	_, filePath, _, ok := runtime.Caller(1)
+	if !ok {
+		return fmt.Errorf("Не удалось получить информацию о вызове")
+	}
+
+	if !strings.HasSuffix(filepath.Base(filePath), "_test.go") {
+		return fmt.Errorf("Эта функция может быть вызвана только из тестов")
+	}
+
+	// Сброс
+	once = sync.Once{}
+	inst = nil
+
+	return nil
 }

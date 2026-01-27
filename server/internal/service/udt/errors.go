@@ -27,4 +27,7 @@ var (
 
 	// Нет указателя на gRPC.
 	NilPtrGRPC = errors.New("нет указателя на gRPC")
+
+	// нет указания порта".
+	EmptyDataPort = errors.New("нет указания порта")
 )

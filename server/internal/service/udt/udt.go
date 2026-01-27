@@ -81,5 +81,8 @@ func (c Configuration) CheckConf() error {
 	if c.Flag == nil {
 		return NilPtrFlag
 	}
+	if c.Flag.Port == "" {
+		return EmptyDataPort
+	}
 	return nil
 }
