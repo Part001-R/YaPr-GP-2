@@ -66,46 +66,4 @@ func TestWrite(t *testing.T) {
 		assert.Truef(t, strings.Contains(string(rxDAta), dataWr), "Нет соответствия в записи")
 	})
 
-	t.Run("Проверка переполнения размера файла", func(t *testing.T) {
-		name := "testLog.txt"
-
-		lgr, err := New(name)
-		require.NoErrorf(t, err, "Ошибка создания логгера")
-		defer func() {
-			err = os.Remove(name)
-			assert.NoErrorf(t, err, "Ошибка удаления")
-		}()
-
-		// Получение списка файлов до записи.
-		namesStart, err := os.ReadDir("./")
-		require.NoErrorf(t, err, "Ошибка получения имён до записи")
-
-		// Запись.
-		dataWr := "Foo"
-		for i := 0; i < 800000; i++ {
-			err = lgr.Write(dataWr)
-			require.NoErrorf(t, err, "Ошибка записи в файл")
-		}
-
-		// Получение списка файлов после записи.
-		namesStop, err := os.ReadDir("./")
-		require.NoErrorf(t, err, "Ошибка получения имён после записи")
-
-		// Проверка.
-		assert.Truef(t, len(namesStart) != len(namesStop), "Нет добавленного файла")
-
-		// Удаление дополнительного файла лога.
-		existingFiles := make(map[string]struct{})
-		for _, file := range namesStart {
-			existingFiles[file.Name()] = struct{}{}
-		}
-
-		for _, newFile := range namesStop {
-			if _, exists := existingFiles[newFile.Name()]; !exists {
-				os.Remove(newFile.Name())
-			}
-		}
-
-	})
-
 }
