@@ -528,16 +528,21 @@ func (c *handlerUI) quit(g *gocui.Gui, _ *gocui.View) error {
 	c.conf.LgrFile.Write("Info: Нажата комбинация Ctrl+C")
 
 	// Ожидание завершения активных процессов.
-	for {
+	tickTime := time.NewTicker(1 * time.Second)
+
+	done := false
+	for !done {
+
+		<-tickTime.C
+
 		if c.getStatusBackUp() != stageActive &&
 			c.getStatusRestore() != stageActive &&
 			c.getStatusPopContainer() != stageActive &&
 			c.getStatusPushContainer() != stageActive &&
 			c.getStatusFileRx() != stageActive &&
 			c.getStatusFileTx() != stageActive {
-			break
+			done = true
 		}
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	return gocui.ErrQuit

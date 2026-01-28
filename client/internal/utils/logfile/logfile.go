@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-// Разовая инициализация.
-var once sync.Once
-
 // Файл логов.
 type LogFile struct {
 	PtrLogFile *os.File   // Указатель на файл.
@@ -28,28 +25,22 @@ var inst *LogFile
 //	nameLogFile  - имя файла.
 func New(nameLogFile string) (*LogFile, error) {
 
-	var err error
+	// Проверка.
+	if nameLogFile == "" {
+		return nil, EmptyDataArgumentNameLogFile
 
-	once.Do(func() {
+	}
 
-		if nameLogFile == "" {
-			err = EmptyDataArgumentNameLogFile
-			return
-		}
+	// Логика.
+	var logFile *os.File
 
-		var logFile *os.File
-
-		logFile, err = os.OpenFile(nameLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-		if err != nil {
-			err = fmt.Errorf("ошибка подключения к файлу логов %s: <%w>", nameLogFile, err)
-			return
-		}
-		inst = &LogFile{
-			PtrLogFile: logFile,
-		}
-	})
+	logFile, err := os.OpenFile(nameLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания экземпляра файла логирования: <%w>", err)
+		return nil, fmt.Errorf("Функция OpenFile, вернула ошибку:<%w>", err)
+
+	}
+	inst = &LogFile{
+		PtrLogFile: logFile,
 	}
 
 	return inst, nil

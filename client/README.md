@@ -10,4 +10,8 @@
 - `container`. Значение по умолчанию - `localContainer.data`. Переменная окружение - `LOCAL_NAME_CONTAINER`. 
 
  
+### Как собрать приложение.
 
+Для Linux:   `go build -o <имя> main.go`
+Для Windows: `GOOS=windows GOARCH=386 go build -o <имя.exe> main.go`
+Для macOS:   `GOOS=darwin GOARCH=amd64 go build -o <имя> main.go`

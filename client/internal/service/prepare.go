@@ -11,11 +11,16 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
 )
 
+var (
+	// Имя файла логгера
+	nameLogFile = "log.txt"
+)
+
 // Подготовительные действия, перед запуском сервиса. Возвращается конфигурация пакета и ошибка.
 func prepare() (*udt.Configuration, error) {
 
 	// Логгер файла.
-	lgrFile, err := logfile.New("log.txt")
+	lgrFile, err := logfile.New(nameLogFile)
 	if err != nil {
 		return nil, fmt.Errorf("функция logfile.New, вернула ошибку: <%w>", err)
 	}
@@ -34,7 +39,10 @@ func prepare() (*udt.Configuration, error) {
 	}
 
 	// Создание конфигурации.
-	conf := service.New(lgrFile, storage, flg)
+	conf, err := service.New(lgrFile, storage, flg)
+	if err != nil {
+		return nil, fmt.Errorf("функция service.New, вернула ошибку: <%w>", err)
+	}
 
 	// Завершение.
 	lgrFile.Write(fmt.Sprintf("Debug: Этап подготовки пройден. Режим работы клиента: <%s>", flg.Mode))

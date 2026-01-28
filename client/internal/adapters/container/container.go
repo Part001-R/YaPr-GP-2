@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 )
 
 var (
-	onceInst sync.Once // для разовой инициализации экземпляра.
-
 	nonceSize = 24
 )
 
@@ -20,15 +17,6 @@ type FileEntry struct {
 	Name    string `json:"name"`
 	Content []byte `json:"content"`
 }
-
-/*
-// Защифрованный контейнер.
-type Container struct {
-	name  string      // имя контейнера.
-	key   [32]byte    // ключ шифрования.
-	Files []FileEntry `json:"files"` // файлы в контейнере.
-}
-*/
 
 type Container struct {
 	Name  string      `json:"name"`
@@ -55,32 +43,35 @@ var inst *Container
 //	key - ключ шифрования.
 func New(name string, key [32]byte) (Actions, error) {
 
-	var errNew error
+	// Проверка.
+	if name == "" {
+		return nil, EmptyDataArgumentNAme
+	}
 
-	onceInst.Do(func() {
-		if _, err := os.Stat(name); os.IsNotExist(err) {
-			container := Container{
-				Name: name,
-				Key:  key,
-			}
-			data, err := json.Marshal(container)
-			if err != nil {
-				errNew = fmt.Errorf("ошибка сериализации контейнера: %w", err)
-				return
-			}
-
-			// Проверка записью.
-			if err := os.WriteFile(name, data, 0644); err != nil {
-				errNew = fmt.Errorf("ошибка создания файла контейнера: %w", err)
-				return
-			}
-		}
-		inst = &Container{
+	// Логика.
+	if _, err := os.Stat(name); os.IsNotExist(err) {
+		container := Container{
 			Name: name,
 			Key:  key,
 		}
-	})
-	return inst, errNew
+		data, err := json.Marshal(container)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка сериализации контейнера: %w", err)
+
+		}
+
+		// Проверка записью.
+		if err := os.WriteFile(name, data, 0644); err != nil {
+			return nil, fmt.Errorf("ошибка создания файла контейнера: %w", err)
+
+		}
+	}
+	inst = &Container{
+		Name: name,
+		Key:  key,
+	}
+
+	return inst, nil
 }
 
 // Добавление файла в контейнер. Для запуска в горутине.
@@ -91,12 +82,13 @@ func New(name string, key [32]byte) (Actions, error) {
 //	key - ключ шифрования.
 //	chProcess - канал передачи процентов процесса.
 //	chError - канал передачи ошибки.
-//	chOk - канал передачи признака завершения процесса.
-func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chOk chan<- struct{}) {
+//	chDone - канал передачи признака завершения процесса.
+func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chDone chan<- struct{}) {
+
 	defer func() {
 		close(chProcess)
 		close(chError)
-		close(chOk)
+		close(chDone)
 	}()
 
 	fileInfo, err := os.Stat(fileName)
@@ -148,7 +140,7 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 		}
 		totalRead += int64(n)
 
-		// Добавляем данные сразу в новый файл, чтобы избежать лишнего использования памяти
+		// Добавление данных
 		newFileEntry.Content = append(newFileEntry.Content, buffer[:n]...)
 
 		// Процент процесса
@@ -165,7 +157,7 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 	}
 
 	// Установка признака успешного завершения процесса
-	chOk <- struct{}{}
+	chDone <- struct{}{}
 }
 
 // Получение файла из контейнера, по имени. Для запуска в горутине.

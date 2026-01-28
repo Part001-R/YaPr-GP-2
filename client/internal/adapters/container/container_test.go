@@ -22,6 +22,13 @@ func TestNew(t *testing.T) {
 	}
 	_ = os.Remove(nameContainer)
 
+	t.Run("Ошибка в аргументах", func(t *testing.T) {
+
+		_, err := New("", testKey)
+		require.Equalf(t, EmptyDataArgumentNAme, err, "Нет соответствия ошибки")
+
+	})
+
 	t.Run("Создание файла и инициализация контейнера", func(t *testing.T) {
 
 		instContainer, err := New(nameContainer, testKey)

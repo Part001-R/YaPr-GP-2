@@ -35,7 +35,17 @@ var inst *Configuration
 //	l - указатель логгера.
 //	a - интерфейс домена.
 //	f - указатель на флаги.
-func New(l *logfile.LogFile, a domain.Actions, f *flags.Config) *Configuration {
+func New(l *logfile.LogFile, a domain.Actions, f *flags.Config) (*Configuration, error) {
+
+	// Проверка.
+	if l == nil {
+		return nil, NilPtrArgumentL
+	}
+	if f == nil {
+		return nil, NilPtrArgumentF
+	}
+
+	// Логика.
 	onceConf.Do(func() {
 		inst = &Configuration{
 			LgrFile:   l,
@@ -43,7 +53,7 @@ func New(l *logfile.LogFile, a domain.Actions, f *flags.Config) *Configuration {
 			Flag:      f,
 		}
 	})
-	return inst
+	return inst, nil
 }
 
 // Обновление подключения к серверу.
