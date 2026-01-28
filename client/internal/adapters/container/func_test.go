@@ -32,15 +32,3 @@ func TestEncryptDecrypt(t *testing.T) {
 	assert.Equal(t, srcData, decrData, "нет соответствия значений")
 
 }
-
-// Проверка выделения имени файла из полного пути.
-func TestGetFileNameAndExtension(t *testing.T) {
-
-	testPath := "./Foo/Bar.txt"
-	wantFileName := "Bar.txt"
-
-	fileName := getFileNameAndExtension(testPath)
-
-	assert.Equal(t, wantFileName, fileName, "Нет соответствия")
-
-}

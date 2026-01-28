@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
 
 	"golang.org/x/crypto/nacl/secretbox"
 )
@@ -44,16 +43,6 @@ func decrypt(encrypted []byte, key [32]byte) ([]byte, error) {
 		return nil, fmt.Errorf("ошибка дешифрования")
 	}
 	return decrypted, nil
-}
-
-// Выделение имени файла из полного пути. Возвращается имя файла и его тип.
-//
-// Параметры:
-//
-//	fullPath - полный путь к файлу.
-func getFileNameAndExtension(fullPath string) string {
-
-	return path.Base(fullPath)
 }
 
 // Чтение контейнера из файла. Возвращается указатель на контейнер и ошибка.

@@ -15,3 +15,8 @@
 Для Linux:   `go build -o <имя> main.go`
 Для Windows: `GOOS=windows GOARCH=386 go build -o <имя.exe> main.go`
 Для macOS:   `GOOS=darwin GOARCH=amd64 go build -o <имя> main.go`
+
+### Примечание.
+
+- Для Windows.
+Удаление данных в поле ввода, выполнять через `Delete`. Перемещение позиции через клавиши `<-` и `->`.

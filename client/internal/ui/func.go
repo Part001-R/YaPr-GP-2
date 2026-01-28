@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -1906,7 +1907,7 @@ func bufferProcessPopContainer(nameFile string, c *handlerUI, rxChProcess <-chan
 	var outFile *os.File
 	var err error
 	fileExists := false
-	fullNameFile := c.typed.dataPathTrg + nameFile
+	fullNameFile := path.Join(c.typed.dataPathTrg, nameFile)
 
 	defer func(fileName, fullNameFile string, file *os.File, fileExist bool) {
 		c.conf.LgrFile.Write(fmt.Sprintf("Info: Завершён процесс извлечения из контейнера файла:<%s>", fileName))

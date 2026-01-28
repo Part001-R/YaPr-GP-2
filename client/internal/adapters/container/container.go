@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 )
 
 var (
@@ -26,7 +27,7 @@ type Container struct {
 
 // Интерфейс.
 type Actions interface {
-	AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chOk chan<- struct{})
+	AddFileToContainer(fileName string, key [32]byte, chProcess chan<- float64, chError chan<- error, chDone chan<- struct{})
 	GetFileFromContainer(fileName string, key [32]byte, txChPercent chan<- float64, txChErr chan<- error, txChDone chan<- struct{}, txChData chan<- []byte, rxChBreak <-chan struct{})
 	ListFilesInContainer(key [32]byte) (files []string, err error)
 	RemoveFileFromContainer(fileName string, key [32]byte) error
@@ -115,8 +116,8 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 		return
 	}
 
-	// Выделение имени файла и его тип из полного пути.
-	fileN := getFileNameAndExtension(fileName)
+	// Выделение имени файла из полного пути.
+	fileN := path.Base(fileName)
 
 	// Проверка наличия такого имени файла в контейнере.
 	for _, file := range container.Files {
