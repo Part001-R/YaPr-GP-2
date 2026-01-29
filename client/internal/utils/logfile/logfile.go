@@ -11,8 +11,10 @@ import (
 
 // Файл логов.
 type LogFile struct {
-	PtrLogFile *os.File   // Указатель на файл.
-	mu         sync.Mutex // Мьютекс доступа.
+	PtrLogFile  *os.File   // Указатель на файл.
+	appName     string     // Имя приложения.
+	projectName string     // Имя проекта.
+	mu          sync.Mutex // Мьютекс доступа.
 }
 
 // Экземпляр.
@@ -39,8 +41,14 @@ func New(nameLogFile string) (*LogFile, error) {
 		return nil, fmt.Errorf("Функция OpenFile, вернула ошибку:<%w>", err)
 
 	}
+
+	name := getAppName()
+
 	inst = &LogFile{
-		PtrLogFile: logFile,
+		PtrLogFile:  logFile,
+		appName:     name,
+		projectName: "YaPr-GP-2",
+		mu:          sync.Mutex{},
 	}
 
 	return inst, nil
@@ -72,8 +80,14 @@ func (f *LogFile) Write(msg string) error {
 		line = 0
 	}
 
+	// Модификация данных в пути к файлу.
+	editPath, err := editDataPath(f.appName, f.projectName, file)
+	if err != nil {
+		return fmt.Errorf("ошибка обработки пути к файлу: <%w>", err)
+	}
+
 	// Подготовка сообщения для записи в файл.
-	logMessage := fmt.Sprintf("%s [%s:%d] %s\n", time.Now().Format("2006-01-02 15:04:05.000"), file, line, msg)
+	logMessage := fmt.Sprintf("%s [%s:%d] %s\n", time.Now().Format("2006-01-02 15:04:05.000"), editPath, line, msg)
 
 	// Запись.
 	_, err = f.PtrLogFile.WriteString(logMessage)

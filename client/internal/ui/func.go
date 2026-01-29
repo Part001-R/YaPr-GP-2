@@ -2112,7 +2112,7 @@ func doStoreViewBinaryData(c *handlerUI) error {
 			c.txrx.totalSizeKB, err = totalFileSize(files)
 			if err != nil {
 				c.conf.LgrFile.Write(fmt.Sprintf("Error: Функция totalFileSize, вернула ошибку: <%v>", err))
-				c.updateStatusBackUp(stageFault)
+				c.updateStatusPushContainer(stageFault)
 				return nil
 			}
 

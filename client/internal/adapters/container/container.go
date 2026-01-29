@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 var (
@@ -117,7 +117,7 @@ func (c *Container) AddFileToContainer(fileName string, key [32]byte, chProcess 
 	}
 
 	// Выделение имени файла из полного пути.
-	fileN := path.Base(fileName)
+	fileN := filepath.Base(fileName)
 
 	// Проверка наличия такого имени файла в контейнере.
 	for _, file := range container.Files {

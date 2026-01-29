@@ -4,6 +4,8 @@ package logfile
 import (
 	"fmt"
 	"os"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -39,4 +41,34 @@ func checkFile(file *os.File) (*os.File, error) {
 
 	// Размер в норме. Возврат исходного указателя.
 	return file, nil
+}
+
+// Получение имени приложения. Возвращается имя приложения.
+func getAppName() string {
+
+	appNameWithPath := os.Args[0]
+
+	return path.Base(appNameWithPath)
+}
+
+// Модификация пути к файлу. Возвращается модифицированный путь к файлу и ошибка.
+//
+// Параметры:
+//
+//	appName - имя приложения.
+//	projectName - имя проекта.
+//	fullPath - полный путь к файлу.
+func editDataPath(appName, projectName, fullPath string) (string, error) {
+
+	data := strings.Split(fullPath, projectName)
+
+	if len(data) != 2 {
+		return "", ErrVolume
+	}
+	if data[1] == "" {
+		return "", ErrEmpty
+	}
+
+	data[1] = strings.TrimPrefix(data[1], "/client")
+	return appName + data[1], nil
 }
