@@ -60,15 +60,33 @@ func getAppName() string {
 //	fullPath - полный путь к файлу.
 func editDataPath(appName, projectName, fullPath string) (string, error) {
 
+	// Проверка аргументов.
+	if appName == "" {
+		return "", EmptyDataArgumentAppName
+	}
+	if projectName == "" {
+		return "", EmptyDataArgumentProjectName
+	}
+	if fullPath == "" {
+		return "", EmptyDataArgumentFullPath
+	}
+
+	// Логика.
 	data := strings.Split(fullPath, projectName)
 
-	if len(data) != 2 {
-		return "", ErrVolume
+	if len(data) < 2 {
+		return "", fmt.Errorf("Ошибка:<%w>. Путь к файлу:<%s>", ErrVolume, fullPath)
 	}
 	if data[1] == "" {
-		return "", ErrEmpty
+		return "", fmt.Errorf("Ошибка:<%w>. Путь к файлу:<%s>", ErrEmpty, fullPath)
 	}
 
-	data[1] = strings.TrimPrefix(data[1], "/client")
-	return appName + data[1], nil
+	if len(data) == 2 {
+		data[1] = strings.TrimPrefix(data[1], "/client")
+		return appName + data[1], nil
+	}
+
+	data[2] = strings.TrimPrefix(data[2], "/client")
+	return appName + data[2], nil
+
 }

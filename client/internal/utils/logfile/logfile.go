@@ -83,7 +83,7 @@ func (f *LogFile) Write(msg string) error {
 	// Модификация данных в пути к файлу.
 	editPath, err := editDataPath(f.appName, f.projectName, file)
 	if err != nil {
-		return fmt.Errorf("ошибка обработки пути к файлу: <%w>", err)
+		return fmt.Errorf("ошибка обработки пути к файлу:<%w>", err)
 	}
 
 	// Подготовка сообщения для записи в файл.
