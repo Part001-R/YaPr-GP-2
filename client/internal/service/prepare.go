@@ -44,7 +44,11 @@ func prepare() (*udt.Configuration, error) {
 		return nil, fmt.Errorf("функция service.New, вернула ошибку: <%w>", err)
 	}
 
+	// Формирование данных по приложению.
+
 	// Завершение.
 	lgrFile.Write(fmt.Sprintf("Debug: Этап подготовки пройден. Режим работы клиента: <%s>", flg.Mode))
+	lgrFile.Write(fmt.Sprintf("Debug: Версия сборки: <%s>", conf.BuildInfo.BuildVersion))
+	lgrFile.Write(fmt.Sprintf("Debug: Дата сборки: <%s>", conf.BuildInfo.BuildDate))
 	return conf, nil
 }

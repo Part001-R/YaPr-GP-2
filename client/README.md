@@ -12,9 +12,9 @@
  
 ### Как собрать приложение.
 
-Для Linux:   `go build -o <имя> main.go`
-Для Windows: `GOOS=windows GOARCH=386 go build -o <имя.exe> main.go`
-Для macOS:   `GOOS=darwin GOARCH=amd64 go build -o <имя> main.go`
+Для Linux:   `go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=$(date +%Y-%m-%d)" -o <имя>`
+Для Windows: `GOOS=windows GOARCH=386 go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=$(date +%Y-%m-%d)" -o <имя>.exe`
+Для macOS:   `GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=$(date +%Y-%m-%d)" -o <имя>`
 
 ### Примечание.
 

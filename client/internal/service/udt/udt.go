@@ -12,6 +12,17 @@ import (
 	"github.com/Part001-R/YaPr-GP-2/client/internal/utils/logfile"
 )
 
+var (
+	buildVersion string // Версия.
+	buildDate    string // Дата.
+)
+
+// Информация приложения.
+type BuildInfo struct {
+	BuildVersion string // Версия.
+	BuildDate    string // Дата создания.
+}
+
 // Обеспечение единоразового выполняения инициализации конструктора.
 var onceConf sync.Once
 
@@ -23,6 +34,7 @@ type Configuration struct {
 	Flag      *flags.Config     // Флаги.
 	dataBase  *sql.DB           // Указатель на БД.
 	Server    server.ServerI    // Интерфейс сервера.
+	BuildInfo BuildInfo         // Данные сборки.
 }
 
 // Указатель на конфигурацию сервиса.
@@ -51,6 +63,10 @@ func New(l *logfile.LogFile, a domain.Actions, f *flags.Config) (*Configuration,
 			LgrFile:   l,
 			ActionsDB: a,
 			Flag:      f,
+			BuildInfo: BuildInfo{
+				BuildVersion: buildVersion,
+				BuildDate:    buildDate,
+			},
 		}
 	})
 	return inst, nil
@@ -73,4 +89,23 @@ func (c Configuration) CheckConf() error {
 	}
 
 	return nil
+}
+
+// Обновление информации по сборке. Если нет значения - возвращается N/A.
+//
+// Параметры:
+//
+//	version - версия сборки.
+//	data - дата сборки.
+func UpdateBuildInfo(version, date string) {
+
+	buildVersion = "N/A"
+	if version != "" {
+		buildVersion = version
+	}
+
+	buildDate = "N/A"
+	if date != "" {
+		buildDate = date
+	}
 }

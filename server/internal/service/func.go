@@ -128,3 +128,17 @@ func isBusyServer(params *udt.Configuration) bool {
 
 	return false
 }
+
+// Получение значения. Если нет значения - возвращается N/A.
+//
+// Параметры:
+//
+//	in - входные данные.
+func GetValueOrDefault(in string) string {
+
+	if in == "" {
+		return "N/A"
+	}
+
+	return in
+}

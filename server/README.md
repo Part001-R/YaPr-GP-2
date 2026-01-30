@@ -9,3 +9,9 @@
     Поддерживается только SQlite3.
 
  - `p`. Значение по умолчанию - `50100`. Переменная окружение - `SERVER_PORT`. 
+
+ ### Как собрать приложение.
+
+Для Linux:   `go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=$(date +%Y-%m-%d)" -o <имя>`
+Для Windows: `GOOS=windows GOARCH=386 go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=$(date +%Y-%m-%d)" -o <имя>.exe`
+Для macOS:   `GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=$(date +%Y-%m-%d)" -o <имя>`
