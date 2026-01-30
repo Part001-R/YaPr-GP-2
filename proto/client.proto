@@ -1,0 +1,193 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package manager;
+
+option go_package = "github.com/Part001-R/YaPr-GP-2/proto";
+
+service PasswordManager {
+    rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+    rpc LocalBackupFile(stream LocalBackupFileRequest) returns (LocalBackupFileResponse);
+    rpc LocalRestoreFile(LocalRestoreFileRequest) returns (stream LocalRestoreFileResponse);
+    rpc LocalFilesInfo(google.protobuf.Empty) returns (LocalFilesInfoResponse);
+
+    rpc Registration(RegistrationRequest) returns (google.protobuf.Empty);
+    rpc Authentication(AuthenticationRequest) returns (AuthenticationResponse);
+    rpc SendLoginPassword(SendLoginPasswordRequest) returns (google.protobuf.Empty);
+    rpc SendText(SendTextRequest) returns (google.protobuf.Empty);
+    rpc SendBankCard(SendBankCardRequest) returns (google.protobuf.Empty);
+    rpc SendFile(stream SendFileRequest) returns (SendFileResponse);
+    rpc RequestLoginPasswordName(google.protobuf.Empty) returns (RequestLoginPasswordNameResponse);
+    rpc RequestLoginPasswordByName(RequestLoginPasswordByNameRequest) returns (RequestLoginPasswordByNameResponse);
+    rpc RequestTextName(google.protobuf.Empty) returns (RequestTextNameResponse);
+    rpc RequestTextByName(RequestTextByNameRequest) returns (RequestTextByNameResponse);
+    rpc RequestBankCardName(google.protobuf.Empty) returns (RequestBankCardNameResponse);
+    rpc RequestBankCardByName(RequestBankCardByNameRequest) returns (RequestBankCardByNameResponse);
+    rpc RequestFileInfo(RequestFileInfoRequest) returns (RequestFileInfoResponse);
+    rpc RequestFileName(google.protobuf.Empty) returns (RequestFileNameResponse);
+    rpc RequestFileByName(RequestFileByNameRequest) returns (stream RequestFileByNameResponse);
+
+    rpc DeleteLoginPassword(RequestDeleteName) returns (google.protobuf.Empty);
+    rpc DeleteText(RequestDeleteName) returns (google.protobuf.Empty);
+    rpc DeleteBankCard(RequestDeleteName) returns (google.protobuf.Empty);
+    rpc DeleteFile(RequestDeleteName) returns (google.protobuf.Empty);
+}
+
+message LocalBackupFileRequest {
+    string fileName = 1;
+    bytes content = 2;
+}
+
+message LocalBackupFileResponse {
+    string fileName = 1;
+}
+
+message LocalRestoreFileRequest {
+    string fileName = 1;
+}
+
+message LocalRestoreFileResponse {
+    string fileName = 1;
+    bytes content = 2;
+}
+
+message FileInfo {
+    string fileName = 1;
+    int64 size = 2;
+}
+
+message LocalFilesInfoResponse {
+    repeated FileInfo fileInfo = 1;
+}
+
+message RegistrationRequest {
+    string userName = 1;
+    string userPwd = 2;
+    string userPwdRepeat = 3;
+}
+
+message AuthenticationRequest {
+    string userName = 1;
+    string userPwd = 2;
+}
+
+message AuthenticationResponse {
+    string token = 1;
+}
+
+message SendLoginPasswordRequest {
+    string idClient = 1;
+    string for = 2;
+    string login = 3;
+    string password = 4;
+    string createdAt = 5;
+}
+
+message SendTextRequest {
+    string idClient = 1;
+    string for = 2;
+    string text = 3;
+    string createdAt = 4;
+}
+
+message SendBankCardRequest {
+    string idClient = 1;
+    string for = 2;
+    string owner = 3;
+    string numb = 4;
+    string validData = 5;
+    string code = 6;
+    string createdAt = 7;
+}
+
+message SendFileRequest {
+    string idClient = 1;
+    string fileName = 2;
+    bytes content = 3;
+}
+
+message SendFileResponse {
+    string fileName = 1;
+}
+
+message RequestLoginPasswordNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestLoginPasswordByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestLoginPasswordByNameResponse {
+    string name = 1;
+    string login = 2;
+    string password = 3;
+    string createdAt = 4;
+}
+
+message RequestTextNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestTextByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestTextByNameResponse {
+    string name = 1;
+    string text = 2;
+    string createdAt = 3;
+}
+
+message RequestBankCardNameResponse {
+    repeated string EntriesName = 1;
+}
+
+message RequestBankCardByNameRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestBankCardByNameResponse {
+    string name = 1;
+    string owner = 2;
+    string numb = 3;
+    string valid = 4;
+    string code = 5;
+    string createdAt = 6;
+}
+
+message RequestFileInfoRequest {
+    string idClient = 1;
+    string name = 2;
+}
+
+message RequestFileInfoResponse {
+    string name = 1;
+    string hash = 2;
+    int64 size = 3;
+}
+
+message RequestFileNameResponse {
+    repeated string EntriesName = 1;
+    bool isBusy = 2;
+}
+
+message RequestFileByNameRequest {
+    string idClient = 1;
+    string fileName = 2;
+}
+
+message RequestFileByNameResponse {
+    string fileName = 1;
+    bytes content = 2;
+}
+
+message RequestDeleteName {
+    string idClient = 1;
+    string name = 2;
+}
